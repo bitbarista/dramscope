@@ -1885,6 +1885,20 @@ dg_next:
         ; most when the tool is telling someone which part to replace.
         lda w_chipok
         beq dg_end
+        ; ⚠ BLANK THE ROW FIRST. This caveat replaces the legend, which is
+        ; longer -- so writing straight over it left the legend's tail showing
+        ; and the screen read "...NAMES DIFFER.RAM". Padding the string would
+        ; fix it until the next time either line changed length; clearing the
+        ; row fixes it for good.
+        lda #V_ROW+3
+        ldx #1
+        jsr setpos
+        ldy #37
+        lda #CH_SPACE
+dg_clr: sta (sptr),y
+        dey
+        bpl dg_clr
+
         lda #C_ORANGE
         sta w_col2
         lda #V_ROW+3
@@ -2596,6 +2610,13 @@ mp_end: rts
 ; but not 17n March B. Painting them the same solid green as a marched page
 ; would tell the reader those bytes got the full algorithm when they did not.
 ; '+' means probed; a solid cell means marched.
+; ⚠ "45/byte" and "9/byte" are OPERATIONS PER BYTE, and they are on screen in
+; those words because the legend used to say "9n" -- march-test notation that
+; means nothing to anyone who has not read the literature. A solid cell got
+; March B's 17 plus March LR's 14 plus twelve topographical plus two for the
+; dwell = 45 reads and writes of every byte. A '*' cell got the 9n march and
+; nothing else. Jargon on a diagnostic screen is a defect.
+;
 ; ⚠ STATE 5 IS THE SAME KIND OF HONESTY AS STATE 4. Zero page and the stack
 ; get P6's 9n march, not P3+P4+P5's 31n plus six topographical passes -- there
 ; is no pointer to walk them with and no room to write the long version out
@@ -2694,14 +2715,14 @@ s_errors:   !scr "bad", 0
 s_passes:   !scr "pass", 0
 s_p9:       !scr "p9 col ram", 0
 s_colbad:   !scr "colour ram fault - a separate chip.", 0
-s_legend:   !scr "#=full *=9n +=probed .=none", 0
+s_legend:   !scr "#=45/byte *=9/byte +=probed .=not ram", 0
 
 ; ⚠ Four bytes per entry, space padded, indexed by bit*4. The designators are
 ; Assy 250407 ONLY -- schematic 251138, via c64-ice40-ram README §2.2.
 ; The matching bit labels are generated in draw_diag, not stored.
 chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
 s_ok:       !scr "bus ok, all 16 lines.", 0
-s_ok2:      !scr "59,648 full + 5,886 at 9n = 65,534.", 0
+s_ok2:      !scr "59,648 full + 5,886 lighter = 65,534.", 0
 s_databad:  !scr "data bus fault - see the d lane.", 0
 s_addrbad:  !scr "address line fault - see the a lanes.", 0
 s_addrbad2: !scr "both of a pair = mux u13/u25 or rp.", 0

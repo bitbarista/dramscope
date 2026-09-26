@@ -15,4 +15,6 @@ set -e
 cd "$(dirname "$0")/.."
 echo "  rebuilding first (a stale binary would give a false PASS)"
 bash build.sh >/dev/null
-exec python3 test/check.py
+# ⚠ "$@" so `bash test/run.sh --bless` reaches the checker. Without it the
+# flag was silently dropped and the goldens never regenerated.
+exec python3 test/check.py "$@"

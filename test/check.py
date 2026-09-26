@@ -182,7 +182,7 @@ CASES = [
       "errcount": 0,
       "row0": "**#*****########", "rowC": "****************",
       "page40": "#", "errors": " 0000",
-      "bits": " 59,648 FULL + 5,886 AT 9N = 65,534.", "chips": "",
+      "bits": " 59,648 FULL + 5,886 LIGHTER = 65,534.", "chips": "",
       "colram": "OK"}),
     # ⚠ The classifier makes a claim about someone else's hardware. D3 is U10
     # on a 250407 -- schematic 251138 via c64-ice40-ram README §2.2.
@@ -282,7 +282,7 @@ CASES = [
       "checklist": cl(2),
       "bits":  " BITS   D7  D6  D5  D4  D3  D2  D1  D0",
       "chips": " ALL 8 BITS - NOT ONE CHIP. SEE PLA.",
-      "caveat": " #=FULL *=9N +=PROBED .=NONE"}),
+      "caveat": " #=45/BYTE *=9/BYTE +=PROBED .=NOT RAM"}),
     ("device ignores $DE02 -- must report ORANGE, not hang",
      "dramscope_fef.crt",  "rom_halt", "ORANGE", None, None, None, None),
 ]

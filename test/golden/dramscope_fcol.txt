@@ -22,4 +22,4 @@ F ################
  COLOUR RAM FAULT - A SEPARATE CHIP.
 
 
- #=FULL *=9N +=PROBED .=NONE
+ #=45/BYTE *=9/BYTE +=PROBED .=NOT RAM

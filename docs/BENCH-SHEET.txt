@@ -110,11 +110,14 @@ passes. Both are cumulative for the whole run.
 blamed on the VIC. It is never counted against the DRAMs and never names
 a 4164.
 
-  solid   fully tested: March B 17n, March LR 14n, six topographical
-          passes, and the retention dwell
-  *       tested with a shorter 9n march. These are the regions the test
-          itself has to stand on -- zero page, the stack, its workspace,
-          the screen, and its own 4 KB
+The marks say how HARD each region was tested, in reads and writes per
+byte -- not whether it was reached. Everything except two bytes is reached.
+
+  #       45 reads and writes of every byte: March B, March LR, six
+          topographical patterns and the retention dwell
+  *       9 per byte -- a shorter march. These are the regions the test
+          itself has to stand on: zero page, the stack, its workspace,
+          the screen, and its own 4 KB. Fully covered, less hammered
   +       probed only. Seen WHILE running, before the handover upgrades it
   X       FAILED
   .       not tested. Only $0000 and $0001, which are not RAM -- they are
@@ -123,7 +126,7 @@ a 4164.
 Everything else is covered, and the verdict line says so in numbers
 rather than in words:
 
-  59,648 FULL + 5,886 AT 9N = 65,534.
+  59,648 FULL + 5,886 LIGHTER = 65,534.
 
 65,534 of 65,536 bytes. The other two are $0000 and $0001, which are not
 RAM -- they are the CPU's data-direction register and banking latch.

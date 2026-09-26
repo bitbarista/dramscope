@@ -20,6 +20,6 @@ F ################
 
 ----------------------------------------
  BUS OK, ALL 16 LINES.
- 59,648 FULL + 5,886 AT 9N = 65,534.
+ 59,648 FULL + 5,886 LIGHTER = 65,534.
 
- #=FULL *=9N +=PROBED .=NONE
+ #=45/BYTE *=9/BYTE +=PROBED .=NOT RAM

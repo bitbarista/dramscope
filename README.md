@@ -196,13 +196,13 @@ one is traced in [`PROVENANCE.md`](PROVENANCE.md).
 **60,414 of 65,536 bytes.** The map distinguishes the depths rather than averaging them:
 
 **65,534 of 65,536 — every byte of RAM there is**, and the verdict line prints the split
-rather than rounding it to a claim: `59,648 FULL + 5,886 AT 9N = 65,534.` The map
+rather than rounding it to a claim: `59,648 FULL + 5,886 LIGHTER = 65,534.` The map
 distinguishes depth rather than averaging it:
 
 | Mark | Meaning | Where |
 |---|---|---|
-| solid | March B 17n + March LR 14n + six topographical passes | 59,904 bytes |
-| `*` | 9n march | zero page, stack, screen matrix, the engine's own 4 KB — 5,630 bytes |
+| solid | **45** operations per byte — March B 17n, March LR 14n, topographical 12n, dwell 2n | 59,648 bytes |
+| `*` | **9** operations per byte | zero page, stack, screen matrix, the engine's own 4 KB — 5,630 bytes |
 | `+` | probed but not yet marched | shown only *during* a run, before the handover |
 | `.` | nothing | `$0000`/`$0001` — ⚠ **not RAM**, they are the CPU's DDR and banking latch |
 
