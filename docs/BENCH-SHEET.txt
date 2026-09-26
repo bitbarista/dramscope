@@ -1,4 +1,4 @@
-DRAMSCOPE 1.0  --  C64 memory diagnostic          updated 2026-09-26
+DRAMSCOPE 1.1  --  C64 memory diagnostic          updated 2026-09-26
 ====================================================================
 
 DRAMSCOPE.CRT is the test. G1PROBE.CRT is a one-question hardware probe
@@ -75,6 +75,11 @@ The 16x16 grid IS the address space. Row is the high nibble of the page,
 column the low nibble -- so top left is $0000 and bottom right is $FF00.
 The SHAPE of a fault usually says more than its address: a stripe, a
 quadrant, a scatter each mean something different.
+
+COL RAM on the right panel is the colour RAM -- a SEPARATE 1K x 4 chip,
+not part of the 64 KB. Green means good, red means bad. When it fails you
+get wrong colours rather than a crash, so it gets blamed on the VIC. It is
+never counted against the DRAMs and never names a 4164.
 
   solid   fully tested: March B 17n, March LR 14n, six topographical
           passes, and the retention dwell

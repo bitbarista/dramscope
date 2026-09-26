@@ -57,6 +57,13 @@ already caught a real defect in the sibling project.
 **P2. Every gate must be able to fail.** No phase ships without a fault-injection build that
 proves it reports the fault it claims to catch. A test that cannot fail is decoration.
 
+⚠⚠ **AND EVERY ASSERTION MUST BE READ.** `test/check.py` once populated its observed values
+inside a conditional and then compared by iterating the **observed** dictionary — so a case
+that asserted a key the reader never filled had that assertion silently dropped. Five cases
+were affected and one of them was hiding a genuinely broken mutation for four commits. The
+comparison now iterates the **expected** dictionary, and every key has a reader, so an
+assertion that is not read is a `KeyError` rather than a pass.
+
 **P3. No verdict without evidence.** The classifier may only state conclusions derivable
 from measurements the run actually made. See `PROVENANCE.md`, closing section.
 

@@ -59,7 +59,7 @@
 !ifndef INJECT_DB { !ifndef INJECT_AB { !ifndef INJECT_NOEF { !ifndef INJECT_MEM {
         !ifndef INJECT_ALL { !ifndef INJECT_LR { !ifndef INJECT_TOPO {
         !ifndef INJECT_ZP { !ifndef INJECT_HV { !ifndef INJECT_RET {
-        !to "build/dramscope_roml.bin", plain } } } } } } } } } }
+        !ifndef INJECT_COL { !to "build/dramscope_roml.bin", plain } } } } } } } } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -191,6 +191,7 @@ w_dwell  = WORK+34              ; P7 countdown, in units
 w_frames = WORK+35
 w_passlo = WORK+36              ; completed passes, for the burn-in
 w_passhi = WORK+37
+w_colbad = WORK+38              ; colour RAM failed -- a SEPARATE chip
 
 ; P2's base. ⚠ Every base+2^n must be RAM under BANK_RAM, including
 ; base+$8000 = $8800, which is why the engine had to leave the cartridge.
@@ -203,7 +204,7 @@ HV_SCR   = $2000                ; 1024 bytes, the screen matrix stashed
 HV_COL   = $2400                ; 1024 bytes, its colour
 HV_WRK   = $2800                ; 64 bytes, the workspace stashed
 HV_CODE  = $3000                ; the handover module itself
-HV_PAGES = 3
+HV_PAGES = 4
 
 ; ===========================================================================
 ; ROML -- mapped at $8000 in BOTH Ultimax and 8K mode, which is what makes it
@@ -1065,6 +1066,13 @@ lr5_c:  lda (mptr),y
 inj_l_pop:
         pla
 inj_l_out:
+        ; ⚠⚠ RESTORE THE FLAGS. M5 is a bare `r 0` -- it branches on the Z the
+        ; `lda` left, with no `cmp` of its own -- and `cpy #$12` above clobbers
+        ; exactly that. Without this the mutation reported a fault on EVERY
+        ; cell whose index was not $12: 59,416 instead of 1. Every other
+        ; injection happens to be followed by an explicit compare, which is
+        ; why this is the only one that had the problem.
+        cmp #$00
 }
         bne lr5_e1
 lr5_k1: iny
@@ -1359,14 +1367,28 @@ phv:
         sta w_hvscr
         sta w_hveng
 
-        ldx #0                          ; copy the module to already-good RAM
-phv_cp: lda hv_src,x
-        sta HV_CODE,x
-        lda hv_src+$100,x
-        sta HV_CODE+$100,x
-        lda hv_src+$200,x
-        sta HV_CODE+$200,x
-        inx
+        ; ⚠ COPIES HV_PAGES PAGES, not a hardcoded three. The unrolled version
+        ; moved exactly three while HV_PAGES said four, so the colour-RAM phase
+        ; landed 64 bytes short and jumping into it hung the machine. The
+        ; !error below checks the module fits; it could not check that the
+        ; copy loop agreed with it. Now they cannot disagree.
+        lda #<hv_src
+        sta sptr
+        lda #>hv_src
+        sta sptr+1
+        lda #0
+        sta cptr
+        lda #>HV_CODE
+        sta cptr+1
+        ldx #HV_PAGES
+phv_cp: ldy #0
+phv_cb: lda (sptr),y
+        sta (cptr),y
+        iny
+        bne phv_cb
+        inc sptr+1
+        inc cptr+1
+        dex
         bne phv_cp
         jmp HV_CODE
 
@@ -1413,6 +1435,21 @@ phv_el: txa
         inx
         cpx #$d0
         bne phv_el
+
+        lda w_colbad                    ; ⚠ a DIFFERENT chip from the DRAMs,
+        beq cr_ok                       ; so it gets its own indicator and
+        lda #C_LTRED                    ; never feeds the bit-to-chip table
+        bne cr_set
+cr_ok:  lda #C_GREEN
+cr_set: pha
+        lda #PH_ROW-2
+        ldx #PAN_COL
+        jsr setpos
+        pla
+        ldy #6
+cr_l:   sta (cptr),y
+        dey
+        bpl cr_l
 
         jsr draw_errors
         jmp p7
@@ -2009,19 +2046,26 @@ dg_slot:
         adc #8
         sta w_col
 
+        ; ⚠ "dN" is generated rather than read from a 32-byte table. The
+        ; engine is capped at 4 KB by the I/O page and the table was worth
+        ; twenty-two bytes that the colour-RAM phase needed more.
         lda #V_ROW+1
         ldx w_col
         jsr setpos
-        ldx w_tidx
         ldy #0
-dg_c1:  lda bitlbl,x
+        lda #$04                        ; screen code for 'd'
         sta (sptr),y
         lda #C_LTRED
         sta (cptr),y
-        inx
         iny
-        cpy #4
-        bne dg_c1
+        lda w_tidx
+        lsr
+        lsr                             ; table offset back to a bit number
+        tax
+        lda s_hex,x
+        sta (sptr),y
+        lda #C_LTRED
+        sta (cptr),y
 
         lda w_chipok
         beq dg_next
@@ -2139,6 +2183,12 @@ verdict:
         lda w_errlo
         ora w_errhi
         bne v_mem
+        ; ⚠ A colour-RAM fault must not be reported as "BUS INTEGRITY OK".
+        ; The DRAMs genuinely are fine, and the red COL RAM label says so --
+        ; but a reader who glances at the verdict line and walks away has been
+        ; told the machine is healthy when it is not.
+        lda w_colbad
+        bne v_col
         lda #C_GREEN
         sta BORDER
         lda #C_GREEN
@@ -2149,6 +2199,15 @@ verdict:
         lda #<s_ok2
         ldy #>s_ok2
         jmp verdict_line2
+
+v_col:
+        lda #C_LTRED
+        sta BORDER
+        sta w_col2
+        lda #<s_colbad
+        ldy #>s_colbad
+        jsr verdict_line
+        jmp pass_end
 
 v_mem:
         lda #C_LTRED
@@ -2528,6 +2587,14 @@ dc_rows:
         ldy #>s_alno
         jsr prstr
 
+        lda #PH_ROW-2                   ; colour RAM status: a static label
+        sta w_row                       ; whose COLOUR carries the verdict,
+        lda #PAN_COL                    ; because the engine has 42 spare
+        sta w_col                       ; bytes and two strings would not fit
+        lda #<s_colram
+        ldy #>s_colram
+        jsr prstr
+
         lda #PH_ROW-1
         sta w_row
         lda #PAN_COL
@@ -2679,9 +2746,18 @@ addrhi:  !for i, 0, 15 { !byte >(ABASE + (1 << i)) }
 rowlo:   !for i, 0, 24 { !byte <(SCREEN + i*40) }
 rowhi:   !for i, 0, 24 { !byte >(SCREEN + i*40) }
 
+; ⚠⚠ THE ENGINE IS AT ITS CEILING. It must fit in $C000-$CFFF because $D000 is
+; I/O, and it is within a few dozen bytes of 4096 with every fault-injection
+; variant needing to fit too. Strings here have already been trimmed twice.
+; WHEN THE NEXT PHASE NEEDS ROOM, MOVE P6 INTO THE HANDOVER MODULE -- it is
+; ~350 bytes, it is self-contained, it already runs registers-only with
+; self-modifying code (which works in the module, since that is RAM too), and
+; it only needs phase/mark_page/draw_errors from the engine, all of which are
+; intact at the point it runs. Do not shave strings a third time.
+;
 ; ⚠ acme's !scr maps LOWERCASE source to uppercase screen codes, so every
 ; string here is written lower case on purpose.
-s_title:    !scr "dramscope 1.0", 0
+s_title:    !scr "dramscope 1.1", 0
 s_hex:      !scr "0123456789abcdef", 0
 s_data:     !scr "data bus", 0
 s_bitno:    !scr "76543210", 0
@@ -2699,25 +2775,29 @@ s_phv:      !scr "p6b handover", 0
 s_p7:       !scr "p7 dwell", 0
 s_errors:   !scr "bad bytes", 0
 s_passes:   !scr "passes", 0
-s_legend:   !scr "solid=full *=9n +=probed .=none", 0
+s_colram:   !scr "col ram", 0
+s_colbad:   !scr "colour ram fault - a separate chip.", 0
+s_legend:   !scr "#=full *=9n +=probed .=none", 0
 
 ; ⚠ Four bytes per entry, space padded, indexed by bit*4. The designators are
 ; Assy 250407 ONLY -- schematic 251138, via c64-ice40-ram README §2.2.
-bitlbl:     !scr "d0  d1  d2  d3  d4  d5  d6  d7  "
+; The matching bit labels are generated in draw_diag, not stored.
 chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
 s_pdone:    !scr "done", 0
-s_ok:       !scr "bus integrity ok, all 16 lines.", 0
+s_ok:       !scr "bus ok, all 16 lines.", 0
 s_ok2:      !scr "all ram tested, 12s retention.", 0
 s_databad:  !scr "data bus fault - see the d lane.", 0
-s_databad2: !scr "a marked bit is stuck, shorted or open.", 0
 s_addrbad:  !scr "address line fault - see the a lanes.", 0
 s_addrbad2: !scr "both of a pair = mux u13/u25 or rp.", 0
+; ⚠ No second line for the memory or data-bus verdicts: draw_diag owns rows
+; 22 and 23 and says more than a sentence would. The strings that used to
+; live there were dead for several commits, still costing 63 bytes of an
+; engine capped at 4 KB.
 s_membad:   !scr "memory fault - see the red cells.", 0
-s_membad2:  !scr "march b + march lr, 31n.", 0
 s_bits:     !scr "bits", 0
 s_assy:     !scr "250407", 0
-s_allbits:  !scr "all 8 bits - not one chip. check pla.", 0
-s_shortbd:  !scr "short board? 2x41464 - names differ.", 0
+s_allbits:  !scr "all 8 bits - not one chip. see pla.", 0
+s_shortbd:  !scr "short board? 2x41464 names differ.", 0
 
 eng_end:
 }
@@ -2871,6 +2951,69 @@ hv_wrs: lda HV_WRK,x
         cpx #64
         bne hv_wrs
 
+; ---- C: COLOUR RAM ---------------------------------------------------------
+; ⚠ A SEPARATE 1K x 4 STATIC CHIP. It is not part of the 64 KB, no march above
+; has ever touched it, and this board does not replace it. When it fails you
+; get wrong colours rather than a crash, so it is routinely misdiagnosed as a
+; VIC fault -- which is the whole reason to test it.
+;
+; ⚠ Four bits wide. The upper nibble reads back as open bus, so every compare
+; masks to $0F or it would fail on healthy hardware.
+;
+; ⚠ Needs I/O banked in, which it is throughout this module, and the VIC is
+; reading it continuously for the display -- so it is stashed and restored
+; like the screen matrix was.
+        ldx #0
+hv_cst: lda COLRAM,x
+        sta HV_COL,x
+        lda COLRAM+$100,x
+        sta HV_COL+$100,x
+        lda COLRAM+$200,x
+        sta HV_COL+$200,x
+        lda COLRAM+$300,x
+        sta HV_COL+$300,x
+        inx
+        bne hv_cst
+
+        ; ⚠ COLOUR RAM IS A DIFFERENT CHIP. Its failures must not reach the
+        ; DRAM failing-bit mask or the bad-byte count, or the classifier would
+        ; name a 4164 for a fault in the 2114.
+        lda hv_bit
+        sta hv_savbit
+        lda hv_elo
+        sta hv_savlo
+        lda hv_ehi
+        sta hv_savhi
+        lda #0
+        sta hv_bad
+        lda #$d8
+        sta hv_first
+        lda #$db
+        sta hv_last
+        jsr hv_cmarch
+        lda hv_bad
+        sta hv_colbad
+        lda hv_savbit                   ; DRAM's totals, untouched by the above
+        sta hv_bit
+        lda hv_savlo
+        sta hv_elo
+        lda hv_savhi
+        sta hv_ehi
+
+        ldx #0
+hv_crs: lda HV_COL,x
+        sta COLRAM,x
+        lda HV_COL+$100,x
+        sta COLRAM+$100,x
+        lda HV_COL+$200,x
+        sta COLRAM+$200,x
+        lda HV_COL+$300,x
+        sta COLRAM+$300,x
+        inx
+        bne hv_crs
+        lda hv_colbad
+        sta w_colbad
+
         ; merge what the handover found into the restored counters
         lda hv_bit
         ora w_bitmask
@@ -2888,6 +3031,101 @@ hv_wrs: lda HV_WRK,x
         ora hv_wrkbad
         sta w_hveng
         jmp eng_resume
+
+; ---------------------------------------------------------------------------
+; hv_cmarch -- the same 9n shape over COLOUR RAM, masked to four bits.
+; ⚠ Kept separate from hv_march rather than adding a mask flag to it: the mask
+; belongs in every compare and every write, and a phase that silently applied
+; it to DRAM would pass on a chip with a dead upper nibble.
+; ---------------------------------------------------------------------------
+hv_cmarch:
+        jsr hv_top                      ; M0  (w P)
+hc_0:   ldy #0
+hc_0c:  jsr hv_cpat
+        lda pval
+        sta (mptr),y
+        iny
+        bne hc_0c
+        jsr hv_nxt
+        bne hc_0
+
+        jsr hv_top                      ; M1 up (r P, w ~P)
+hc_1:   ldy #0
+hc_1c:  jsr hv_cpat
+        lda (mptr),y
+        and #$0f
+!ifdef INJECT_COL { cpy #$44 : bne + : eor #$02 : + }
+        cmp pval
+        beq hc_1k
+        ldx pval
+        jsr hv_fail
+hc_1k:  lda pinv
+        sta (mptr),y
+        iny
+        bne hc_1c
+        jsr hv_nxt
+        bne hc_1
+
+        jsr hv_top                      ; M2 up (r ~P, w P)
+hc_2:   ldy #0
+hc_2c:  jsr hv_cpat
+        lda (mptr),y
+        and #$0f
+        cmp pinv
+        beq hc_2k
+        ldx pinv
+        jsr hv_fail
+hc_2k:  lda pval
+        sta (mptr),y
+        iny
+        bne hc_2c
+        jsr hv_nxt
+        bne hc_2
+
+        jsr hv_bot                      ; M3 down (r P, w ~P)
+hc_3:   ldy #$ff
+hc_3c:  jsr hv_cpat
+        lda (mptr),y
+        and #$0f
+        cmp pval
+        beq hc_3k
+        ldx pval
+        jsr hv_fail
+hc_3k:  lda pinv
+        sta (mptr),y
+        dey
+        cpy #$ff
+        bne hc_3c
+        jsr hv_prv
+        bne hc_3
+
+        jsr hv_bot                      ; M4 down (r ~P, w P)
+hc_4:   ldy #$ff
+hc_4c:  jsr hv_cpat
+        lda (mptr),y
+        and #$0f
+        cmp pinv
+        beq hc_4k
+        ldx pinv
+        jsr hv_fail
+hc_4k:  lda pval
+        sta (mptr),y
+        dey
+        cpy #$ff
+        bne hc_4c
+        jsr hv_prv
+        bne hc_4
+        rts
+
+hv_cpat:
+        tya
+        eor mptr+1
+        eor #SEED
+        and #$0f                        ; ⚠ four bits, always
+        sta pval
+        eor #$0f
+        sta pinv
+        rts
 
 ; ---------------------------------------------------------------------------
 ; hv_march -- 9n over hv_first..hv_last, address-dependent pattern.
@@ -3037,6 +3275,10 @@ hv_bad:    !byte 0
 hv_scrbad: !byte 0
 hv_engbad: !byte 0
 hv_wrkbad: !byte 0
+hv_colbad: !byte 0
+hv_savbit: !byte 0
+hv_savlo:  !byte 0
+hv_savhi:  !byte 0
 hv_tmp:    !byte 0
 hv_end:
 }

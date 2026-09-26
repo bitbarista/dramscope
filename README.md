@@ -11,6 +11,11 @@ RAM replacement board.
 Most C64 memory tests answer *"is the RAM bad?"*. This one is aimed at the three questions
 that come next and are harder:
 
+- **Is it even the DRAM?** Colour RAM is a separate 1K × 4 static chip that this tool also
+  tests. When it fails you get wrong colours rather than a crash, so it is routinely
+  misdiagnosed as a VIC fault. It gets its own indicator and its own verdict, and ⚠ **never
+  contributes to the DRAM bit mask** — a fault there must not name a 4164.
+
 - **Which chip?** Each 4164 supplies one bit across the whole address space, so a failing bit
   is a named chip. The tool prints, under the bit number, the designator it maps to:
 
@@ -75,7 +80,7 @@ The two projects stay separate. This one has no dependency on that board and nev
 | **P1** data bus — walking ones/zeroes/rails | ✅ |
 | **P2** address bus — **all 16 lines, A0–A15** | ✅ |
 | Display — 256-page map, bus lanes, verdict | ✅ |
-| Fault injection + headless VICE harness | ✅ 11/11 |
+| Fault injection + headless VICE harness | ✅ 13/13 |
 | Gate G1 — EasyFlash mode switching | ✅ **closed** — Ultimate II+ *and* Kung Fu Flash, `$DE02 = $02` |
 | EasyFlash delivery — boots in Ultimax, **needs no working RAM to start** | ✅ |
 | Engine relocated to `$C000`, banks out with `$01 = $30` | ✅ |
@@ -85,7 +90,8 @@ The two projects stay separate. This one has no dependency on that board and nev
 | **P6** zero page and the stack — 9n, registers-only | ✅ |
 | **P7** retention — write, dwell 12 s, verify | ✅ |
 | **Burn-in** — cycles continuously, counts passes, accumulates faults | ✅ |
-| **P8–P9** disturb, colour RAM | ⬜ |
+| **P9** colour RAM — the separate 1K × 4 chip | ✅ |
+| ~~P8 disturb~~ | ⚠ **declined** — a 6502 reaches ~400 row activations per refresh interval against the 10⁴–10⁵ rowhammer needs. See `SPEC.md` |
 | **Chip naming** from the failing-bit mask, Assy 250407 | ✅ |
 | Classification rules beyond chip naming (stride, region, mux pairing) | ⬜ |
 | Board profiles for 250425 and the short boards | ⬜ |

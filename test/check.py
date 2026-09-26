@@ -19,7 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 BUILD = ROOT / "build"
 
 GLYPH = {0x20: " ", 0x2E: ".", 0x2D: "-", 0x2F: "/", 0x2C: ",", 0x3D: "=",
-         0x18: "X", 0xA0: "#", 0x2B: "+", 0x2A: "*"}
+         0x18: "X", 0xA0: "#", 0x2B: "+", 0x2A: "*", 0x23: "#"}
 
 
 def halt_address(stem: str, sym: str = "pass_obs") -> str:
@@ -46,7 +46,7 @@ def run(crt: pathlib.Path, halt: str) -> tuple[bytes, bytes, int]:
     (BUILD / "mon.txt").write_text(
         'bank ram\n'
         'save "build/screen.bin" 0 0400 07ff\n'
-        'save "build/work.bin" 0 ce00 ce20\n'
+        'save "build/work.bin" 0 0300 0330\n'
         'bank io\n'
         'save "build/colour.bin" 0 d800 dbff\n'
         'save "build/vic.bin" 0 d020 d02f\n'
@@ -106,7 +106,8 @@ CASES = [
      "dramscope.crt",      "pass_obs",     "GREEN", "########", "########", "########",
      {"row0": "**#*****########", "rowC": "****************",
       "page40": "#", "errors": " 0000",
-      "bits": " ALL RAM TESTED, 12S RETENTION.", "chips": ""}),
+      "bits": " ALL RAM TESTED, 12S RETENTION.", "chips": "",
+      "colram": [5]*7}),
     # ⚠ The classifier makes a claim about someone else's hardware. D3 is U10
     # on a 250407 -- schematic 251138 via c64-ice40-ram README §2.2.
     ("D3 stuck -- data lane X, and the chip named from the bit",
@@ -123,7 +124,7 @@ CASES = [
       "errors": " 0001",
       "bits":  " BITS                               D0",
       "chips": " 250407                             U21",
-      "caveat": " SHORT BOARD? 2X41464 - NAMES DIFFER."}),
+      "caveat": " SHORT BOARD? 2X41464 NAMES DIFFER."}),
     # ⚠ The one a real device might actually hit. A Kung Fu Flash that ignores
     # $DE02 must SAY SO, not hang in Ultimax pretending to test 64 KB.
     # ⚠ P4 is a SEPARATE engine with its own read paths, so it needs its own
@@ -161,12 +162,19 @@ CASES = [
      {"errors": " 0001",
       "bits":  " BITS           D5",
       "chips": " 250407         U11"}),
+    # ⚠ Colour RAM is a DIFFERENT CHIP. Its verdict is its own, its label goes
+    # red, and it must NOT appear in the DRAM bad-byte count or name a 4164.
+    ("colour ram fault -- own verdict, and no DRAM blamed",
+     "dramscope_fcol.crt", "pass_obs", "LTRED", "########", "########", "########",
+     {"errors": " 0000",
+      "colram": [10]*7,
+      "vline":  " COLOUR RAM FAULT - A SEPARATE CHIP."}),
     # ⚠ THE SAFETY RULE. All eight bits wrong must name NO chip at all.
     ("all 8 bits wrong -- must REFUSE to name a chip",
      "dramscope_fall.crt", "pass_obs",     "LTRED", "########", "########", "########",
      {"bits":  " BITS   D7  D6  D5  D4  D3  D2  D1  D0",
-      "chips": " ALL 8 BITS - NOT ONE CHIP. CHECK PLA.",
-      "caveat": " SOLID=FULL *=9N +=PROBED .=NONE"}),
+      "chips": " ALL 8 BITS - NOT ONE CHIP. SEE PLA.",
+      "caveat": " #=FULL *=9N +=PROBED .=NONE"}),
     ("device ignores $DE02 -- must report ORANGE, not hang",
      "dramscope_fef.crt",  "rom_halt", "ORANGE", None, None, None, None),
 ]
@@ -177,7 +185,7 @@ def main() -> int:
     for name, cart, sym, want_border, want_db, want_ah, want_al, extra in CASES:
         print(f"  {name}")
         stem = cart[:-4]
-        scr, _col, border, wrk = run(BUILD / cart, halt_address(stem, sym))
+        scr, col, border, wrk = run(BUILD / cart, halt_address(stem, sym))
         got = {"border": BORDER.get(border, f"colour {border}")}
         want = {"border": want_border}
         # ⚠ BURN-IN GUARD. pass_end fires after exactly one complete pass, so
@@ -200,18 +208,26 @@ def main() -> int:
             got["addr hi"] = text(scr, AH_ROW, PAN, PAN + 8)
             got["addr lo"] = text(scr, AL_ROW, PAN, PAN + 8)
             want.update({"data": want_db, "addr hi": want_ah, "addr lo": want_al})
+        # ⚠ Only read what the case actually asserts. An earlier version read
+        # the bit and chip lines unconditionally, which blew up the moment a
+        # case (colour RAM) had an opinion about neither.
+        readers = {
+            "row0":    lambda: maprow(scr, 0),
+            "rowC":    lambda: maprow(scr, 0xC),
+            "page40":  lambda: cell(scr, 0x40),
+            "errors":  lambda: text(scr, 17, PAN - 1, PAN + 5),
+            "bits":    lambda: text(scr, V_ROW + 1),
+            "chips":   lambda: text(scr, V_ROW + 2),
+            "caveat":  lambda: text(scr, V_ROW + 3),
+            "vline":   lambda: text(scr, V_ROW),
+            # the COL RAM label's colour IS the verdict for that chip
+            "colram":  lambda: [b & 0x0F for b in col[12 * 40 + 21: 12 * 40 + 28]],
+        }
         if extra:
-            if "row0" in extra:
-                got["row0"] = maprow(scr, 0)
-                got["rowC"] = maprow(scr, 0xC)
-                got["page40"] = cell(scr, 0x40)
-                got["errors"] = text(scr, 17, PAN - 1, PAN + 5)
-            got["bits"] = text(scr, V_ROW + 1)
-            got["chips"] = text(scr, V_ROW + 2)
-            if "caveat" in extra:
-                got["caveat"] = text(scr, V_ROW + 3)
+            for k in extra:
+                got[k] = readers[k]()
             want.update(extra)
-        for k in got:
+        for k in want:
             flag = "" if got[k] == want[k] else f"   <-- *** wanted {want[k]!r}"
             print(f"     {k:8s} {got[k]!r}{flag}")
             if got[k] != want[k]:
