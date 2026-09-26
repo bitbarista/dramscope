@@ -3,7 +3,8 @@
 ⚠ **The name is a placeholder.** It is used consistently so it can be changed with one
 `sed`, but it should be settled before anything is published.
 
-**Status:** specification, iteration 1. No code written yet.
+**Status:** iteration 1 implemented and verified — P0/P1/P2 and the display framework.
+P3 onwards not started. Gate G1 open and it is next.
 **Target:** Commodore 64, all assemblies. **Not specific to any one board or RAM replacement.**
 
 ---
@@ -419,8 +420,8 @@ Each step is intended to leave something that works.
 | # | Step | Leaves |
 |---|---|---|
 | 1 | Project skeleton, this spec, `PROVENANCE.md` | ✅ done |
-| 2 | **Resolve G1** on real KFF and U2+ hardware | the architecture decided |
-| 3 | Engine skeleton, P0/P1/P2, display framework, VICE harness | **already a useful tool** — bus faults named in under a second |
+| 2 | **Resolve G1** on real KFF and U2+ hardware | ⬜ the architecture decided |
+| 3 | Engine skeleton, P0/P1/P2, display framework, VICE harness | ✅ done — **already a useful tool**, bus faults named in under a second |
 | 4 | P3 March B (port the proven engine) + classifier v1 + bit reporting | parity with existing tools, plus shape |
 | 5 | Board profiles (G5) → chip naming | the headline feature |
 | 6 | P4 March LR (G3 first) | linked faults |

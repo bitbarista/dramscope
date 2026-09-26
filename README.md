@@ -1,7 +1,7 @@
 # DRAMscope
 
-⚠ **Placeholder name, and nothing is built yet.** This repository currently holds a
-specification and a provenance policy. See [`SPEC.md`](SPEC.md).
+⚠ **Placeholder name.** Iteration 1 builds, runs and is verified; see
+[`SPEC.md`](SPEC.md) for the whole plan and what is still missing.
 
 A memory diagnostic cartridge for the Commodore 64 — for **any** C64, not for any particular
 RAM replacement board.
@@ -51,14 +51,37 @@ The two projects stay separate. This one has no dependency on that board and nev
 |---|---|
 | Specification | ✅ [`SPEC.md`](SPEC.md) |
 | Provenance policy | ✅ [`PROVENANCE.md`](PROVENANCE.md) |
+| **P0** bring-up probe, no RAM assumed | ✅ |
+| **P1** data bus — walking ones/zeroes/rails | ✅ |
+| **P2** address bus — A0–A14 (⚠ A15 needs iteration 2) | ✅ |
+| Display — 256-page map, bus lanes, verdict | ✅ |
+| Fault injection + headless VICE harness | ✅ 3/3 |
 | Gate G1 — EasyFlash mode switching on KFF / U2+ | ⬜ **next, and it decides the architecture** |
-| Engine, phases P0–P9 | ⬜ |
+| **P3–P9** march, topographical, dwell, disturb, colour RAM | ⬜ |
+| Classification engine and board profiles | ⬜ |
 | Licence | ⬜ undecided |
 
 ## Building
 
-Not yet. The toolchain will be `acme` plus VICE's `cartconv`, with a headless VICE harness
-for verification — the same tools the sibling project uses.
+```
+bash build.sh        # clean build + two fault-injected variants
+bash test/run.sh     # run all three headless in VICE and assert the results
+```
+
+Needs `acme`, and VICE for `cartconv` and `x64sc`.
+
+⚠ **The harness uses the real Commodore ROMs** and finds them wherever VICE keeps them
+(`~/.local/share/vice/C64/`). They are **not** included here and must not be — they are
+copyrighted. The upside of using the real KERNAL rather than a stub is that the genuine
+autostart handshake runs: `JSR $FD02` pushes a return address and therefore needs the
+stack page, which is this delivery vehicle's honest limit and something a stub cannot
+exercise.
+
+### What a run looks like
+
+Border colours report even when the display cannot: white = has control, red = zero-page
+scratch dead, purple = screen page dead, green = clean, light red = fault found. A black
+border means the cartridge never got control at all.
 
 ## Credits
 
