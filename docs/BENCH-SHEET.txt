@@ -37,6 +37,12 @@ times a second, all the way through.
 
   ** A BORDER THAT HAS STOPPED PULSING MEANS IT HAS HUNG. **
 
+The pulse is deliberately slow -- almost exactly one cycle per second, set
+by a hardware timer rather than by how fast the test is running, so it
+cannot speed up during a faster phase. That is about a third of the rate
+considered a photosensitivity risk (three flashes per second). The spinner
+moves faster but is a single character.
+
 That is the report, not an ambiguity. Tell me the phase name and the colour
 it froze on.
 

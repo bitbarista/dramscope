@@ -126,6 +126,10 @@ sptr     = $fb
 cptr     = $fd
 SEED     = $5a
 RASTER   = $d012
+CIA2_TAL = $dd04                ; ⚠ the flash-rate time base -- see tick
+CIA2_TBL = $dd06
+CIA2_CRA = $dd0e
+CIA2_CRB = $dd0f
 DWELL    = 10                   ; units of 60 frames -- see P7
 FRAMES   = 60                   ; ⚠ 60, not 50, so "at least N seconds" is
                                 ; true on PAL (1.2 s/unit) and NTSC (1.0)
@@ -439,6 +443,21 @@ rom_halt:
 eng_src:
 !pseudopc ENGINE {
 eng_start:
+        ; ⚠ The flash-rate time base. CIA2 timer A free-runs on phi2 and
+        ; timer B counts its underflows, so B's low byte steps about every
+        ; 66 ms on PAL and 61 ms on NTSC -- a clock that does not care how
+        ; fast the test is running. Nothing else uses these timers and no
+        ; interrupt is enabled for them.
+        lda #$ff
+        sta CIA2_TAL
+        sta CIA2_TAL+1
+        sta CIA2_TBL
+        sta CIA2_TBL+1
+        lda #$11                        ; TA: load, start, continuous, phi2
+        sta CIA2_CRA
+        lda #$51                        ; TB: load, start, count TA underflows
+        sta CIA2_CRB
+
         ; ⚠ EVERY CUMULATIVE COUNTER IS CLEARED HERE, ONCE, AND NOWHERE ELSE.
         ; Each phase used to zero its own results on entry, which was right
         ; for a single run and wrong the moment the burn-in looped: pass two
@@ -1088,22 +1107,25 @@ tick:
         pha
         tya
         pha
-        inc w_tick
-        lda w_tick
-        lsr
-        lsr
+        inc w_tick                      ; ⚠ kept: the harness asserts it moves
+        lda #BANK_IO
+        sta CPUPORT
+        ; ⚠⚠ THE RATE COMES FROM A TIMER, NOT FROM THE TICK COUNT. Both
+        ; indicators used to advance once every N pages, which made their
+        ; frequency an emergent property of how fast each phase walks memory --
+        ; measured at 1.81 Hz in P4/P5 and calculated near 2.5 Hz in P7's short
+        ; passes, against a 3 Hz limit, with nothing stopping a future phase
+        ; from crossing it. CIA2 timer B now decrements every ~66 ms
+        ; regardless, so bit 3 gives a fixed ~1 Hz pulse and bits 2-1 a ~2 Hz
+        ; spinner, whatever the phase is doing.
+        lda CIA2_TBL
         lsr
         and #$03
         tax
         lda spinchr,x
-        sta SPINPOS                     ; no I/O needed -- this is RAM
-        lda w_tick
-        and #$1f
-        bne tick_out
-        lda #BANK_IO
-        sta CPUPORT
-        lda w_tick
-        and #$20
+        sta SPINPOS
+        lda CIA2_TBL
+        and #$08
         beq tick_on
         ; ⚠ Once ANYTHING has failed the pulse alternates with red and stays
         ; that way for the rest of the burn-in. On a run that has been going
@@ -1126,7 +1148,6 @@ tick_set:
         sta BORDER
         lda #BANK_RAM                   ; ⚠ BACK OUT, unconditionally
         sta CPUPORT
-tick_out:
         pla
         tay
         pla
@@ -1215,6 +1236,16 @@ p7_fr:  lda RASTER                      ; one pass of raster line $80 is one
 p7_fr2: lda RASTER
         cmp #$80
         beq p7_fr2
+        ; ⚠ The dwell is twelve seconds with nothing else happening, so it
+        ; drives the border from the SAME timer as tick does -- one rule for
+        ; the flash rate, not two.
+        lda CIA2_TBL
+        and #$08
+        beq p7_bon
+        lda #C_DKGREY
+        bne p7_bset
+p7_bon: lda w_phcol
+p7_bset:sta BORDER
         dec w_frames
         bne p7_fr
         dec w_dwell
@@ -1279,13 +1310,6 @@ p7_show:
         ldy #0
         lda w_dwell
         jsr hexpair
-        lda w_dwell                     ; pulse the border while waiting
-        and #$01
-        beq p7_s1
-        lda #C_DKGREY
-        bne p7_s2
-p7_s1:  lda w_phcol
-p7_s2:  sta BORDER
         rts
 
 ; ---------------------------------------------------------------------------
@@ -2291,15 +2315,14 @@ phase:
         pha
         tya
         pha
-        lda #<s_blank
-        sta strp
-        lda #>s_blank
-        sta strp+1
-        lda #PH_ROW
-        ldx #PAN_COL
-        jsr setpos
-        ldx #C_BLACK
-        jsr putstr
+        lda #PH_ROW                     ; ⚠ blanked with a loop, not a string
+        ldx #PAN_COL                    ; of spaces: the engine is capped at
+        jsr setpos                      ; 4 KB and 18 bytes is 18 bytes
+        ldy #16
+        lda #CH_SPACE
+ph_bl:  sta (sptr),y
+        dey
+        bpl ph_bl
         pla
         tay
         pla
@@ -2666,7 +2689,6 @@ s_addr:     !scr "address lines", 0
 s_ahno:     !scr "fedcba98", 0
 s_alno:     !scr "76543210", 0
 s_phase:    !scr "phase", 0
-s_blank:    !scr "                 ", 0
 s_p1:       !scr "p1 data bus", 0
 s_p2:       !scr "p2 addr bus", 0
 s_p3:       !scr "p3 march b", 0
@@ -2685,11 +2707,11 @@ bitlbl:     !scr "d0  d1  d2  d3  d4  d5  d6  d7  "
 chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
 s_pdone:    !scr "done", 0
 s_ok:       !scr "bus integrity ok, all 16 lines.", 0
-s_ok2:      !scr "all ram tested, incl. 12s retention.", 0
+s_ok2:      !scr "all ram tested, 12s retention.", 0
 s_databad:  !scr "data bus fault - see the d lane.", 0
 s_databad2: !scr "a marked bit is stuck, shorted or open.", 0
 s_addrbad:  !scr "address line fault - see the a lanes.", 0
-s_addrbad2: !scr "both of a pair = mux u13/u25 or rp1/rp2.", 0
+s_addrbad2: !scr "both of a pair = mux u13/u25 or rp.", 0
 s_membad:   !scr "memory fault - see the red cells.", 0
 s_membad2:  !scr "march b + march lr, 31n.", 0
 s_bits:     !scr "bits", 0

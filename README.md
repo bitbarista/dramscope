@@ -120,6 +120,12 @@ pass and starts again, and keeps going until the machine is reset. Faults are **
 border pulses red instead of grey for the rest of the run. That is the point: the chip that
 fails once an hour is invisible to a single pass, and it is the one people actually chase.
 
+⚠ **On flashing and photosensitivity.** The border pulse is deliberately slow and its rate
+is fixed by a CIA timer rather than by how fast the test is running: **0.94 Hz on PAL,
+0.98 Hz on NTSC**, against the 3 flashes-per-second limit in WCAG 2.3.1 — a 3.2× margin,
+derived from the timer chain and confirmed by sampling the emulator. The spinner changes
+faster but is a single character cell, 0.1 % of the display.
+
 **It is visibly alive while it works.** A full run is about a minute, so a spinner turns
 beside the phase name and the border pulses between the phase colour and dark grey, a
 couple of times a second. ⚠ **A static border from P1 onwards means hung** — that is now

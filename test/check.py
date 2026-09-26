@@ -106,7 +106,7 @@ CASES = [
      "dramscope.crt",      "pass_obs",     "GREEN", "########", "########", "########",
      {"row0": "**#*****########", "rowC": "****************",
       "page40": "#", "errors": " 0000",
-      "bits": " ALL RAM TESTED, INCL. 12S RETENTION.", "chips": ""}),
+      "bits": " ALL RAM TESTED, 12S RETENTION.", "chips": ""}),
     # ⚠ The classifier makes a claim about someone else's hardware. D3 is U10
     # on a 250407 -- schematic 251138 via c64-ice40-ram README §2.2.
     ("D3 stuck -- data lane X, and the chip named from the bit",

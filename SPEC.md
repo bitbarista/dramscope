@@ -75,6 +75,30 @@ its own results on entry** — correct for a single run, and wrong the instant i
 because pass two wiped pass one's findings. The counters are now cleared exactly once, in
 `eng_start`.
 
+**P8. ⚠ THE FLASH RATE IS A SAFETY REQUIREMENT, NOT A DESIGN PREFERENCE.**
+Carl, 2026-09-26: *"we don't want to risk it affecting anyone with epilepsy."* WCAG 2.3.1
+allows at most **three flashes per second** in anything occupying more than 25 % of the
+visual field, and the C64 border qualifies. Both liveness indicators are therefore driven by
+a **CIA timer, not by a tick count**, so the rate cannot vary with how fast a phase happens
+to run:
+
+| | |
+|---|---|
+| CIA2 timer A, latch `$FFFF` on φ2 | underflows every 65,536 cycles |
+| CIA2 timer B counts those underflows | bit 3 flips every 8 decrements |
+| One full on/off cycle | 1,048,576 cycles |
+| **PAL** | 1.064 s → **0.94 Hz** |
+| **NTSC** | 1.025 s → **0.98 Hz** |
+| WCAG limit | 3.00 Hz — **3.2× margin** |
+
+⚠ **The previous tick-based version measured 1.81 Hz** in P4/P5 and calculated near 2.5 Hz
+in P7's short passes, with nothing in the design stopping a future phase from crossing 3 Hz.
+That is the failure mode this replaces: not a rate that was wrong, but a rate that was
+unbounded.
+
+The spinner runs at 7.5 changes/s but occupies **one character cell — 0.1 % of the display**,
+far below the 25 %-of-field threshold, and is a shape change rather than a luminance flash.
+
 **P6. A working run must not look like a hung one.** ⚠ Carl, 2026-09-26: *"whilst the crt
 is running it is impossible to know whether it is proceeding or crashed."* A run takes about
 a minute and the marches spend ~20 s stretches with nothing on screen changing. Every long
