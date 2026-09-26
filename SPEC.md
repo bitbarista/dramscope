@@ -57,6 +57,30 @@ already caught a real defect in the sibling project.
 **P2. Every gate must be able to fail.** No phase ships without a fault-injection build that
 proves it reports the fault it claims to catch. A test that cannot fail is decoration.
 
+⚠⚠ **ONE INJECTION MECHANISM, NOT TEN.** Every mutation used to be hand-written inline at
+its own site, and three of them damaged the thing they were meant to observe: `INJECT_LR`
+clobbered the Z flag March LR's bare `r 0` branches on and reported 59,416 errors instead of
+1; `INJECT_ONCE` loaded the pass counter over the byte just read and fired 53,294 times;
+`INJECT_ZP` pushed onto the stack page it was marching. A mutation that perturbs the program
+is not testing the program. There is now **one hook body**, a macro instantiated twice
+(the engine's copy cannot serve the handover, which marches `$C000-$CFFF` out from under
+it), with an explicit contract: A is the byte read, X and Y preserved, the stack balanced,
+and the **flags set from A on every path**.
+
+⚠⚠ **AND THE RESULT MUST BE PLAUSIBLE, NOT MERELY PRESENT.** A mutation named "one bad byte"
+that reports 53,294 errors is wrong on its face, and the suite accepted it because it was
+only ever asked whether some cell said `X`. Every case must now declare `errcount` and
+`redpages`, and a case that omits either **fails the harness rather than passing it**. The
+screen figure must agree with the counter in memory.
+
+⚠⚠ **AND THE WHOLE SCREEN IS COMPARED.** `test/golden/*.txt` holds the exact 25×40 screen
+for the clean run and every fault build. This is the strongest assertion in the suite and
+the one that was missing: every other check names a cell someone thought of, while this one
+notices *any* change to what the user sees. Four defects shipped that it would have caught —
+a lost coverage figure, a label running into its own status cell, a phase that was never
+marked, and a status column that forgot a fault. Regenerate deliberately with
+`python3 test/check.py --bless`; the diff shows exactly what moved.
+
 ⚠⚠ **AND EVERY ASSERTION MUST BE READ.** `test/check.py` once populated its observed values
 inside a conditional and then compared by iterating the **observed** dictionary — so a case
 that asserted a key the reader never filled had that assertion silently dropped. Five cases

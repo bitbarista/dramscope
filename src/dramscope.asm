@@ -523,6 +523,9 @@ p1_one:
         lda w_tmp
         sta ABASE
         lda ABASE
+; ⚠ P1 and P2 keep inline injections: neither reads through (mptr),y, so the
+; hook's page/offset contract does not apply to them. Both are single
+; instructions with no flag dependency after them.
 !ifdef INJECT_DB { eor #$08 }           ; mutation: D3 reads back inverted
         eor w_tmp                       ; any set bit = a bit that misbehaved
         ora w_dbmask
@@ -925,20 +928,7 @@ p5p_val:
 p5p_ver:
         tax                             ; X = expected
         lda (mptr),y
-!ifdef INJECT_TOPO {                    ; mutation: P5 must be able to fail too
-        cpy #$71
-        bne inj_t_out
-        pha
-        lda mptr+1
-        cmp #$60
-        bne inj_t_pop
-        pla
-        eor #$40
-        jmp inj_t_out
-inj_t_pop:
-        pla
-inj_t_out:
-}
+!ifdef INJECT_TOPO { jsr inj_hook }
         stx w_tmp
         cmp w_tmp
         beq p5p_nx
@@ -1074,27 +1064,7 @@ lr5_pg:
         jsr tick
         ldy #0
 lr5_c:  lda (mptr),y
-!ifdef INJECT_LR {                      ; mutation: P4 must be able to fail too
-        cpy #$12
-        bne inj_l_out
-        pha
-        lda mptr+1
-        cmp #$50
-        bne inj_l_pop
-        pla
-        eor #$80
-        jmp inj_l_out
-inj_l_pop:
-        pla
-inj_l_out:
-        ; ⚠⚠ RESTORE THE FLAGS. M5 is a bare `r 0` -- it branches on the Z the
-        ; `lda` left, with no `cmp` of its own -- and `cpy #$12` above clobbers
-        ; exactly that. Without this the mutation reported a fault on EVERY
-        ; cell whose index was not $12: 59,416 instead of 1. Every other
-        ; injection happens to be followed by an explicit compare, which is
-        ; why this is the only one that had the problem.
-        cmp #$00
-}
+!ifdef INJECT_LR { jsr inj_hook }
         bne lr5_e1
 lr5_k1: iny
         bne lr5_c
@@ -1304,15 +1274,7 @@ p7_vc:  tya
         eor #SEED
         sta pval
         lda (mptr),y
-!ifdef INJECT_RET {                     ; mutation: one cell forgets a bit
-        cpy #$23
-        bne inj_r_out
-        ldx mptr+1
-        cpx #$70
-        bne inj_r_out
-        eor #$20
-inj_r_out:
-}
+!ifdef INJECT_RET { jsr inj_hook }
         cmp pval
         beq p7_vk
         ldx pval
@@ -1474,6 +1436,71 @@ phv_el: txa
         jmp p7
 
 
+
+; ===========================================================================
+; inj_hook -- ⚠ FAULT-INJECTION BUILDS ONLY. One mechanism, written once.
+;
+; ⚠⚠ WHY THIS EXISTS. Every mutation used to be hand-written inline at its own
+; site, and three of them damaged the very thing they were meant to observe:
+;   * INJECT_LR clobbered the Z flag that March LR's bare `r 0` branches on,
+;     and reported 59,416 errors instead of 1
+;   * INJECT_ONCE loaded the pass counter into A -- over the byte just read --
+;     and fired 53,294 times instead of once
+;   * INJECT_ZP pushed onto the stack page it was in the middle of marching
+; A mutation that perturbs the program is not testing the program. Ten copies
+; of a delicate thing is ten chances to get it wrong; this is one copy.
+;
+; CONTRACT, and every line of it matters:
+;   in    A = the byte just read, Y = offset within the page, mptr+1 = page
+;   out   A = that byte EOR INJ_MASK if (page, offset) match, else unchanged
+;   ⚠     X and Y preserved, stack balanced, and the FLAGS SET FROM A on every
+;         path -- callers that branch straight off the load depend on it
+; ===========================================================================
+; ⚠ ONE BODY, TWO INSTANTIATIONS -- and the second is not optional.
+; The engine's copy cannot serve the handover: phase B marches $C000-$CFFF,
+; so a `jsr` into the engine from inside that march calls code that is being
+; overwritten as it runs. That hung the build the moment the shared hook went
+; in. A macro keeps it one piece of source while letting it exist in both
+; places, which is the whole point -- one thing to get right, not two.
+!macro INJHOOK {
+        cpy #INJ_OFF
+        bne .keep
+        ; ⚠⚠ THE STACK, NOT A WORKSPACE BYTE. The first version kept its
+        ; scratch at $032D -- inside the page the handover marches -- so the
+        ; hook corrupted the memory under test and produced a second, entirely
+        ; real fault in a region it was not aiming at. The stack is safe at
+        ; every site that uses this hook, because the one phase that marches
+        ; the stack page (P6) keeps its own inline injection for exactly that
+        ; reason.
+        pha                             ; the byte under test
+        txa
+        pha
+!ifdef INJ_FIRSTPASS {
+        lda w_passlo                    ; ⚠ a TRANSIENT fault: pass 1 only
+        bne .restore
+}
+        lda mptr+1
+        cmp #INJ_PG
+        bne .restore
+        pla
+        tax
+        pla
+        eor #INJ_MASK
+        jmp .flags
+.restore:
+        pla
+        tax
+        pla
+.keep:
+.flags: cmp #$00                        ; ⚠ flags from A on EVERY path
+        rts
+}
+
+!ifdef INJ_MASK {
+inj_hook:
+        +INJHOOK
+}
+
 ; --- run setup -------------------------------------------------------------
 set_asc:
         lda w_startpg
@@ -1531,58 +1558,12 @@ m1_c:   tya
         eor #$ff
         sta pinv
         lda (mptr),y
-!ifdef INJECT_ONCE {                    ; ⚠ mutation: a TRANSIENT fault -- it
-        ; happens on the first pass only and never again, which is the exact
-        ; failure a burn-in exists to catch and the only one none of the other
-        ; twelve mutations models.
-        ; ⚠ A IS THE VALUE JUST READ FROM MEMORY and must be preserved: the
-        ; first version of this loaded w_passlo straight into A and so
-        ; compared the pass counter against the expected pattern, firing
-        ; 53,294 times instead of once. pha is safe here because March B does
-        ; not march the stack page.
-        pha
-        lda w_passlo
-        bne inj_o_pop
-        cpy #$37
-        bne inj_o_pop
-        ldx mptr+1
-        cpx #$40
-        bne inj_o_pop
-        pla
-        eor #$01
-        jmp inj_o_out
-inj_o_pop:
-        pla
-inj_o_out:
-}
-!ifdef INJECT_MEM {                     ; mutation: one stuck bit at $4037
-        cpy #$37
-        bne inj_m_out
-        pha
-        lda mptr+1
-        cmp #$40
-        bne inj_m_pop
-        pla
-        eor #$01
-        jmp inj_m_out
-inj_m_pop:
-        pla
-inj_m_out:
-}
-!ifdef INJECT_ALL {                     ; mutation: ALL EIGHT bits wrong.
-        cpy #$37                        ; ⚠ This must make the tool REFUSE to
-        bne inj_a_out                   ; name a chip. Eight simultaneously
-        pha                             ; dead DRAMs is not the likely reading,
-        lda mptr+1                      ; and pointing at eight chips is worse
-        cmp #$40                        ; than pointing at none.
-        bne inj_a_pop
-        pla
-        eor #$ff
-        jmp inj_a_out
-inj_a_pop:
-        pla
-inj_a_out:
-}
+; ⚠ Three mutations share this site -- one stuck bit, all eight bits, and a
+; transient that fires on pass 1 only. They differ ONLY in the -D values the
+; build passes, which is the point of having one hook.
+!ifdef INJECT_MEM  { jsr inj_hook }
+!ifdef INJECT_ALL  { jsr inj_hook }
+!ifdef INJECT_ONCE { jsr inj_hook }
         cmp pval
         bne m1_e1
 m1_k1:  lda pinv
@@ -2892,6 +2873,10 @@ p6a:    sta $0000,x
         ldx w_p6start
 p6_m1:  txa
         eor w_p6seed
+; ⚠ P6 CANNOT use the hook: `jsr` puts a return address in the stack page
+; that P6 is in the middle of marching. That is the same trap that made the
+; first version of this mutation report seven bad bits instead of one, and it
+; is why this one site stays inline and uses Y rather than the stack.
 !ifdef INJECT_ZP {                      ; mutation: one bad byte at $0140
         ; ⚠ NO pha HERE, AND THAT IS NOT A STYLE CHOICE. The first version of
         ; this mutation saved A on the stack -- while marching the stack page.
@@ -3188,6 +3173,15 @@ hv_crs: lda HV_COL,x
         sta w_hveng
         jmp eng_resume
 
+; ⚠ NOT AT THE TOP OF THE MODULE. phv enters with `jmp HV_CODE`, which lands
+; on the module's FIRST byte -- so anything placed ahead of hv_entry is jumped
+; into instead of it. That broke every build, not just the ones using the
+; hook, because the handover runs in all of them.
+!ifdef INJ_MASK {
+hv_inj_hook:
+        +INJHOOK
+}
+
 ; ---------------------------------------------------------------------------
 ; hv_cmarch -- the same 9n shape over COLOUR RAM, masked to four bits.
 ; ⚠ Kept separate from hv_march rather than adding a mask flag to it: the mask
@@ -3210,7 +3204,7 @@ hc_1:   ldy #0
 hc_1c:  jsr hv_cpat
         lda (mptr),y
         and #$0f
-!ifdef INJECT_COL { cpy #$44 : bne + : eor #$02 : + }
+!ifdef INJECT_COL { jsr hv_inj_hook }
         cmp pval
         beq hc_1k
         ldx pval
@@ -3305,15 +3299,7 @@ hv_0c:  tya
 hv_1:   ldy #0
 hv_1c:  jsr hv_pat
         lda (mptr),y
-!ifdef INJECT_HV {                      ; mutation: one bad byte at $0555,
-        cpy #$55                        ; inside the screen matrix -- the
-        bne hv_inj_out                  ; region the display was standing on
-        ldx mptr+1
-        cpx #$05
-        bne hv_inj_out
-        eor #$10
-hv_inj_out:
-}
+!ifdef INJECT_HV { jsr hv_inj_hook }
         cmp pval
         beq hv_1k
         ldx pval

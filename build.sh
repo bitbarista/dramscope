@@ -25,11 +25,14 @@ open(out,'wb').write(l + h + b'\xff' * (1024*1024 - 16384))" "$1" "$2" "$3"
 # which is how this was found.
 acme src/dramscope_romh.asm
 
-mk() {   # $1 = -D flag or empty, $2 = output stem, $3 = cart name
+# ⚠ THE FLAG STRINGS ARE SINGLE-QUOTED. They contain $ for hex constants and
+# double quotes let the shell expand $40 into "$4" plus "0" -- which silently
+# built a mutation aimed at page 0 instead of page $40.
+mk() {   # $1 = -D flags or empty, $2 = output stem, $3 = cart name
   if [ -z "$1" ]; then
     acme -l "build/$2.labels" src/dramscope.asm
   else
-    acme "$1" -l "build/$2.labels" -o "build/$2_roml.bin" src/dramscope.asm
+    acme $1 -l "build/$2.labels" -o "build/$2_roml.bin" src/dramscope.asm
   fi
   pack "build/$2_roml.bin" build/dramscope_romh.bin "build/$2.bin"
   cartconv -t easy -i "build/$2.bin" -o "build/$2.crt" -n "$3" >/dev/null
@@ -37,18 +40,18 @@ mk() {   # $1 = -D flag or empty, $2 = output stem, $3 = cart name
 }
 
 mk ""              dramscope       "DRAMSCOPE"
-mk "-DINJECT_DB=1" dramscope_fdb   "DS FAULT DB"
-mk "-DINJECT_AB=1" dramscope_fab   "DS FAULT AB"
-mk "-DINJECT_NOEF=1" dramscope_fef "DS NO EASYFLASH"
-mk "-DINJECT_MEM=1"  dramscope_fmem "DS FAULT MEM"
-mk "-DINJECT_ALL=1"  dramscope_fall "DS FAULT ALLBITS"
-mk "-DINJECT_LR=1"   dramscope_flr  "DS FAULT LR"
-mk "-DINJECT_TOPO=1" dramscope_ftop "DS FAULT TOPO"
-mk "-DINJECT_ZP=1"   dramscope_fzp  "DS FAULT ZP"
-mk "-DINJECT_HV=1"   dramscope_fhv  "DS FAULT HANDOVER"
-mk "-DINJECT_RET=1"  dramscope_fret "DS FAULT RETENTION"
-mk "-DINJECT_COL=1"  dramscope_fcol "DS FAULT COLRAM"
-mk "-DINJECT_ONCE=1" dramscope_fonce "DS FAULT TRANSIENT"
+mk '-DINJECT_DB=1' dramscope_fdb   "DS FAULT DB"
+mk '-DINJECT_AB=1' dramscope_fab   "DS FAULT AB"
+mk '-DINJECT_NOEF=1' dramscope_fef "DS NO EASYFLASH"
+mk '-DINJECT_MEM=1  -DINJ_PG=$40 -DINJ_OFF=$37 -DINJ_MASK=$01' dramscope_fmem "DS FAULT MEM"
+mk '-DINJECT_ALL=1  -DINJ_PG=$40 -DINJ_OFF=$37 -DINJ_MASK=$ff' dramscope_fall "DS FAULT ALLBITS"
+mk '-DINJECT_LR=1   -DINJ_PG=$50 -DINJ_OFF=$12 -DINJ_MASK=$80' dramscope_flr  "DS FAULT LR"
+mk '-DINJECT_TOPO=1 -DINJ_PG=$60 -DINJ_OFF=$71 -DINJ_MASK=$40' dramscope_ftop "DS FAULT TOPO"
+mk '-DINJECT_ZP=1'   dramscope_fzp  "DS FAULT ZP"
+mk '-DINJECT_HV=1   -DINJ_PG=$05 -DINJ_OFF=$55 -DINJ_MASK=$10' dramscope_fhv  "DS FAULT HANDOVER"
+mk '-DINJECT_RET=1  -DINJ_PG=$70 -DINJ_OFF=$23 -DINJ_MASK=$20' dramscope_fret "DS FAULT RETENTION"
+mk '-DINJECT_COL=1  -DINJ_PG=$d9 -DINJ_OFF=$44 -DINJ_MASK=$02' dramscope_fcol "DS FAULT COLRAM"
+mk '-DINJECT_ONCE=1 -DINJ_PG=$40 -DINJ_OFF=$37 -DINJ_MASK=$01 -DINJ_FIRSTPASS=1' dramscope_fonce "DS FAULT TRANSIENT"
 
 # --- gate G1 probe: EasyFlash $DE02 mode switching on real hardware ---------
 acme -l build/g1.labels src/g1probe_roml.asm

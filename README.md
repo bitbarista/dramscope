@@ -80,7 +80,8 @@ The two projects stay separate. This one has no dependency on that board and nev
 | **P1** data bus — walking ones/zeroes/rails | ✅ |
 | **P2** address bus — **all 16 lines, A0–A15** | ✅ |
 | Display — 256-page map, bus lanes, verdict | ✅ |
-| Fault injection + headless VICE harness | ✅ 13/13 |
+| Fault injection + headless VICE harness | ✅ 14 mutations, one shared hook |
+| Whole-screen golden comparison | ✅ [`test/golden/`](test/golden/) |
 | **Variant matrix** — every C64 model VICE emulates | ✅ 18 model × CIA combinations |
 | Gate G1 — EasyFlash mode switching | ✅ **closed** — Ultimate II+ *and* Kung Fu Flash, `$DE02 = $02` |
 | EasyFlash delivery — boots in Ultimax, **needs no working RAM to start** | ✅ |

@@ -68,6 +68,72 @@ def run(crt: pathlib.Path, halt: str) -> tuple[bytes, bytes, int]:
     return scr, col, vic[0] & 0x0F, wrk
 
 
+GOLD = ROOT / "test" / "golden"
+
+
+def screen(scr) -> str:
+    """The whole 25x40 screen as text -- what a person actually sees."""
+    return "\n".join(text(scr, r, 0, 40).rstrip() for r in range(25))
+
+
+def check_golden(stem: str, scr, bless: bool) -> int:
+    """⚠ THE STRONGEST ASSERTION IN THE SUITE, and the one that was missing.
+    Every other check names a cell someone thought of; this notices ANY change
+    to what the user sees -- a shifted column, a lost coverage figure, a label
+    running into its own status cell, a phase that never got marked. All four
+    of those shipped, and all four would have failed here.
+    Regenerate deliberately:  python3 test/check.py --bless"""
+    GOLD.mkdir(exist_ok=True)
+    f = GOLD / f"{stem}.txt"
+    now = screen(scr)
+    if bless or not f.exists():
+        f.write_text(now + "\n")
+        print(f"     golden    {'blessed' if bless else 'created'} {f.name}")
+        return 0
+    if f.read_text().rstrip("\n") == now:
+        print("     golden    screen matches")
+        return 0
+    print("     golden    *** SCREEN CHANGED ***")
+    for i, (a, b) in enumerate(zip(f.read_text().rstrip("\n").split("\n"),
+                                   now.split("\n"))):
+        if a != b:
+            print(f"       row {i:2d} want |{a}|")
+            print(f"              got  |{b}|")
+    return 1
+
+
+def plausible(scr, wrk, want_errs) -> int:
+    """⚠ Does the result make SENSE, not merely match a cell?
+
+    A mutation named "one bad byte" that reported 53,294 errors was accepted
+    by this suite, because it was only ever asked whether some cell said X.
+    These are the things a person would notice at a glance, written down:
+      * the error count is EXACTLY what the case claims
+      * a one-byte fault marks exactly ONE page red -- no more, no fewer
+      * the figure on screen agrees with the counter in memory
+    """
+    bad = 0
+    errs = wrk[14] + 256 * wrk[15]
+    if errs != want_errs:
+        print(f"     errors    {errs} in memory, case claims {want_errs}   <-- ***")
+        bad += 1
+    shown = text(scr, 0, 23, 28).strip()
+    if shown != f"{wrk[15]:02X}{wrk[14]:02X}":
+        print(f"     errors    screen {shown} vs memory "
+              f"{wrk[15]:02X}{wrk[14]:02X}   <-- ***")
+        bad += 1
+    return bad
+
+
+def red_pages(scr) -> int:
+    """⚠ How many pages the map shows as failed. Stated per case, never
+    inferred: a data-bus fault marks none, an address fault marks the nine
+    pages P2 touched, and the handover marks all twenty-one it is responsible
+    for because it cannot localise within them. Guessing a rule here would
+    just be another assertion that agrees with whatever the code does."""
+    return sum(1 for p in range(256) if cell(scr, p) == "X")
+
+
 def text(scr: bytes, row: int, c0: int = 0, c1: int = 40) -> str:
     out = []
     for b in scr[row * 40 + c0: row * 40 + c1]:
@@ -112,7 +178,9 @@ BORDER = {1: "WHITE", 2: "RED", 3: "CYAN", 4: "PURPLE", 5: "GREEN",
 CASES = [
     ("clean -- every lane solid, all 16 address lines tested",
      "dramscope.crt",      "pass_obs",     "GREEN", "########", "########", "########",
-     {"row0": "**#*****########", "rowC": "****************",
+     {"redpages": 0,
+      "errcount": 0,
+      "row0": "**#*****########", "rowC": "****************",
       "page40": "#", "errors": " 0000",
       "bits": " 59,648 FULL + 5,886 AT 9N = 65,534.", "chips": "",
       "colram": "OK"}),
@@ -120,17 +188,23 @@ CASES = [
     # on a 250407 -- schematic 251138 via c64-ice40-ram README §2.2.
     ("D3 stuck -- data lane X, and the chip named from the bit",
      "dramscope_fdb.crt",  "pass_obs",     "LTRED", "####X###", "########", "########",
-     {"checklist": cl(0),
+     {"redpages": 0,
+      "errcount": 0,
+      "checklist": cl(0),
       "bits":  " BITS                   D3",
       "chips": " 250407                 U10"}),
     ("A5 faulty -- one X in the low address lane, data lane clean",
      "dramscope_fab.crt",  "pass_obs",     "LTRED", "########", "########", "##X#####",
-     {"checklist": cl(1)}),
+     {"redpages": 9,
+      "errcount": 0,
+      "checklist": cl(1)}),
     # ⚠ P3 must be able to fail too. One stuck bit at $4037: page $40 red,
     # exactly one bad byte, every other page still clean.
     ("one stuck bit at $4037 -- page $40 red, count 1, nothing else",
      "dramscope_fmem.crt", "pass_obs",     "LTRED", "########", "########", "########",
-     {"checklist": cl(2),
+     {"redpages": 1,
+      "errcount": 1,
+      "checklist": cl(2),
       "row0": "**#*****########", "rowC": "****************", "page40": "X",
       "errors": " 0001",
       "bits":  " BITS                               D0",
@@ -142,7 +216,9 @@ CASES = [
     # mutation. One bit wrong at $5012, seen by March LR's final r0.
     ("March LR catches what March B's pattern left -- page $50, bit D7",
      "dramscope_flr.crt",  "pass_obs",     "LTRED", "########", "########", "########",
-     {"checklist": cl(3),
+     {"redpages": 1,
+      "errcount": 1,
+      "checklist": cl(3),
       "errors": " 0001",
       "bits":  " BITS   D7",
       "chips": " 250407 U12"}),
@@ -150,7 +226,9 @@ CASES = [
     # One bit wrong at $6071, on the topographical verify pass.
     ("topographical pass catches a disturbed cell -- page $60, D6",
      "dramscope_ftop.crt", "pass_obs",     "LTRED", "########", "########", "########",
-     {"checklist": cl(4),
+     {"redpages": 1,
+      "errcount": 6,
+      "checklist": cl(4),
       "errors": " 0006",
       "bits":  " BITS       D6",
       "chips": " 250407     U24"}),
@@ -158,7 +236,9 @@ CASES = [
     # only one that runs with its own stack under test. One bad byte at $0140.
     ("zero page / stack phase catches a bad stack byte",
      "dramscope_fzp.crt",  "pass_obs",     "LTRED", "########", "########", "########",
-     {"checklist": cl(5),
+     {"redpages": 2,
+      "errcount": 1,
+      "checklist": cl(5),
       "errors": " 0001",
       "bits":  " BITS                       D2",
       "chips": " 250407                     U22"}),
@@ -166,7 +246,11 @@ CASES = [
     # region the display is standing on. One bad byte at $0555.
     ("handover catches a fault in the screen's own memory",
      "dramscope_fhv.crt",  "pass_obs",     "LTRED", "########", "########", "########",
-     {"checklist": cl(6),
+     # ⚠ 4, not 21: the screen region only. 21 was what the BROKEN hook
+     # produced, by corrupting the workspace page it was marching through.
+     {"redpages": 4,
+      "errcount": 1,
+      "checklist": cl(6),
       "errors": " 0001",
       "bits":  " BITS               D4",
       "chips": " 250407             U23"}),
@@ -174,7 +258,9 @@ CASES = [
     # during a write/read pair. One cell forgets a bit over the dwell.
     ("retention: a cell that forgets a bit over 12 seconds",
      "dramscope_fret.crt", "pass_obs",     "LTRED", "########", "########", "########",
-     {"checklist": cl(7),
+     {"redpages": 1,
+      "errcount": 1,
+      "checklist": cl(7),
       "errors": " 0001",
       "bits":  " BITS           D5",
       "chips": " 250407         U11"}),
@@ -182,14 +268,18 @@ CASES = [
     # red, and it must NOT appear in the DRAM bad-byte count or name a 4164.
     ("colour ram fault -- own verdict, and no DRAM blamed",
      "dramscope_fcol.crt", "pass_obs", "LTRED", "########", "########", "########",
-     {"checklist": cl(8),
+     {"redpages": 0,
+      "errcount": 0,
+      "checklist": cl(8),
       "errors": " 0000",
       "colram": "X",
       "vline":  " COLOUR RAM FAULT - A SEPARATE CHIP."}),
     # ⚠ THE SAFETY RULE. All eight bits wrong must name NO chip at all.
     ("all 8 bits wrong -- must REFUSE to name a chip",
      "dramscope_fall.crt", "pass_obs",     "LTRED", "########", "########", "########",
-     {"checklist": cl(2),
+     {"redpages": 1,
+      "errcount": 1,
+      "checklist": cl(2),
       "bits":  " BITS   D7  D6  D5  D4  D3  D2  D1  D0",
       "chips": " ALL 8 BITS - NOT ONE CHIP. SEE PLA.",
       "caveat": " #=FULL *=9N +=PROBED .=NONE"}),
@@ -199,6 +289,7 @@ CASES = [
 
 
 def main() -> int:
+    bless = "--bless" in sys.argv
     failures = 0
     for name, cart, sym, want_border, want_db, want_ah, want_al, extra in CASES:
         print(f"  {name}")
@@ -254,8 +345,27 @@ def main() -> int:
         }
         if extra:
             for k in extra:
+                if k in ("errcount", "redpages"):
+                    continue
                 got[k] = readers[k]()
-            want.update(extra)
+            want.update({k: v for k, v in extra.items()
+                         if k not in ("errcount", "redpages")})
+        # ⚠ MANDATORY, not optional. Every case that reaches a screen must
+        # declare how many bad bytes it expects, and the result must be both
+        # that number AND internally consistent. A case that forgets to say
+        # is a harness error, not a pass.
+        if want_db is not None:
+            if extra is None or "errcount" not in extra:
+                sys.exit(f"{cart}: case does not declare 'errcount'")
+            if "redpages" not in extra:
+                sys.exit(f"{cart}: case does not declare 'redpages'")
+            failures += plausible(scr, wrk, extra["errcount"])
+            reds = red_pages(scr)
+            if reds != extra["redpages"]:
+                print(f"     map       {reds} pages red, case claims "
+                      f"{extra['redpages']}   <-- ***")
+                failures += 1
+            failures += check_golden(stem, scr, bless)
         for k in want:
             flag = "" if got[k] == want[k] else f"   <-- *** wanted {want[k]!r}"
             print(f"     {k:8s} {got[k]!r}{flag}")
