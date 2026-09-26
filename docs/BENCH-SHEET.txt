@@ -150,8 +150,13 @@ the whole point of leaving it going: the fault that happens once an hour is
 the one worth finding, and a display that forgot it would be worse than none.
 
 RUNS and BAD BYTES are on the title line: completed runs, and bytes failed
-so far. Both count the whole session, and both are shown in hex -- that is
-what the $ in front of them means.
+so far. Both count the whole session, and both are ORDINARY DECIMAL NUMBERS.
+
+⚠ A $ ON THIS SCREEN ALWAYS MEANS AN ADDRESS. The counters used to be printed
+in hex with a $ in front; they are counts, not addresses, and nobody has run
+the test $0012 times. Now the only $ you will see is the one in front of a
+memory address like $4037, which matches the hex digits along the top and down
+the side of the map.
 
 ⚠ COLOUR RAM is a SEPARATE 1K x 4 chip and not part of the 64 KB. When it
 fails you get wrong colours rather than a crash, so it gets blamed on the
@@ -188,14 +193,46 @@ It prints the failing DATA BIT, and under it the chip that carries that bit:
 
    MEMORY FAULT, FIRST BAD BYTE AT $4037
    BITS                               D0
-   250407                             U21
-   SHORT BOARD? 2 CHIPS, NAMES DIFFER.
+   4164                               U21
+   41464? D0-D3 IS ONE CHIP - SEE SHEET.
 
 The address is where the FIRST bad byte was found, so there is something
 concrete to probe. The map shows every page that has one.
 
-250407 is the board assembly number the chip names assume -- it is printed
-as the row label so you can check it against your own board.
+The row labelled 4164 names the chip. ⚠ THAT ROW IS FOR BOARDS WITH EIGHT
+4164s -- read the part number off one of your own RAM chips and check.
+
+If your board has only TWO RAM chips they are 41464s, each FOUR BITS WIDE, so
+four of the bit numbers share a single chip. The last line tells you which
+group failed. It does not name the chip, because the two 41464 boards do not
+agree with each other and nothing on screen can tell them apart -- use the
+chart below.
+
+
+THE CHART -- WHICH CHIP CARRIES WHICH BIT
+-----------------------------------------
+
+Find your assembly number: it is printed on the board itself, usually near
+the front edge, as "ASSY 250469" or similar.
+
+  ASSY      RAM         D0    D1    D2    D3    D4    D5    D6    D7
+  ------------------------------------------------------------------
+  326298    8 x 4164    U21   U9    U22   U10   U23   U11   U24   U12
+  250407    8 x 4164    U21   U9    U22   U10   U23   U11   U24   U12
+  250425    8 x 4164    U21   U9    U22   U10   U23   U11   U24   U12
+  250466    2 x 41464   <-------- U10 -------->  <-------- U9 ------->
+  250469    2 x 41464   <-------- U10 -------->  <-------- U11 ------>
+
+⚠ THE TWO 41464 BOARDS ARE THE OPPOSITE WAY ROUND FROM EACH OTHER. On the
+250469 the lower number carries the lower bits; on the 250466 it is reversed.
+Do not guess from one to the other -- check the assembly number.
+
+⚠ 250466 IS A LONG BOARD WITH TWO RAM CHIPS. Counting the chips does not tell
+you whether you have a long or short board, so an earlier version of this
+sheet saying "short board? 2 chips" was wrong.
+
+All three 8 x 4164 boards are identical, so the on-screen names are right for
+any of them.
 
   ** THE BIT NUMBER IS TRUE ON EVERY C64. THE CHIP NAME IS NOT. **
 

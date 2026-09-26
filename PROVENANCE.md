@@ -97,7 +97,53 @@ demultiplexing. It is carried here with its rationale intact.
 | ⚠ Could the P0 probes *falsely pass* on an undriven bus? | ❌ **NO — disproved on hardware, 2026-09-27.** Each probe writes a byte and immediately reads the same address back; with no chip fitted the last driven cycle is a cartridge-ROM instruction fetch, so it was argued the read might return the written value and the probe pass. The red screen shows it does not. ⚠ Recorded because the reasoning was sound and the conclusion was wrong — an undriven bus is to be measured, not inferred. | [M] |
 | Behaviour when **every** byte of RAM is *fitted but faulty* | `dramscope_fall` injects all 8 bits bad at ONE byte; there is no mutation for a machine that fails every byte. The no-RAM result above is the nearest evidence and it is encouraging, but it is not the same machine. | [A] |
 | ~~Chip naming, Assy 250407~~ | ✅ **HELD.** `D0=U21, D1=U9, D2=U22, D3=U10, D4=U23, D5=U11, D6=U24, D7=U12` — confirmed from schematic 251138 in `c64-ice40-ram` README §2.2, where the drawing places the RAMs in bus order U12, U24, U11, U23, U10, U22, U9, U21 against D7…D0. | [D] |
-| Chip naming, other assemblies | 250425 and the short boards have different designators. ⚠ **Until each is verified from its own schematic the tool must not name a chip for it** — it names the BIT, and says which assembly the designators assume. | [A] |
+| ~~Chip naming, other assemblies~~ | ✅ **RESEARCHED 2026-09-27 — all five C64 assemblies, table below.** Two independent sources per board where possible; ⚠ one source was found to be demonstrably wrong and is named. | [C] |
+
+---
+
+## Bit → chip designator, every C64 assembly
+
+Researched 2026-09-27 from published hardware references. ⚠ **Commodore schematics and
+hardware reference guides are explicitly permitted source material** — the same class as
+schematic 251138, which this project already used. No RAM-test source or binary was involved.
+
+| Assembly | Board | DRAM | D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | Tag |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **326298** | long, 5-pin video | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 | [C] |
+| **250407** | long, 8-pin video | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 | **[D][C]** |
+| **250425** | long | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 | [C] |
+| **250466** | long | 2 × 41464 | U10 | U10 | U10 | U10 | U9 | U9 | U9 | U9 | [C] |
+| **250469** | **short** | 2 × 41464 | U10 | U10 | U10 | U10 | U11 | U11 | U11 | U11 | [C] |
+
+✅ **THE THREE 8 × 4164 BOARDS ARE IDENTICAL.** The table this project already held for
+250407 — from schematic 251138 via `c64-ice40-ram` §2.2 — is reproduced **exactly** by the
+opencbm Hardware Reference and Repair Guide, and that guide gives the *same* mapping for
+326298 and 250425. So the existing designators were already correct for three assemblies while
+the tool labelled them for one: an **under-claim**, not an error.
+
+⚠ **THE TWO 41464 BOARDS ARE REVERSED RELATIVE TO EACH OTHER, AND NO RULE PREDICTS IT.**
+On **250469** the lower designator carries the **lower** nibble (U10 = D0–D3, U11 = D4–D7).
+On **250466** the lower designator carries the **upper** nibble (U9 = D4–D7, U10 = D0–D3).
+An "obvious" analogy from one to the other gives the wrong chip. ⚠ **This is exactly the
+inference this file exists to forbid** — it was very nearly made here and was caught only by
+looking for a second source.
+
+⚠ **ONE SOURCE IS WRONG AND MUST NOT BE USED FOR 250466.** The opencbm guide's 250466 page
+lists `U9 … DRAM 64K x 4 … D1` and `U10 … DRAM 64K x 4 … D3` — a **single-bit** assignment for
+a **four-bit-wide** part, self-evidently impossible, and identical to the D1/D3 entries on the
+eight-chip boards. It has plainly inherited the bit column from the 4164 layout. The 250466
+row above therefore comes from *myoldcomputer.nl*, which states `U9 … D4..D7` and
+`U10 … D0..D3`. The guide is reliable for the other four boards — it was validated against our
+own schematic-derived 250407 table, which it matches on all eight bits — but not for this one.
+
+**Sources:** opencbm Hardware Reference and Repair Guide, per-PCB component tables
+(`opencbm.org/doc/c64/hardware_reference_and_repair_guide/pcb/`); *myoldcomputer.nl* mainboard
+pages; retrorewind support wiki for assembly numbers, board types and schematic numbers
+(326106, 251138, 251469, 252311/252312).
+
+⚠ **Not yet held:** the 250466 mapping rests on a single source, because the one that would
+have corroborated it is the one that is wrong. It is good enough to document and **not** good
+enough to print as a confident chip name without saying which board it assumes.
 
 ---
 

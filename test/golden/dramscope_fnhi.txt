@@ -1,25 +1,25 @@
  DRAMSCOPE  RUNS     1  BAD BYTES     1
 ----------------------------------------
   0123456789ABCDEF TESTS AND RESULTS
-0 **#*XXXX######## DATA LINES   OK
+0 **#*****######## DATA LINES   OK
 1 ################  76543210
 2 ################  ########
 3 ################ ADDR LINES   OK
-4 ################  FEDCBA98
+4 ####X###########  FEDCBA98
 5 ################  ########
 6 ################  76543210
 7 ################  ########
-8 ################ MARCH B      OK
+8 ################ MARCH B      X
 9 ################ MARCH LR     OK
 A ################ ROW/COLUMN   OK
 B ################ LOW MEMORY   OK
-C **************** OWN MEMORY   X
+C **************** OWN MEMORY   OK
 D ################ COLOUR RAM   OK
 E ################ RETENTION    OK
 F ################
  64K MAP: #=FULL *=LIGHTER X=BAD     1.4
 ----------------------------------------
- MEMORY FAULT, FIRST BAD BYTE AT $7774
- BITS               D4
- 4164               U23
+ MEMORY FAULT, FIRST BAD BYTE AT $4421
+ BITS   D7  D6  D5  D4
+ 4164   U12 U24 U11 U23
  41464? D4-D7 IS ONE CHIP - SEE SHEET.

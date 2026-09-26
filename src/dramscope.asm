@@ -211,6 +211,11 @@ w_snaplo = WORK+40              ; error count when it started
 w_snaphi = WORK+41
 w_phextra= WORK+42              ; a phase's own verdict, beyond the error count
 w_faddr  = WORK+45              ; ⚠ WHERE the first bad byte was
+w_dmask  = WORK+47              ; ⚠ draw_diag's mask, kept because the slot
+                                ; loop destroys w_tmp with asl
+w_dlo    = WORK+48              ; dec16's working value
+w_dhi    = WORK+49
+w_nz     = WORK+50              ; a non-zero digit has been emitted
 w_phfail = WORK+43              ; ⚠ one bit per phase: has it EVER failed?
                                 ; (two bytes, nine phases)
 
@@ -1604,6 +1609,14 @@ phv_el: txa
         lda w_passlo                    ; ⚠ a TRANSIENT fault: pass 1 only
         bne .restore
 }
+; ⚠ THE INVERSE, and it exists to test a DISPLAY bug rather than a memory one:
+; a fault that appears only from run 2 makes the verdict CHANGE KIND mid
+; session, which is what left one verdict's tail under the next. Every other
+; mutation shows a single verdict for the whole session.
+!ifdef INJ_LATERPASS {
+        lda w_passlo
+        beq .restore
+}
         lda mptr+1
         cmp #INJ_PG
         bne .restore
@@ -1935,6 +1948,7 @@ draw_diag:
         lda #1
         sta w_col
         lda w_tmp
+        sta w_dmask                     ; ⚠ kept: the slot loop asl's w_tmp away
         cmp #$ff                        ; ⚠ every bit -- name no chip
         beq dg_allbits
         lda #1
@@ -2015,16 +2029,15 @@ dg_next:
         lda w_slot
         cmp #8
         bne dg_slot
-        ; ⚠ A named chip gets the short-board caveat under it, in place of the
-        ; legend. The legend matters most when nothing is wrong; this matters
-        ; most when the tool is telling someone which part to replace.
+        ; ⚠ A named chip gets the 41464 note under it, replacing "RUNS UNTIL
+        ; YOU RESET." That line matters most when nothing is wrong; this one
+        ; matters most when the tool is telling someone which part to replace.
         lda w_chipok
         beq dg_end
-        ; ⚠ BLANK THE ROW FIRST. This caveat replaces the legend, which is
-        ; longer -- so writing straight over it left the legend's tail showing
-        ; and the screen read "...NAMES DIFFER.RAM". Padding the string would
-        ; fix it until the next time either line changed length; clearing the
-        ; row fixes it for good.
+        ; ⚠ BLANK THE ROW FIRST. This replaces a line of a different length --
+        ; writing straight over it once left a tail showing and the screen read
+        ; "...NAMES DIFFER.RAM". Padding the string would fix it until the next
+        ; time either line changed length; clearing the row fixes it for good.
         lda #V_ROW+3
         ldx #1
         jsr setpos
@@ -2040,8 +2053,36 @@ dg_clr: sta (sptr),y
         sta w_row
         lda #1
         sta w_col
-        lda #<s_shortbd
-        ldy #>s_shortbd
+
+        ; ⚠ WHICH NIBBLE FAILED, BECAUSE ON A 41464 BOARD FOUR BITS ARE ONE
+        ; CHIP. The old line said only "SHORT BOARD? 2 CHIPS, NAMES DIFFER",
+        ; which warned that the names were wrong without saying what was right,
+        ; and was itself wrong: 250466 is a LONG board with two 41464s, so the
+        ; chip count does not identify the board type.
+        ; ⚠ NO DESIGNATOR IS NAMED FOR A 41464 BOARD, ON PURPOSE. The two of
+        ; them disagree and nothing on screen can tell them apart:
+        ;     250469 (short)  U10 = D0-D3   U11 = D4-D7
+        ;     250466 (long)   U10 = D0-D3   U9  = D4-D7
+        ; The nibble grouping is a DATASHEET fact -- a 41464 is four bits wide
+        ; whatever board it is on -- so it can be stated without knowing the
+        ; board. The designators cannot, and are on the bench sheet instead.
+        ; ⚠ w_dmask, NOT w_tmp: the slot loop above destroyed w_tmp with asl.
+        lda w_dmask
+        and #$0f
+        beq dg_n_hi                     ; nothing in the low nibble
+        lda w_dmask
+        and #$f0
+        bne dg_n_both
+        lda #<s_niblo
+        ldy #>s_niblo
+        jmp prstr
+dg_n_hi:
+        lda #<s_nibhi
+        ldy #>s_nibhi
+        jmp prstr
+dg_n_both:
+        lda #<s_nibboth
+        ldy #>s_nibboth
         jmp prstr
 dg_end: rts
 
@@ -2214,28 +2255,104 @@ dph_d:  lda #CH_DOT
         bne dph_l
         rts
 
-; draw_passes -- the burn-in counter
+; ---------------------------------------------------------------------------
+; ⚠⚠ THESE TWO ARE COUNTS, AND COUNTS ARE DECIMAL.
+; They used to be printed in hex with a '$' in front. Carl asked why the '$'
+; was there, and the honest answer is that it was covering for the real
+; mistake: nobody has run the test $0012 times, and "BAD BYTES $000A" makes the
+; reader convert ten into ten. The '$' was treating the symptom.
+;
+; ⚠ THE ADDRESS STAYS HEX, and that is not an inconsistency. An address IS hex
+; vocabulary -- it matches the schematic, and it matches the map's own hex row
+; and column labels. Now that the counts are decimal, '$' on this screen means
+; exactly one thing: what follows is an address.
+;
+; ⚠ NOT BCD. The obvious 6502 trick is to keep the counters in BCD so hexpair
+; prints them as decimal for free. Two reasons not to: INC does not honour the
+; D flag, so every increment would grow anyway; and two BCD bytes stop at 9999
+; while a real fault has already produced 40,961 bad bytes in this project's
+; own history. Binary keeps the full 16-bit range and dec16 pays the cost once
+; per redraw instead of once per counted byte.
+; ---------------------------------------------------------------------------
 draw_passes:
-        lda #0
-        ldx #18
-        jsr setpos
-        ldy #0
-        lda w_passhi
-        jsr hexpair
         lda w_passlo
-        jmp hexpair
-
-; --- error count ------------------------------------------------------------
-draw_errors:
+        sta w_dlo
+        lda w_passhi
+        sta w_dhi
         lda #0
-        ldx #35
+        ldx #17
+        jmp dec16
+
+draw_errors:
+        lda w_errlo
+        sta w_dlo
+        lda w_errhi
+        sta w_dhi
+        lda #0
+        ldx #34
+        jmp dec16
+
+; ---------------------------------------------------------------------------
+; dec16 -- w_dlo/w_dhi as up to five decimal digits, A = row, X = column.
+; ⚠ RIGHT-ALIGNED, LEADING ZEROS BLANKED. "BAD BYTES 0" is what a person reads;
+; "BAD BYTES 00000" is what a machine writes. The five columns are fixed width
+; so the field never jitters as the count grows.
+; ⚠ Repeated subtraction of a power-of-ten table -- no division on a 6502.
+; ---------------------------------------------------------------------------
+dec16:
         jsr setpos
         ldy #0
-        lda w_errhi
-        jsr hexpair
-        lda w_errlo
-        jsr hexpair
+        sty w_nz
+        sty w_tmp2                      ; ⚠ the running screen offset
+        ldx #0                          ; index into the power table
+d16_pow:
+        lda #0
+        pha                             ; digit count for this power
+d16_sub:
+        lda w_dlo                       ; try value = value - power
+        sec
+        sbc dec_lo,x
+        sta w_tmp
+        lda w_dhi
+        sbc dec_hi,x
+        bcc d16_done                    ; borrowed: it did not fit
+        sta w_dhi
+        lda w_tmp
+        sta w_dlo
+        pla
+        clc
+        adc #1
+        pha
+        jmp d16_sub
+d16_done:
+        pla                             ; the digit
+        tay
+        bne d16_show                    ; non-zero: always shown
+        lda w_nz
+        bne d16_show                    ; something already shown: keep place
+        cpx #4
+        beq d16_show                    ; ⚠ the units digit is ALWAYS shown,
+        lda #CH_SPACE                   ;   so a count of zero reads "0"
+        bne d16_put
+d16_show:
+        lda #1
+        sta w_nz
+        tya
+        clc
+        adc #$30                        ; screen code for '0'
+d16_put:
+        ldy w_tmp2
+        sta (sptr),y
+        lda #C_LTGREY
+        sta (cptr),y
+        inc w_tmp2
+        inx
+        cpx #5
+        bne d16_pow
         rts
+
+dec_lo: !byte <10000, <1000, <100, <10, <1
+dec_hi: !byte >10000, >1000, >100, >10, >1
 
 ; hexpair -- A = byte, Y = offset from sptr; writes two screen codes
 hexpair:
@@ -2267,6 +2384,34 @@ hexpair:
 ; 128 bytes when the failing address was added, and a branch that cannot reach
 ; is a build failure rather than something to rediscover.
 verdict:
+        ; ⚠⚠ CLEAR THE VERDICT ROWS FIRST. verdict_line and verdict_line2 write
+        ; a string and nothing else, so a SHORTER verdict leaves the tail of a
+        ; longer one behind. That is reachable in exactly the situation this
+        ; tool exists for: faults are cumulative and the verdict can only
+        ; escalate, so a colour-RAM fault in run 1 followed by a memory fault in
+        ; run 2 changes which verdict is shown, and row 22 kept "...WRONG
+        ; COLOURS." behind the new bit lanes.
+        ; ⚠ NOT CAUGHT BY ANY OF THE 16 CASES, because each mutation produces
+        ; one kind of fault for the whole run and starts from a blank screen.
+        ; The suite never saw a verdict CHANGE KIND. A new case now does.
+        ; ⚠ Rows V_ROW..V_ROW+2 only. V_ROW+3 holds "RUNS UNTIL YOU RESET.",
+        ; which draw_diag replaces and clears for itself when it names a chip.
+        ldx #V_ROW
+vq_row: txa
+        pha
+        ldx #0
+        jsr setpos
+        ldy #39
+        lda #CH_SPACE
+vq_col: sta (sptr),y
+        dey
+        bpl vq_col
+        pla
+        tax
+        inx
+        cpx #V_ROW+3
+        bne vq_row
+
         lda w_dbmask
         beq vd_1
         jmp v_data
@@ -2906,11 +3051,9 @@ s_p5:       !scr "row/column", 0
 s_p6:       !scr "low memory", 0
 s_phv:      !scr "own memory", 0
 s_p7:       !scr "retention", 0
-s_errors:   !scr "bad bytes $", 0
-s_passes:   !scr "runs $", 0
+s_errors:   !scr "bad bytes", 0
+s_passes:   !scr "runs", 0
 s_p9:       !scr "colour ram", 0
-s_colbad:   !scr "colour ram bad - a separate chip.", 0
-s_colbad2:  !scr "not a dram. causes wrong colours.", 0
 ; ⚠ THE OLD LEGEND SAID ".=NOT RAM" AND THAT WAS SIMPLY FALSE. Every one of
 ; the 256 pages is RAM and every one gets tested -- even $D000-$DFFF, which is
 ; marched with I/O banked out. '.' is state 0, "not reached yet", and it is
@@ -2923,32 +3066,40 @@ s_colbad2:  !scr "not a dram. causes wrong colours.", 0
 ; spinner turning in the running phase's row at the same time -- it reads as
 ; "here" with no help, and listing it pushed the line into the version number
 ; in the corner. The budget is col 1 to col 35; the version owns 37-39.
-s_legend:   !scr "64k map: #=full *=lighter x=bad", 0
+; ⚠⚠ THE LEGEND'S FIRST GLYPH IS CH_FULL ITSELF, NOT AN ASCII '#'.
+; A "full" map cell is screen code $A0, the INVERSE SPACE -- a solid block.
+; The legend used to print a literal '#' (screen code $23), which looks nothing
+; like it, so the key named a symbol that appears nowhere on the screen.
+; ⚠ SIXTEEN AUTOMATED CASES COULD NOT SEE THIS. test/check.py's GLYPH table
+; mapped BOTH $A0 and $23 to the Python character "#", so the golden screens
+; rendered the two identically and compared equal. It was found by rendering
+; the screen through the real character ROM and looking at it.
+s_legend:   !scr "64k map: "
+            !byte CH_FULL
+            !scr "=full *=lighter x=bad", 0
 s_ver:      !scr "1.4", 0   ; ⚠ 3 chars at col 37: the legend must end by 35
 ; ⚠ Nothing told the user it never stops, or how to end it.
-s_running:  !scr "runs until you reset.", 0
 
 ; ⚠ Four bytes per entry, space padded, indexed by bit*4. The designators are
 ; Assy 250407 ONLY -- schematic 251138, via c64-ice40-ram README §2.2.
 ; The matching bit labels are generated in draw_diag, not stored.
 chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
-s_ok:       !scr "all tests passed.", 0
-s_ok2:      !scr "59,648 full + 5,886 lighter = 65,534", 0
 ; ⚠ Headlines are short because the DETAIL is on the next two rows and the
 ; lanes are on screen already. "see data lines" told a reader to look at
 ; something they were already looking at.
-s_databad:  !scr "data line fault.", 0
-s_addrbad:  !scr "address line fault.", 0
-s_addrbad2: !scr "two of a pair? suspect u13/u25/rp1/rp2", 0
 ; ⚠ No second line for the memory or data-bus verdicts: draw_diag owns rows
 ; 22 and 23 and says more than a sentence would. The strings that used to
 ; live there were dead for several commits, still costing 63 bytes of an
 ; engine capped at 4 KB.
-s_membad:   !scr "memory fault, first bad byte at $", 0
 s_bits:     !scr "bits", 0
-s_assy:     !scr "250407", 0
-s_allbits:  !scr "all 8 bits bad - not one chip. see pla", 0
-s_shortbd:  !scr "short board? 2 chips, names differ.", 0
+; ⚠ THE LABEL NAMES THE PART, NOT AN ASSEMBLY, AND THAT IS A WIDENING.
+; The designators U21/U9/U22/U10/U23/U11/U24/U12 are IDENTICAL on 326298,
+; 250407 and 250425 -- verified from schematic 251138 and independently from
+; the opencbm hardware reference, which reproduces all eight. Labelling the row
+; "250407" claimed one board when the table was right for three. "4164" is also
+; what the user can physically READ OFF THE CHIP, which beats asking them to
+; find an assembly number etched on the board.
+s_assy:     !scr "4164", 0
 
 eng_end:
 }
@@ -2959,6 +3110,47 @@ eng_end:
 !if eng_end - eng_start > ENG_PAGES * $100 {
         !error "engine does not fit in the pages the bootstrap copies"
 }
+
+; ---------------------------------------------------------------------------
+; ⚠ THESE STRINGS LIVE IN ROML, OUTSIDE THE ENGINE, AND THAT IS DELIBERATE.
+; The engine is hard-capped at 4 KB by the I/O page and the tightest fault
+; build has SIXTEEN BYTES SPARE; these three lines are 110. They sit here at
+; their real $8xxx addresses instead, and because they are outside the
+; !pseudopc block the engine's references to them assemble to $8xxx too.
+;
+; ⚠ SAFE ONLY BECAUSE THE DISPLAY RUNS WITH $01 = $37. In 8K cartridge mode
+; that maps ROML at $8000-$9FFF, so the engine can read them. Nothing here may
+; ever be read with $01 = $30 -- during the march $8000-$9FFF is plain RAM and
+; these bytes are not there. draw_diag is only ever reached from the verdict
+; path, which runs with I/O banked in.
+; ⚠ The march WRITES to $8000-$9FFF as RAM; that does not touch the ROM, and
+; reading with $01 = $37 returns these bytes, not what the march left.
+; ---------------------------------------------------------------------------
+; ---------------------------------------------------------------------------
+; ⚠ MOVED OUT OF THE ENGINE, same reason and same rules as the nibble lines
+; above: these are ~300 bytes of verdict and banner text in a 4 KB engine that
+; had 23 spare, and every one of them is drawn ONLY from the display path,
+; which runs with $01 = $37 and therefore has ROML mapped.
+; ⚠ NOTHING HERE MAY BE READ WITH $01 = $30. During the march $8000-$9FFF is
+; plain RAM and these bytes are not visible; the march writes over that RAM
+; freely, which does not touch the ROM underneath.
+; ⚠ The handover module at $3000 must not reference these either -- it runs
+; with the engine marched away and does its own banking.
+; ---------------------------------------------------------------------------
+s_colbad:   !scr "colour ram bad - a separate chip.", 0
+s_colbad2:  !scr "not a dram. causes wrong colours.", 0
+s_running:  !scr "runs until you reset.", 0
+s_ok:       !scr "all tests passed.", 0
+s_ok2:      !scr "59,648 full + 5,886 lighter = 65,534", 0
+s_databad:  !scr "data line fault.", 0
+s_addrbad:  !scr "address line fault.", 0
+s_addrbad2: !scr "two of a pair? suspect u13/u25/rp1/rp2", 0
+s_membad:   !scr "memory fault, first bad byte at $", 0
+s_allbits:  !scr "all 8 bits bad - not one chip. see pla", 0
+
+s_niblo:    !scr "41464? d0-d3 is one chip - see sheet.", 0
+s_nibhi:    !scr "41464? d4-d7 is one chip - see sheet.", 0
+s_nibboth:  !scr "41464? d0-d3 and d4-d7 are 2 chips.", 0
 
 
 ; ===========================================================================

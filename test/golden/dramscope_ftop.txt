@@ -1,4 +1,4 @@
- DRAMSCOPE  RUNS $0001  BAD BYTES $0006
+ DRAMSCOPE  RUNS     1  BAD BYTES     6
 ----------------------------------------
   0123456789ABCDEF TESTS AND RESULTS
 0 **#*****######## DATA LINES   OK
@@ -21,5 +21,5 @@ F ################
 ----------------------------------------
  MEMORY FAULT, FIRST BAD BYTE AT $6071
  BITS       D6
- 250407     U24
- SHORT BOARD? 2 CHIPS, NAMES DIFFER.
+ 4164       U24
+ 41464? D4-D7 IS ONE CHIP - SEE SHEET.

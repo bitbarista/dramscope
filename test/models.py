@@ -59,6 +59,11 @@ BORDER = {1: "WHITE", 2: "RED", 3: "CYAN", 4: "PURPLE", 5: "GREEN",
 # finishes after the colour-RAM check. Position in the string is still the
 # phase index, which is what cl() depends on.
 PHROW = (3, 6, 11, 12, 13, 14, 15, 17, 16)
+# ⚠ $A0 (inverse space, a solid block) is the map's "full" cell and renders
+# here as "#". ASCII '#' ($23) is DELIBERATELY ABSENT: it used to be mapped to
+# "#" as well, so a legend printing $23 and a map printing $A0 compared equal
+# in every golden while looking completely different on screen. Unmapped codes
+# render as "?", so if a literal '#' is ever reintroduced the goldens fail.
 GLYPH = {0x20: " ", 0x2E: ".", 0x2A: "*", 0xA0: "#", 0x18: "X", 0x2B: "+", 0x24: "$", 0x3A: ":"}
 
 
@@ -134,12 +139,13 @@ def check_clean(label, args):
     border, scr, wrk = got
     errs = wrk[14] + 256 * wrk[15]
     row0 = text(scr, 3, 2, 18)
-    passes = text(scr, 0, 18, 22)
+    # ⚠ decimal and right-aligned since the counters stopped being hex
+    passes = text(scr, 0, 17, 22)
     # ⚠ the checklist is the point: every phase must have run AND passed
     checks = "".join(text(scr, r, 32, 34).strip() or ".."
                      for r in PHROW)
     ok = (BORDER.get(border) == "GREEN" and errs == 0 and checks == "OK" * 9
-          and row0 == CLEAN_ROW0 and passes.strip() == "0001")
+          and row0 == CLEAN_ROW0 and passes.strip() == "1")
     print(f"  {label:32s} {BORDER.get(border, border):6s} err={errs:<4d} "
           f"{row0} {checks} p={passes.strip()}"
           f"{'' if ok else '   <-- ***'}")
@@ -150,7 +156,7 @@ def check_clean(label, args):
 print("DRAMscope across every C64 variant VICE emulates")
 print()
 print("A clean pass must look identical on all of them:")
-print(f"  GREEN, 0 errors, map {CLEAN_ROW0}, all 9 phases OK, PASSES 0001")
+print(f"  GREEN, 0 errors, map {CLEAN_ROW0}, all 9 phases OK, RUNS 1")
 print()
 for cia, cianame in ((0, "6526 old"), (1, "8521 new")):
     for model in C64_MODELS:

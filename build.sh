@@ -57,6 +57,16 @@ mk '-DINJECT_ONCE=1 -DINJ_PG=$40 -DINJ_OFF=$37 -DINJ_MASK=$01 -DINJ_FIRSTPASS=1'
 # the sweep must find RAM and report a STEADY red. Adding INJECT_NORAM also
 # breaks the sweep, so nothing responds anywhere and it must report a FLASHING
 # red. One flag apart, and they must not give the same answer.
+# ⚠ Clean on run 1, faulty from run 2 -- the verdict changes from "ALL TESTS
+# PASSED" to a memory fault, so row 22 goes from the coverage line to the bit
+# lanes. That transition is what used to leave a tail behind.
+mk '-DINJECT_MEM=1  -DINJ_PG=$52 -DINJ_OFF=$19 -DINJ_MASK=$01 -DINJ_LATERPASS=1' dramscope_fchg "DS FAULT LATE"
+
+# ⚠ The three nibble paths, because on a 41464 board four bits are ONE chip.
+# fmem ($01) is already low-nibble-only. These are the other two.
+mk '-DINJECT_MEM=1  -DINJ_PG=$44 -DINJ_OFF=$21 -DINJ_MASK=$f0' dramscope_fnhi "DS FAULT NIB HI"
+mk '-DINJECT_MEM=1  -DINJ_PG=$48 -DINJ_OFF=$63 -DINJ_MASK=$11' dramscope_fnbo "DS FAULT NIB BOTH"
+
 mk '-DINJECT_P0A=1'                  dramscope_fscr  "DS FAULT SCRATCH"
 mk '-DINJECT_P0A=1 -DINJECT_NORAM=1' dramscope_fnor  "DS FAULT NO RAM"
 

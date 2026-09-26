@@ -18,8 +18,13 @@ import pathlib
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BUILD = ROOT / "build"
 
+# ⚠ $A0 (inverse space, a solid block) is the map's "full" cell and renders
+# here as "#". ASCII '#' ($23) is DELIBERATELY ABSENT: it used to be mapped to
+# "#" as well, so a legend printing $23 and a map printing $A0 compared equal
+# in every golden while looking completely different on screen. Unmapped codes
+# render as "?", so if a literal '#' is ever reintroduced the goldens fail.
 GLYPH = {0x20: " ", 0x2E: ".", 0x2D: "-", 0x2F: "/", 0x2C: ",", 0x3D: "=",
-         0x18: "X", 0xA0: "#", 0x2B: "+", 0x2A: "*", 0x23: "#", 0x24: "$", 0x3A: ":"}
+         0x18: "X", 0xA0: "#", 0x2B: "+", 0x2A: "*", 0x24: "$", 0x3A: ":"}
 
 
 def halt_address(stem: str, sym: str = "pass_obs") -> str:
@@ -117,10 +122,9 @@ def plausible(scr, wrk, want_errs) -> int:
     if errs != want_errs:
         print(f"     errors    {errs} in memory, case claims {want_errs}   <-- ***")
         bad += 1
-    shown = errors_field(scr).strip()
-    if shown != f"{wrk[15]:02X}{wrk[14]:02X}":
-        print(f"     errors    screen {shown} vs memory "
-              f"{wrk[15]:02X}{wrk[14]:02X}   <-- ***")
+    shown = errors_field(scr)
+    if shown != str(errs):
+        print(f"     errors    screen {shown!r} vs memory {errs}   <-- ***")
         bad += 1
     return bad
 
@@ -157,16 +161,19 @@ STAT = 32   # the checklist status column
 # ⚠ ONE definition of where the title-row counters are, because there are three
 # readers and last time the layout moved only two of them were updated -- which
 # is a harness that lies about the thing it exists to check.
-PASS_C0, PASS_C1 = 18, 22   # "RUNS $dddd"      -- digits only, not the '$'
-ERR_C0,  ERR_C1  = 35, 39   # "BAD BYTES $dddd" -- digits only, not the '$'
+# ⚠ DECIMAL NOW, AND RIGHT-ALIGNED IN FIVE COLUMNS. These were hex with a '$'
+# until Carl asked what the '$' was for; a count is not an address. The fields
+# are space-padded on the left, so every reader strips.
+PASS_C0, PASS_C1 = 17, 22   # "RUNS ____1"
+ERR_C0,  ERR_C1  = 34, 39   # "BAD BYTES ____0"
 
 
 def passes_field(scr):
-    return text(scr, 0, PASS_C0, PASS_C1)
+    return text(scr, 0, PASS_C0, PASS_C1).strip()
 
 
 def errors_field(scr):
-    return text(scr, 0, ERR_C0, ERR_C1)
+    return text(scr, 0, ERR_C0, ERR_C1).strip()
 
 
 def vice_border(stem: str, sym: str, resumes: int = 0, limit: int | None = None):
@@ -228,7 +235,7 @@ CASES = [
      {"redpages": 0,
       "errcount": 0,
       "row0": "**#*****########", "rowC": "****************",
-      "page40": "#", "errors": "0000",
+      "page40": "#", "errors": "0",
       "bits": " 59,648 FULL + 5,886 LIGHTER = 65,534", "chips": "",
       "colram": "OK"}),
     # ⚠ The classifier makes a claim about someone else's hardware. D3 is U10
@@ -239,7 +246,7 @@ CASES = [
       "errcount": 0,
       "checklist": cl(0),
       "bits":  " BITS                   D3",
-      "chips": " 250407                 U10"}),
+      "chips": " 4164                   U10"}),
     ("A5 faulty -- one X in the low address lane, data lane clean",
      "dramscope_fab.crt",  "pass_obs",     "LTRED", "########", "########", "##X#####",
      {"redpages": 9,
@@ -253,10 +260,10 @@ CASES = [
       "errcount": 1,
       "checklist": cl(2),
       "row0": "**#*****########", "rowC": "****************", "page40": "X",
-      "errors": "0001",
+      "errors": "1",
       "bits":  " BITS                               D0",
-      "chips": " 250407                             U21",
-      "caveat": " SHORT BOARD? 2 CHIPS, NAMES DIFFER."}),
+      "chips": " 4164                               U21",
+      "caveat": " 41464? D0-D3 IS ONE CHIP - SEE SHEET."}),
     # ⚠ The one a real device might actually hit. A Kung Fu Flash that ignores
     # $DE02 must SAY SO, not hang in Ultimax pretending to test 64 KB.
     # ⚠ P4 is a SEPARATE engine with its own read paths, so it needs its own
@@ -266,9 +273,9 @@ CASES = [
      {"redpages": 1,
       "errcount": 1,
       "checklist": cl(3),
-      "errors": "0001",
+      "errors": "1",
       "bits":  " BITS   D7",
-      "chips": " 250407 U12"}),
+      "chips": " 4164   U12"}),
     # ⚠ P5 is a third engine again -- its own pattern generator and read path.
     # One bit wrong at $6071, on the topographical verify pass.
     ("topographical pass catches a disturbed cell -- page $60, D6",
@@ -276,9 +283,9 @@ CASES = [
      {"redpages": 1,
       "errcount": 6,
       "checklist": cl(4),
-      "errors": "0006",
+      "errors": "6",
       "bits":  " BITS       D6",
-      "chips": " 250407     U24"}),
+      "chips": " 4164       U24"}),
     # ⚠ P6 is a fourth engine again -- registers-only, self-modifying, and the
     # only one that runs with its own stack under test. One bad byte at $0140.
     ("zero page / stack phase catches a bad stack byte",
@@ -286,9 +293,9 @@ CASES = [
      {"redpages": 2,
       "errcount": 1,
       "checklist": cl(5),
-      "errors": "0001",
+      "errors": "1",
       "bits":  " BITS                       D2",
-      "chips": " 250407                     U22"}),
+      "chips": " 4164                       U22"}),
     # ⚠ The handover is a FIFTH engine, and the only one that marches the
     # region the display is standing on. One bad byte at $0555.
     ("handover catches a fault in the screen's own memory",
@@ -298,9 +305,9 @@ CASES = [
      {"redpages": 4,
       "errcount": 1,
       "checklist": cl(6),
-      "errors": "0001",
+      "errors": "1",
       "bits":  " BITS               D4",
-      "chips": " 250407             U23"}),
+      "chips": " 4164               U23"}),
     # ⚠ P7 is the only phase where the fault appears AFTER a wait rather than
     # during a write/read pair. One cell forgets a bit over the dwell.
     ("retention: a cell that forgets a bit over 12 seconds",
@@ -308,9 +315,9 @@ CASES = [
      {"redpages": 1,
       "errcount": 1,
       "checklist": cl(7),
-      "errors": "0001",
+      "errors": "1",
       "bits":  " BITS           D5",
-      "chips": " 250407         U11"}),
+      "chips": " 4164           U11"}),
     # ⚠ Colour RAM is a DIFFERENT CHIP. Its verdict is its own, its label goes
     # red, and it must NOT appear in the DRAM bad-byte count or name a 4164.
     ("colour ram fault -- own verdict, and no DRAM blamed",
@@ -318,7 +325,7 @@ CASES = [
      {"redpages": 0,
       "errcount": 0,
       "checklist": cl(8),
-      "errors": "0000",
+      "errors": "0",
       "colram": "X",
       "vline":  " COLOUR RAM BAD - A SEPARATE CHIP."}),
     # ⚠ THE SAFETY RULE. All eight bits wrong must name NO chip at all.
@@ -336,6 +343,17 @@ CASES = [
     # $0000-$0FFF must FIND RAM and hold a STEADY red. If the sweep ever went
     # the other way this would flash instead, and the user would be told to
     # check empty sockets on a machine whose sockets are full.
+    # ⚠ The three nibble paths. On a 41464 board four bits are ONE chip, so
+    # which nibble failed is the whole answer, and the three messages must
+    # differ. fmem above is already the low-nibble case.
+    ("D4-D7 bad -- must say the HIGH nibble is one chip",
+     "dramscope_fnhi.crt", "pass_obs", "LTRED", "########", "########", "########",
+     {"redpages": 1, "errcount": 1, "checklist": cl(2), "errors": "1",
+      "caveat": " 41464? D4-D7 IS ONE CHIP - SEE SHEET."}),
+    ("D0 and D4 bad -- must say TWO chips, not one",
+     "dramscope_fnbo.crt", "pass_obs", "LTRED", "########", "########", "########",
+     {"redpages": 1, "errcount": 1, "checklist": cl(2), "errors": "1",
+      "caveat": " 41464? D0-D3 AND D4-D7 ARE 2 CHIPS."}),
     ("bad scratch byte, memory fitted -- STEADY red",
      "dramscope_fscr.crt", "rom_halt", "RED", None, None, None, None),
 ]
@@ -356,7 +374,7 @@ def main() -> int:
         # and the harness is reading a later pass than it thinks.
         if want_db is not None:
             got["passes"] = passes_field(scr)
-            want["passes"] = "0001"
+            want["passes"] = "1"
             # ⚠ THE CHECKLIST IS THE ANSWER TO "what ran and did it pass".
             # Asserting the whole column means a phase that silently stops
             # being run, or stops reporting, fails the build.
@@ -492,11 +510,55 @@ def main() -> int:
         if not ok:
             failures += 1
 
+    # ⚠⚠ A VERDICT THAT CHANGES KIND MUST NOT LEAVE THE PREVIOUS ONE BEHIND.
+    # verdict_line writes a string and nothing else, so a shorter verdict used
+    # to leave the tail of a longer one showing. Run 1 here is CLEAN, so row 22
+    # holds the 36-character coverage line; run 2 faults, and row 22 becomes the
+    # bit lanes, which write only " BITS" and a "dN" out at column 36. Every
+    # other mutation shows one verdict for the whole session, so none of them
+    # could ever catch this.
+    print("  verdict changes kind in run 2 -- no tail from the old one")
+    stem = "dramscope_fchg"
+    rows = {}
+    for label, resumes in (("run 1 (clean)", 0), ("run 2 (faulty)", 1)):
+        (BUILD / "mon.txt").write_text(
+            "x\n" * resumes +
+            'bank ram\nsave "build/screen.bin" 0 0400 07ff\nquit\n')
+        (BUILD / "screen.bin").unlink(missing_ok=True)
+        try:
+            subprocess.run(
+                ["x64sc", "-console", "-warp",
+                 "-initbreak", halt_address(stem, "pass_obs"),
+                 "-moncommands", "build/mon.txt",
+                 "-cartcrt", str(BUILD / f"{stem}.crt")],
+                cwd=ROOT, timeout=400, check=False,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except subprocess.TimeoutExpired:
+            pass
+        f = BUILD / "screen.bin"
+        rows[label] = (text(f.read_bytes()[2:], V_ROW, 0, 40).rstrip(),
+                       text(f.read_bytes()[2:], V_ROW + 1, 0, 40).rstrip()) \
+            if f.exists() else (None, None)
+    v1, c1 = rows["run 1 (clean)"]
+    v2, c2 = rows["run 2 (faulty)"]
+    ok1 = v1 == " ALL TESTS PASSED."
+    # ⚠ The exact test: nothing of the coverage line may survive into run 2.
+    ok2 = (v2 or "").startswith(" MEMORY FAULT") and "LIGHTER" not in (c2 or "?") \
+        and "FULL" not in (c2 or "?")
+    print(f"     run 1 verdict  {v1!r}{'' if ok1 else '   <-- ***'}")
+    print(f"     run 2 verdict  {v2!r}")
+    print(f"     run 2 row 22   {c2!r}"
+          f"{'' if ok2 else '   <-- *** tail of the coverage line survived'}")
+    if not ok1:
+        failures += 1
+    if not ok2:
+        failures += 1
+
     print("  transient fault -- must still be X at the end of pass 2")
     stem = "dramscope_fonce"
     for label, resumes, want_pass, want_cl in (
-            ("end of pass 1", 0, "0001", cl(2)),
-            ("end of pass 2", 1, "0002", cl(2))):
+            ("end of pass 1", 0, "1", cl(2)),
+            ("end of pass 2", 1, "2", cl(2))):
         (BUILD / "mon.txt").write_text(
             "x\n" * resumes +
             'bank ram\nsave "build/screen.bin" 0 0400 07ff\n'

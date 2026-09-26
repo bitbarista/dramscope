@@ -96,7 +96,7 @@ The two projects stay separate. This one has no dependency on that board and nev
 | **Burn-in** — cycles continuously, counts runs, accumulates faults | ✅ |
 | **P9** `COLOUR RAM` — the separate 1K × 4 chip | ✅ |
 | ~~P8 disturb~~ | ⚠ **declined** — a 6502 reaches ~400 row activations per refresh interval against the 10⁴–10⁵ rowhammer needs. See `SPEC.md` |
-| **Chip naming** from the failing-bit mask, Assy 250407 | ✅ |
+| **Chip naming** from the failing-bit mask | ✅ all five assemblies researched — see below |
 | Classification rules beyond chip naming (stride, region, mux pairing) | ⬜ |
 | Board profiles for 250425 and the short boards | ⬜ |
 | Verified on real hardware (Ultimate II+) | ✅ 2026-09-26 |
@@ -171,7 +171,7 @@ so the screen answers "what has been done to this machine, and did it pass" with
 reading a manual:
 
 ```
- DRAMSCOPE  RUNS $0001  BAD BYTES $0000
+ DRAMSCOPE  RUNS     1  BAD BYTES     0
  ----------------------------------------
    0123456789ABCDEF TESTS AND RESULTS
  0 **#*****######## DATA LINES   OK
@@ -194,6 +194,14 @@ reading a manual:
 
  RUNS UNTIL YOU RESET.
 ```
+
+⚠ **`RUNS` and `BAD BYTES` are decimal; `$` on this screen always means an address.** They
+were hex with a `$` in front until Carl asked what the `$` was for — and the honest answer was
+that it covered for the real mistake, since nobody has run the test `$0012` times and
+`BAD BYTES $000A` makes the reader convert ten into ten. The counters stayed 16-bit **binary**
+rather than becoming BCD: `INC` ignores the D flag, and two BCD bytes stop at 9999 while a real
+fault in this project's own history produced **40,961** bad bytes. `dec16` converts once per
+redraw instead, right-aligned with leading zeros blanked.
 
 ⚠ **The phase numbers used throughout this README and in `SPEC.md` are not on the screen.**
 They are the specification's identifiers; the screen names what each test *does*, because
@@ -247,6 +255,33 @@ on this machine the engine never runs. Measured at **850,000–900,000 PAL cycle
 by bracketing four intervals in emulated cycles, i.e. 0.86–0.91 s, so **0.55–0.58 Hz** against
 the 3 flashes/second limit in WCAG 2.3.1 — a ≥5.2× margin, wider than the running pulse's 3.2×
 on purpose, because `DEN=0` makes this fill the whole screen rather than just the border.
+
+## Which chip carries which bit
+
+Researched from published hardware references, 2026-09-27. ⚠ Commodore schematics and hardware
+reference guides are permitted source material under [`PROVENANCE.md`](PROVENANCE.md) — the same
+class as schematic 251138, which this project already used.
+
+| Assembly | Board | RAM | D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 326298 | long | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 |
+| **250407** | long | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 |
+| 250425 | long | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 |
+| 250466 | **long** | 2 × 41464 | U10 | U10 | U10 | U10 | U9 | U9 | U9 | U9 |
+| 250469 | short | 2 × 41464 | U10 | U10 | U10 | U10 | U11 | U11 | U11 | U11 |
+
+✅ **All three 8 × 4164 boards are identical**, and the table matches schematic 251138 on all
+eight bits. The screen therefore names chips for any of them, and the row is labelled `4164` —
+the number printed on the part, which the user can check by looking — rather than `250407`,
+which claimed one board for a table that was right for three.
+
+⚠ **The two 41464 boards are reversed relative to each other** and nothing on screen can tell
+them apart, so the tool **does not name a chip for them**. It prints the nibble instead —
+`41464? D0-D3 IS ONE CHIP - SEE SHEET.` — because "a 41464 is four bits wide" is a *datasheet*
+fact that holds on any board, while the designator is not. The full chart is on the bench sheet.
+
+⚠ **250466 is a long board with two RAM chips**, so counting chips does not identify the board
+type. The old on-screen caveat `SHORT BOARD? 2 CHIPS` was wrong on that point and is gone.
 
 ## Credits
 
