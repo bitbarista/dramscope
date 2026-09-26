@@ -53,10 +53,12 @@ The two projects stay separate. This one has no dependency on that board and nev
 | Provenance policy | ✅ [`PROVENANCE.md`](PROVENANCE.md) |
 | **P0** bring-up probe, no RAM assumed | ✅ |
 | **P1** data bus — walking ones/zeroes/rails | ✅ |
-| **P2** address bus — A0–A14 (⚠ A15 needs iteration 2) | ✅ |
+| **P2** address bus — **all 16 lines, A0–A15** | ✅ |
 | Display — 256-page map, bus lanes, verdict | ✅ |
-| Fault injection + headless VICE harness | ✅ 3/3 |
-| Gate G1 — EasyFlash mode switching on KFF / U2+ | ⬜ **next, and it decides the architecture** |
+| Fault injection + headless VICE harness | ✅ 4/4 |
+| Gate G1 — EasyFlash mode switching | ✅ **Ultimate II+: `$DE02 = $02`** (measured 2026-09-26). ⬜ KFF unrun |
+| EasyFlash delivery — boots in Ultimax, **needs no working RAM to start** | ✅ |
+| Engine relocated to `$C000`, banks out with `$01 = $30` | ✅ |
 | **P3–P9** march, topographical, dwell, disturb, colour RAM | ⬜ |
 | Classification engine and board profiles | ⬜ |
 | Licence | ⬜ undecided |
@@ -79,9 +81,14 @@ exercise.
 
 ### What a run looks like
 
+It is an **EasyFlash cartridge** and boots in Ultimax, so it takes the reset vector straight
+from the cartridge and runs with no KERNAL, no stack and no zero page required. A machine
+whose low memory is dead can still be tested — which is the machine most in need of it.
+
 Border colours report even when the display cannot: white = has control, red = zero-page
-scratch dead, purple = screen page dead, green = clean, light red = fault found. A black
-border means the cartridge never got control at all.
+scratch dead, purple = screen page dead, **orange = this device ignores `$DE02` and cannot
+leave Ultimax**, blue = `$C000` dead, green = clean, light red = fault found. A black border
+means the cartridge never got control at all.
 
 ## Credits
 

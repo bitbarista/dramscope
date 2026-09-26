@@ -89,7 +89,7 @@ demultiplexing. It is carried here with its rationale intact.
 | Needed for | Question | Tag |
 |---|---|---|
 | Topographical patterns (P5) | Which multiplexer half is the **row** address and which the **column**? `c64-ice40-ram` §5.3 deliberately never determined it, because that design has no refresh or page-mode dependency. This project does. | [A] |
-| Delivery vehicle (P0) | Does the EasyFlash `$DE02` control register permit arbitrary GAME/EXROM switching mid-program on **Kung Fu Flash** and **Ultimate II+**? | [A] |
+| ~~Delivery vehicle (P0)~~ | ✅ **ANSWERED on Ultimate II+ hardware, 2026-09-26: `$DE02 = $02` leaves Ultimax and the cartridge stays mapped at `$8000`.** Measured by `src/g1probe_roml.asm`, which sweeps all eight values rather than assuming one. VICE agrees, but VICE was not the evidence. ⬜ Kung Fu Flash still unrun. | [M] |
 | Screen placement | In Ultimax mode the VIC's fetches in `$3000–$3FFF` of its bank are said to come from cartridge ROMH. Verify before choosing a screen home. | [A] |
 | Chip naming | Bit-to-designator tables per motherboard assembly, from Commodore schematics. | [A] |
 

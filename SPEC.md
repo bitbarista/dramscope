@@ -3,8 +3,9 @@
 ⚠ **The name is a placeholder.** It is used consistently so it can be changed with one
 `sed`, but it should be settled before anything is published.
 
-**Status:** iteration 1 implemented and verified — P0/P1/P2 and the display framework.
-P3 onwards not started. Gate G1 open and it is next.
+**Status:** iteration 2 implemented and verified — EasyFlash delivery (boots in Ultimax,
+needs no working RAM), engine relocated to `$C000`, P0/P1/P2 with **all sixteen address
+lines**, and the display framework. P3 onwards not started.
 **Target:** Commodore 64, all assemblies. **Not specific to any one board or RAM replacement.**
 
 ---
@@ -119,10 +120,16 @@ emulate EasyFlash because commercial titles depend on it. If that emulation is f
 tool boots needing no RAM at all, tests low memory unaided, then switches to 8K/16K mode to
 reach the other 60 KB — matching MAX-Switch's capability **on hardware people already own**.
 
-⚠⚠ **THIS IS UNVERIFIED AND IT DECIDES THE ARCHITECTURE. It is gate G1 (§9) and it is the
-first thing to do.** If EasyFlash mode switching does not work on KFF and U2+, the fallback
-is two binaries — an Ultimax probe and a normal-mode full test — which is what the sibling
-project ships today and which works, but loses the headline property.
+✅ **ANSWERED ON HARDWARE, 2026-09-26 — Ultimate II+ reports `DE02=02 SWITCHED, CART STILL
+MAPPED`.** `$02` asserts EXROM with GAME released, i.e. 8 K cartridge mode: ROML stays at
+`$8000–$9FFF` and everything else is RAM. So the tool boots in Ultimax needing **no working
+RAM at all**, proves low memory unaided, then switches and reaches the other 60 KB — on
+hardware people already own. Measured with `src/g1probe_roml.asm`, which sweeps all eight
+register values rather than assuming one, so the result carries no assumption.
+
+⬜ **Kung Fu Flash is still unrun.** The EasyFlash build must therefore keep a visible
+failure path — if `$DE02` does nothing, the cartridge says so (orange border) rather than
+hanging, and the normal-cartridge build remains the fallback.
 
 ---
 
@@ -403,7 +410,7 @@ synthetic failure set that triggers it and a neighbouring set that does not.
 
 | Gate | Question | Blocks | Tag |
 |---|---|---|---|
-| **G1** | Does EasyFlash `$DE02` mode switching work mid-program on Kung Fu Flash and Ultimate II+? | The entire delivery architecture | [A] |
+| ~~**G1**~~ | ✅ **Ultimate II+: yes, `$DE02 = $02`** (2026-09-26, measured). ⬜ KFF unrun. | — | [M] |
 | **G2** | Which multiplexer half carries the row address and which the column? | P5 topographical | [A] |
 | **G3** | Does the address-dependent P/~P substitution preserve March LR's linked-fault coverage? | P4 claims | [A] |
 | **G4** | In Ultimax, do VIC fetches in `$3000–$3FFF` come from cartridge ROMH? | Screen home selection | [A] |
@@ -420,9 +427,10 @@ Each step is intended to leave something that works.
 | # | Step | Leaves |
 |---|---|---|
 | 1 | Project skeleton, this spec, `PROVENANCE.md` | ✅ done |
-| 2 | **Resolve G1** on real KFF and U2+ hardware | ⬜ the architecture decided |
+| 2 | **Resolve G1** on real KFF and U2+ hardware | ✅ U2+ yes, `$DE02=$02`; KFF still unrun |
 | 3 | Engine skeleton, P0/P1/P2, display framework, VICE harness | ✅ done — **already a useful tool**, bus faults named in under a second |
-| 4 | P3 March B (port the proven engine) + classifier v1 + bit reporting | parity with existing tools, plus shape |
+| 3b | EasyFlash delivery, engine relocated, A15 closed | ✅ done — **no working RAM needed to start** |
+| 4 | P3 March B (port the proven engine) + classifier v1 + bit reporting | ⬜ parity with existing tools, plus shape |
 | 5 | Board profiles (G5) → chip naming | the headline feature |
 | 6 | P4 March LR (G3 first) | linked faults |
 | 7 | G2, then P5 topographical | physical coupling |

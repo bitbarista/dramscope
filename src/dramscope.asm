@@ -1,47 +1,63 @@
 ; ===========================================================================
 ; DRAMscope -- Commodore 64 memory diagnostic
-; SPEC.md iteration 1: P0 bring-up probe, P1 data bus, P2 address bus,
-; and the display framework every later phase hangs on.
+; SPEC.md iteration 2: EasyFlash delivery, engine relocated to RAM,
+; P0 bring-up probe, P1 data bus, P2 address bus (ALL SIXTEEN LINES).
 ;
 ; ⚠ PROVENANCE: nothing here derives from any other RAM test. See PROVENANCE.md.
 ;
 ; ---------------------------------------------------------------------------
-; DELIVERY VEHICLE -- and its honest limit
+; DELIVERY VEHICLE -- settled on hardware, 2026-09-26
 ;
-; This is a normal 8 KB autostart cartridge, so the KERNAL's reset does
-; JSR $FD02 to find the CBM80 signature, and that JSR needs $0100-$01FF.
-; A machine with a dead stack page dies BEFORE this gets control. Removing
-; that dependency is gate G1 (EasyFlash $DE02 mode switching, SPEC.md §2.2)
-; and is the next thing to resolve. Until then Dead Test remains the right
-; first move on a machine that will not boot at all.
+; This is an EasyFlash cartridge. It boots in ULTIMAX, so the 6510 takes its
+; reset vector straight from cartridge ROMH and runs with NO KERNAL, NO STACK
+; and NO ZERO PAGE required. That removes the dependency the iteration 1 build
+; had: a normal autostart cartridge needs the KERNAL's JSR $FD02, which pushes
+; a return address, so a machine with a dead stack page died BEFORE the test
+; could run -- precisely the machine most in need of testing.
+;
+; Ultimax only maps $0000-$0FFF of RAM, which is the 4 KB ceiling every
+; Ultimax tool hits. ⚠ MEASURED ANSWER, Ultimate II+, 2026-09-26: writing $02
+; to the EasyFlash control register at $DE02 leaves Ultimax for 8K cartridge
+; mode -- ROML stays at $8000-$9FFF and everything else becomes RAM. Found by
+; src/g1probe_roml.asm, which sweeps all eight register values rather than
+; assuming one, so the number carries no assumption of ours.
+;
+; ⚠ KUNG FU FLASH IS STILL UNRUN. If $DE02 does nothing, this build says so
+; with an ORANGE border rather than hanging. It does not pretend.
 ;
 ; ---------------------------------------------------------------------------
-; BORDER CODES -- the display needs working RAM, the border does not, so a
-; fault that stops the display can still report itself:
+; WHY THE ENGINE MOVES TO $C000
 ;
-;   white    the cartridge has control     (set by the FIRST instruction)
+; No fixed base can reach all sixteen address lines: with the cartridge at
+; $8000-$9FFF and ROMs above, base+$8000 always lands on something that is not
+; RAM. The fix is to bank everything out with $01 = $30 -- all RAM, no ROMs,
+; no I/O, no cartridge -- which is only survivable if the code is in none of
+; them. $C000-$CFFF is RAM in every mode, so the engine is proven there and
+; copied there before P1/P2 run.
+;
+; ---------------------------------------------------------------------------
+; BORDER CODES -- the display needs working RAM, the border does not.
+;
+;   white    the cartridge has control    (set by the FIRST instruction)
 ;   red      FATAL: zero-page scratch $F9-$FE unusable
 ;   purple   FATAL: screen home page $0400-$07FF unusable
+;   orange   FATAL: $DE02 did nothing -- this device cannot leave Ultimax
+;   blue     FATAL: $C000-$CFFF unusable, the engine has nowhere to live
 ;   yellow   P1 data bus running
 ;   cyan     P2 address bus running
 ;   green    finished, no fault found
 ;   lt red   finished, fault found
 ;
-; A BLACK border means the cartridge never got control at all -- not that it
-; started and hung. Every phase changes the colour, so the last one shown
-; localises a hang even with no display.
+; A BLACK border means the cartridge never got control at all.
 ;
-; ---------------------------------------------------------------------------
-; ⚠ NO SELF-MODIFYING CODE ANYWHERE. The engine runs from cartridge ROM, so
-; the relocate-and-self-modify trick the sibling project uses is unavailable
-; here. Every address is either absolute, absolute,X within one page, or read
-; from a ROM table. Iteration 2 relocates into RAM and can then do better.
+; ⚠ NO SELF-MODIFYING CODE IN THE ROML HALF. It is cartridge ROM.
 ; ===========================================================================
 
 ; ⚠ BOTH fault builds pass -o, and an unguarded !to here would warn "output
 ; file name already chosen" on every one of them. A build that prints a
 ; warning it is expected to ignore is where a real warning goes to hide.
-!ifndef INJECT_DB { !ifndef INJECT_AB { !to "build/dramscope.bin", plain } }
+!ifndef INJECT_DB { !ifndef INJECT_AB { !ifndef INJECT_NOEF {
+        !to "build/dramscope_roml.bin", plain } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -50,10 +66,15 @@ VICCTL1  = $d011
 VICMEM   = $d018
 CIA2PRA  = $dd00
 CIA2DDRA = $dd02
+EFCTRL   = $de02                ; EasyFlash control register
+EF_8K    = $02                  ; ⚠ MEASURED on Ultimate II+ -- see the header
 CPUDDR   = $00
 CPUPORT  = $01
+BANK_IO  = $37                  ; ROMs + I/O visible
+BANK_RAM = $30                  ; ⚠ ALL RAM: no ROMs, no I/O, no cartridge
 SCREEN   = $0400
 COLRAM   = $d800
+ENGINE   = $c000
 
 ; ------------------------------------------------------------------ colours
 C_BLACK  = 0
@@ -62,7 +83,9 @@ C_RED    = 2
 C_CYAN   = 3
 C_PURPLE = 4
 C_GREEN  = 5
+C_BLUE   = 6
 C_YELLOW = 7
+C_ORANGE = 8
 C_LTRED  = 10
 C_DKGREY = 11
 C_GREY   = 12
@@ -70,34 +93,32 @@ C_LTGREY = 15
 
 ; ------------------------------------------------------- screen code glyphs
 CH_DOT   = $2e                  ; .  untested
-CH_DASH  = $2d                  ; -  separator / testing
+CH_DASH  = $2d                  ; -  separator
 CH_FULL  = $a0                  ;    pass -- inverse space, a solid cell
 CH_X     = $18                  ; X  fail
 CH_SPACE = $20
 
 ; ---------------------------------------------------- display geometry
-MAP_ROW  = 3                    ; first map row
-MAP_COL  = 2                    ; first map column
-PAN_COL  = 21                   ; right-hand panel
+MAP_ROW  = 3
+MAP_COL  = 2
+PAN_COL  = 21
 DB_ROW   = 5                    ; data bus lane   (heading -2, bit numbers -1)
 AH_ROW   = 9                    ; address lane A15..A8
 AL_ROW   = 11                   ; address lane A7..A0
-PH_ROW   = 14                   ; phase text
-V_ROW    = 21                   ; verdict
+PH_ROW   = 14
+V_ROW    = 21
 
 ; ---------------------------------------------------- zero-page scratch
-; ⚠ SIX BYTES, PROVEN FROM ROM BEFORE ANYTHING USES THEM (P0a). The precedent
-; is the sibling project, which proves $FB/$FC in its stage 0 for exactly this
-; reason: an engine that needs a pointer cannot assume it has one.
-strp     = $f9                  ; source -- ROM string
-sptr     = $fb                  ; destination -- screen
-cptr     = $fd                  ; destination -- colour RAM
+; ⚠ SIX BYTES, PROVEN BEFORE ANYTHING USES THEM (P0a). An engine that needs a
+; pointer cannot assume it has one.
+strp     = $f9
+sptr     = $fb
+cptr     = $fd
 
 ; ---------------------------------------------------- workspace RAM
 ; ⚠ LIVES IN THE SCREEN PAGE ON PURPOSE. The matrix is 1000 bytes of a 1024
 ; byte page, so $07E8-$07FF is 24 bytes the VIC never fetches -- and P0b has
-; already proven the whole page before any of it is relied on. One proven
-; region instead of two.
+; already proven the whole page before any of it is relied on.
 WORK     = $07e8
 w_dbmask = WORK+0               ; data bus    -- 1 = that bit misbehaved
 w_ablo   = WORK+1               ; A7..A0      -- 1 = that line faulty
@@ -107,20 +128,20 @@ w_tmp2   = WORK+4
 w_row    = WORK+5
 w_col    = WORK+6
 w_col2   = WORK+7
-w_label  = WORK+8               ; one mutable character, for the map row labels
+w_label  = WORK+8               ; one mutable character, for map row labels
 w_labelz = WORK+9               ; its zero terminator
 
-; P2's base: RAM, not the screen, not under the cartridge.
+; P2's base. ⚠ Every base+2^n must be RAM under BANK_RAM, including
+; base+$8000 = $8800, which is why the engine had to leave the cartridge.
 ABASE    = $0800
 
 ; ===========================================================================
+; ROML -- mapped at $8000 in BOTH Ultimax and 8K mode, which is what makes it
+; the only safe place to stand while switching between them.
+; ===========================================================================
 * = $8000
-        !word cold
-        !word cold
-        !byte $c3,$c2,$cd,$38,$30       ; CBM80 autostart signature
 
-; ------------------------------------------------------------------- entry
-cold:
+entry:
         lda #C_WHITE                    ; ⚠ FIRST INSTRUCTION SETS A COLOUR
         sta BORDER
         lda #C_BLACK
@@ -128,36 +149,15 @@ cold:
         sei
         cld
         ldx #$ff
-        txs
+        txs                             ; ⚠ no JSR until RAM is proven
+        lda #$0b                        ; DEN=0 -- display off through the
+        sta VICCTL1                     ;   blind phase, which also sidesteps
+                                        ;   the Ultimax VIC $3000 quirk (G4)
 
-        ; ⚠⚠ ORDER MATTERS AND GETTING IT WRONG KILLS THE MACHINE MID-INSTRUCTION.
-        ; $00 is the CPU port's DATA DIRECTION register, $01 the latch. At reset
-        ; DDR = 0, so the banking pins are INPUTS floating high -- which reads as
-        ; mode $37 and is why this cartridge is visible at all. Write $00 to the
-        ; DDR first and the pins become OUTPUTS driving the latch's power-on $00,
-        ; i.e. mode $30: cartridge banked out while the CPU executes from it.
-        ; So load the latch while the pins are still inputs, THEN make them
-        ; outputs, and they come up already holding $37.
-        lda #$37
-        sta CPUPORT
-        lda #$2f
-        sta CPUDDR
-
-        lda #$0b                        ; DEN=0 -- display off for the blind phase
-        sta VICCTL1
-        lda #$14                        ; matrix $0400, char ROM $1000
-        sta VICMEM
-        lda CIA2DDRA
-        ora #$03
-        sta CIA2DDRA
-        lda CIA2PRA
-        ora #$03                        ; VIC bank 0
-        sta CIA2PRA
-
-; ===========================================================================
-; P0a -- prove the six zero-page scratch bytes. REGISTERS ONLY.
-; Nothing may use a pointer until this passes, so this may not use one either.
-; ===========================================================================
+; ---------------------------------------------------------------------------
+; P0a -- prove the six zero-page scratch bytes. REGISTERS ONLY, no pointer.
+; Zero page is visible in Ultimax, so this needs nothing but the CPU.
+; ---------------------------------------------------------------------------
         ldx #5
 p0a_l:
         lda #$55
@@ -169,7 +169,7 @@ p0a_l:
         cmp strp,x
         bne p0a_dead
         txa                             ; address-dependent, so a byte that
-        eor #$5a                        ; aliases onto its neighbour still fails
+        eor #$5a                        ; aliases onto its neighbour fails too
         sta strp,x
         cmp strp,x
         bne p0a_dead
@@ -180,15 +180,13 @@ p0a_l:
 p0a_dead:
         lda #C_RED
         sta BORDER
-        jmp halt
+        jmp rom_halt
 
-; ===========================================================================
+; ---------------------------------------------------------------------------
 ; P0b -- prove the screen home page $0400-$07FF. REGISTERS ONLY.
-; absolute,X reaches a whole page with no pointer, so this still needs no RAM.
-; Four pages, written out rather than self-modified, because this is ROM.
-; The display AND the workspace both live here, so everything after this
-; depends on it and nothing before it may.
-; ===========================================================================
+; absolute,X reaches a whole page with no pointer. Four pages written out
+; rather than self-modified, because this is cartridge ROM.
+; ---------------------------------------------------------------------------
 p0b:
         ldx #0
 p0b_1:  txa
@@ -245,29 +243,169 @@ p0b_4v: txa
         bne p0b_dead
         inx
         bne p0b_4v
-        jmp screen_up
+        jmp leave_ultimax
 
 p0b_dead:
         lda #C_PURPLE
         sta BORDER
-        jmp halt
+        jmp rom_halt
+
+; ---------------------------------------------------------------------------
+; Leave Ultimax. ⚠ AND CHECK THAT IT WORKED, rather than assuming.
+; ---------------------------------------------------------------------------
+leave_ultimax:
+        lda #EF_8K
+        ; ⚠ The mutation SKIPS the store rather than writing a different value.
+        ; Writing junk here banks the cartridge out from under the CPU, which
+        ; models a destructive device, not an indifferent one. What we need to
+        ; prove is the KFF case: the register is simply not there, the machine
+        ; stays in Ultimax, and the build must SAY SO instead of hanging.
+!ifndef INJECT_NOEF { sta EFCTRL }
+
+        lda #BANK_IO                    ; ⚠ LATCH FIRST, THEN DDR. Writing the
+        sta CPUPORT                     ; DDR while the latch still holds its
+        lda #$2f                        ; power-on $00 drives mode $30 and
+        sta CPUDDR                      ; banks the cartridge out mid-run.
+
+        ; $2000 is unmapped in Ultimax and RAM in 8K mode. That is the test.
+        lda #$a5
+        sta $2000
+        cmp $2000
+        bne no_switch
+        lda #$5a
+        sta $2000
+        cmp $2000
+        beq p0c
+
+no_switch:
+        ; ⚠ This device ignores $DE02. Say so; do not hang pretending to work.
+        lda #C_ORANGE
+        sta BORDER
+        jmp rom_halt
+
+; ---------------------------------------------------------------------------
+; P0c -- prove $C000-$CFFF, the engine's new home. REGISTERS ONLY.
+; ---------------------------------------------------------------------------
+p0c:
+        ldx #0
+p0c_1:  txa
+        eor #$5a
+        sta ENGINE,x
+        inx
+        bne p0c_1
+        ldx #0
+p0c_1v: txa
+        eor #$5a
+        cmp ENGINE,x
+        bne p0c_bad
+        inx
+        bne p0c_1v
+
+        ldx #0
+p0c_2:  txa
+        eor #$a5
+        sta ENGINE+$100,x
+        inx
+        bne p0c_2
+        ldx #0
+p0c_2v: txa
+        eor #$a5
+        cmp ENGINE+$100,x
+        bne p0c_bad
+        inx
+        bne p0c_2v
+        jmp p0c_cont
+
+; ⚠ A relative branch cannot reach p0c_dead from here -- the eight-page copy
+; loop sits between them. This trampoline sits mid-way so all four verify
+; loops can reach it, two forwards and two backwards.
+p0c_bad:
+        jmp p0c_dead
+
+p0c_cont:
+        ldx #0
+p0c_3:  txa
+        eor #$3c
+        sta ENGINE+$200,x
+        inx
+        bne p0c_3
+        ldx #0
+p0c_3v: txa
+        eor #$3c
+        cmp ENGINE+$200,x
+        bne p0c_bad
+        inx
+        bne p0c_3v
+
+        ldx #0
+p0c_4:  txa
+        eor #$c3
+        sta ENGINE+$300,x
+        inx
+        bne p0c_4
+        ldx #0
+p0c_4v: txa
+        eor #$c3
+        cmp ENGINE+$300,x
+        bne p0c_bad
+        inx
+        bne p0c_4v
+
+        ; --- copy the engine into proven RAM and go
+        ldx #0
+ecopy:
+        lda eng_src,x
+        sta ENGINE,x
+        lda eng_src+$100,x
+        sta ENGINE+$100,x
+        lda eng_src+$200,x
+        sta ENGINE+$200,x
+        lda eng_src+$300,x
+        sta ENGINE+$300,x
+        lda eng_src+$400,x
+        sta ENGINE+$400,x
+        lda eng_src+$500,x
+        sta ENGINE+$500,x
+        lda eng_src+$600,x
+        sta ENGINE+$600,x
+        lda eng_src+$700,x
+        sta ENGINE+$700,x
+        inx
+        bne ecopy
+        jmp ENGINE
+
+p0c_dead:
+        lda #C_BLUE
+        sta BORDER
+rom_halt:
+        jmp rom_halt
 
 ; ===========================================================================
-; Bring the display up. From here the map is live.
+; The engine. Assembled to run at $C000 and copied there by the bootstrap.
 ; ===========================================================================
-screen_up:
+eng_src:
+!pseudopc ENGINE {
+eng_start:
         jsr clear_screen
         jsr draw_chrome
         jsr map_init
+        lda CIA2DDRA
+        ora #$03
+        sta CIA2DDRA
+        lda CIA2PRA
+        ora #$03                        ; VIC bank 0
+        sta CIA2PRA
+        lda #$14                        ; matrix $0400, char ROM $1000
+        sta VICMEM
         lda #$1b                        ; DEN=1 -- display on
         sta VICCTL1
 
-; ===========================================================================
+; ---------------------------------------------------------------------------
 ; P1 -- data bus integrity. Walking ones, walking zeroes, both rails, at one
 ; proven address. Instant, and it runs before any march test: a shorted data
-; line makes every later result confusing, and it should be NAMED in the first
+; line makes every later result confusing and should be NAMED in the first
 ; millisecond rather than inferred from a thousand march failures.
-; ===========================================================================
+; ---------------------------------------------------------------------------
 p1:
         lda #C_YELLOW
         sta BORDER
@@ -324,18 +462,20 @@ p1_zero:
         ldx #PAN_COL+1
         jsr draw_lane
 
-; ===========================================================================
-; P2 -- address bus integrity.
+; ---------------------------------------------------------------------------
+; P2 -- address bus integrity, ALL SIXTEEN LINES.
 ;
 ; Write a distinct value to the base and to base+2^n for every line, then read
 ; them all back. A line that is stuck, open or shorted makes two addresses
 ; collide, and WHICH addresses collide says WHICH line.
 ;
-; ⚠ A15 IS NOT TESTED AND THE DISPLAY SAYS SO. base+$8000 lands in the
-; cartridge's own ROML window, so reaching it needs the engine relocated into
-; RAM first -- iteration 2. Claiming 16 lines while testing 15 is exactly the
-; quiet over-claim PROVENANCE.md exists to prevent.
-; ===========================================================================
+; ⚠ RUNS WITH $01 = $30: ALL RAM, NO ROMS, NO I/O, NO CARTRIDGE. base+$8000 is
+; $8800, which is cartridge ROML in normal banking -- iteration 1 could not
+; test A15 at all and said so on the display. The engine is at $C000, which is
+; RAM in every mode, so it survives the bank-out. ⚠ NOTHING inside the banked
+; window may touch $D0xx-$DFxx: the VIC, colour RAM and the border are simply
+; not there. Every display update happens after $01 is restored.
+; ---------------------------------------------------------------------------
 p2:
         lda #C_CYAN
         sta BORDER
@@ -345,6 +485,9 @@ p2:
         lda #0
         sta w_ablo
         sta w_abhi
+
+        lda #BANK_RAM                   ; ⚠ I/O IS GONE FROM HERE
+        sta CPUPORT
 
         lda #$00
         sta ABASE
@@ -357,7 +500,7 @@ p2_write:
         ldy #0
         sta (sptr),y
         inx
-        cpx #15
+        cpx #16
         bne p2_write
 
         ; The base must still read $00. If it does not, some line aliased onto
@@ -367,9 +510,8 @@ p2_write:
         beq p2_read_all
         lda #$ff
         sta w_ablo
-        lda #$7f
         sta w_abhi
-        jmp p2_done
+        jmp p2_restore
 
 p2_read_all:
         ldx #0
@@ -392,14 +534,17 @@ inj_ab_skip:
         jsr set_addr_fault              ; X = the faulty line
 p2_ok:
         inx
-        cpx #15
+        cpx #16
         bne p2_read
 
-p2_done:
+p2_restore:
+        lda #BANK_IO                    ; ⚠ I/O BACK BEFORE ANY DISPLAY WORK
+        sta CPUPORT
+
         jsr mark_p2_pages
         lda w_abhi                      ; A15..A8
         sta w_tmp
-        lda #$80                        ; ⚠ A15 untested, shown as such
+        lda #$00                        ; ⚠ all sixteen lines are tested now
         sta w_tmp2
         lda #AH_ROW
         ldx #PAN_COL+1
@@ -412,9 +557,9 @@ p2_done:
         ldx #PAN_COL+1
         jsr draw_lane
 
-; ===========================================================================
+; ---------------------------------------------------------------------------
 ; Verdict
-; ===========================================================================
+; ---------------------------------------------------------------------------
 verdict:
         lda #<s_pdone
         ldy #>s_pdone
@@ -480,11 +625,10 @@ verdict_line2:
         jsr putstr
         jmp halt
 
-; ===========================================================================
-; addr_for_line -- X = line index 0..14, sets sptr = ABASE + (1 << X)
-; Table-driven, because this is ROM and there is nothing to self-modify.
-; Preserves X, clobbers A.
-; ===========================================================================
+; ---------------------------------------------------------------------------
+; addr_for_line -- X = line index 0..15, sets sptr = ABASE + (1 << X)
+; Table-driven. Preserves X, clobbers A.
+; ---------------------------------------------------------------------------
 addr_for_line:
         lda addrlo,x
         sta sptr
@@ -492,10 +636,10 @@ addr_for_line:
         sta sptr+1
         rts
 
-; ===========================================================================
-; set_addr_fault -- X = line index 0..14, sets its bit in w_ablo / w_abhi
+; ---------------------------------------------------------------------------
+; set_addr_fault -- X = line index 0..15, sets its bit in w_ablo / w_abhi
 ; Preserves X.
-; ===========================================================================
+; ---------------------------------------------------------------------------
 set_addr_fault:
         cpx #8
         bcs saf_hi
@@ -513,13 +657,12 @@ saf_hi:
         sta w_abhi
         rts
 
-; ===========================================================================
+; ---------------------------------------------------------------------------
 ; Display primitives
-; ===========================================================================
+; ---------------------------------------------------------------------------
 
 ; setpos -- A = row, X = column. Sets sptr (screen) and cptr (colour).
-; ⚠ Colour RAM is exactly screen + $D400 while the matrix is at $0400, which
-; is the only place iteration 1 puts it.
+; ⚠ Colour RAM is exactly screen + $D400 while the matrix is at $0400.
 setpos:
         tay
         txa
@@ -583,8 +726,7 @@ phase:
         jmp putstr
 
 ; draw_lane -- eight cells, MSB first.
-;   w_tmp  = fault mask   (bit 7 is the leftmost cell)
-;   w_tmp2 = untested mask
+;   w_tmp  = fault mask (bit 7 is the leftmost cell), w_tmp2 = untested mask
 ;   A = row, X = column
 draw_lane:
         jsr setpos
@@ -640,9 +782,9 @@ mark_page:
         sta (cptr),y
         rts
 
-; ===========================================================================
+; ---------------------------------------------------------------------------
 ; Screen construction
-; ===========================================================================
+; ---------------------------------------------------------------------------
 clear_screen:
         ldx #0
 cs_l:   lda #CH_SPACE
@@ -660,9 +802,9 @@ cs_l:   lda #CH_SPACE
         rts
 
 draw_chrome:
-        lda #0                          ; ⚠ the row label is one RAM byte plus
-        sta w_labelz                    ; a terminator -- this is ROM, there is
-        lda #C_LTGREY                   ; nothing here to self-modify
+        lda #0                          ; the row label is one RAM byte plus
+        sta w_labelz                    ; a terminator
+        lda #C_LTGREY
         sta w_col2
         lda #0
         sta w_row
@@ -687,7 +829,6 @@ draw_chrome:
         ldy #>s_rule
         jsr prstr
 
-        ; map column header and row labels
         lda #C_GREY
         sta w_col2
         lda #MAP_ROW-1
@@ -709,7 +850,6 @@ dc_rows:
         sta w_col
         lda #C_GREY
         sta w_col2
-        ; one-character label from the hex table
         ldx w_tmp
         lda s_hex,x
         sta w_label
@@ -721,7 +861,6 @@ dc_rows:
         cpx #16
         bne dc_rows
 
-        ; right-hand panel labels
         lda #C_GREY
         sta w_col2
         lda #DB_ROW-2
@@ -770,12 +909,12 @@ dc_rows:
         jsr prstr
         rts
 
-; map_init -- all 256 pages untested, then mark what P0b proved
+; map_init -- all 256 pages untested, then mark what P0 proved
 map_init:
         ldx #0
 mi_l:   txa
         pha
-        ldx #0                          ; state 0 = untested
+        ldx #0
         jsr mark_page
         pla
         tax
@@ -784,16 +923,26 @@ mi_l:   txa
         ldx #$04                        ; P0b proved $0400-$07FF
 mi_p0:  txa
         pha
-        ldx #2                          ; state 2 = pass
+        ldx #2
         jsr mark_page
         pla
         tax
         inx
         cpx #$08
         bne mi_p0
+        ldx #$c0                        ; P0c proved $C000-$CFFF
+mi_p0c: txa
+        pha
+        ldx #2
+        jsr mark_page
+        pla
+        tax
+        inx
+        cpx #$d0
+        bne mi_p0c
         rts
 
-; mark_p2_pages -- mark the pages P2 actually touched, pass or fail.
+; mark_p2_pages -- mark the pages P2 actually touched.
 ; ⚠ Only the pages it TOUCHED. P2 samples one byte per address line; it does
 ; not sweep memory, and the map must not imply that it did.
 mark_p2_pages:
@@ -806,10 +955,10 @@ mp_l:   stx w_tmp
         lda w_ablo
         ora w_abhi
         beq mp_pass
-        ldx #3                          ; state 3 = fail
+        ldx #3
         bne mp_go
 mp_pass:
-        ldx #2                          ; state 2 = pass
+        ldx #2
 mp_go:  pla
         jsr mark_page
         ldx w_tmp
@@ -817,26 +966,24 @@ mp_go:  pla
         bne mp_l
 mp_end: rts
 
-; ===========================================================================
+; ---------------------------------------------------------------------------
 ; Data
-; ===========================================================================
+; ---------------------------------------------------------------------------
 st_char: !byte CH_DOT,    CH_DASH,  CH_FULL, CH_X
 st_col:  !byte C_DKGREY,  C_YELLOW, C_GREEN, C_LTRED
-
 bittab:  !byte 1,2,4,8,16,32,64,128
 
-; Pages P2 writes to: ABASE, and ABASE + 2^n for n = 0..14.
-p2pages: !byte $08,$09,$0a,$0c,$10,$18,$28,$48,$ff
+; Pages P2 writes to: ABASE, and ABASE + 2^n for n = 0..15.
+p2pages: !byte $08,$09,$0a,$0c,$10,$18,$28,$48,$88,$ff
 
-addrlo:  !for i, 0, 14 { !byte <(ABASE + (1 << i)) }
-addrhi:  !for i, 0, 14 { !byte >(ABASE + (1 << i)) }
-
+addrlo:  !for i, 0, 15 { !byte <(ABASE + (1 << i)) }
+addrhi:  !for i, 0, 15 { !byte >(ABASE + (1 << i)) }
 rowlo:   !for i, 0, 24 { !byte <(SCREEN + i*40) }
 rowhi:   !for i, 0, 24 { !byte >(SCREEN + i*40) }
 
 ; ⚠ acme's !scr maps LOWERCASE source to uppercase screen codes, so every
 ; string here is written lower case on purpose.
-s_title:    !scr "dramscope 0.1", 0
+s_title:    !scr "dramscope 0.2", 0
 s_rule:     !scr "----------------------------------------", 0
 s_hex:      !scr "0123456789abcdef", 0
 s_data:     !scr "data bus", 0
@@ -849,11 +996,21 @@ s_blank:    !scr "                 ", 0
 s_p1:       !scr "p1 data bus", 0
 s_p2:       !scr "p2 addr bus", 0
 s_pdone:    !scr "done", 0
-s_ok:       !scr "bus integrity ok.", 0
+s_ok:       !scr "bus integrity ok, all 16 lines.", 0
 s_ok2:      !scr "no march test run - see spec p3/p4.", 0
 s_databad:  !scr "data bus fault - see the d lane.", 0
 s_databad2: !scr "a marked bit is stuck, shorted or open.", 0
 s_addrbad:  !scr "address line fault - see the a lanes.", 0
 s_addrbad2: !scr "both of a pair = mux u13/u25 or rp1/rp2.", 0
+
+eng_end:
+}
+
+; ⚠ The bootstrap copies exactly eight pages. If the engine outgrows them it
+; would be copied half-way and jumped into, which is not a failure mode worth
+; discovering on someone else's hardware.
+!if eng_end - eng_start > $800 {
+        !error "engine is too big for the eight-page copy loop"
+}
 
         !fill $a000 - *, $ff
