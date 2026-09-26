@@ -1,0 +1,6 @@
+build/
+*.bin
+*.crt
+*.prg
+labels*.txt
+__pycache__/
