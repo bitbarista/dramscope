@@ -3,8 +3,9 @@
 ⚠ **The name is a placeholder.** It is used consistently so it can be changed with one
 `sed`, but it should be settled before anything is published.
 
-**Status:** iteration 5 implemented and verified — EasyFlash delivery (boots in Ultimax,
-needs no working RAM), engine relocated to `$C000`, P0/P1/P2 with **all sixteen address
+**Status:** iteration 5 implemented and verified — EasyFlash delivery (boots in Ultimax; ⚠ it
+needs no working *KERNAL*, but the "no working RAM" claim is **withdrawn** — see G5),
+engine relocated to `$C000`, P0/P1/P2 with **all sixteen address
 lines**, **P3 March B 17n**, **P4 March LR 14n** and **P5 topographical patterns** over 59,904 of
 65,536 bytes, plus chip naming from the failing-bit mask. Verified on an Ultimate II+ and a
 Kung Fu Flash as well as in VICE. Measured end to end: 58–61 M cycles, **about 62 s on
@@ -207,18 +208,83 @@ maps only `$0000–$0FFF` of RAM**, which is the 4 KB ceiling every Ultimax-base
 **The intended answer: start in Ultimax, then switch.** The EasyFlash control register at
 `$DE02` drives GAME/EXROM under software control, and both Kung Fu Flash and Ultimate II+
 emulate EasyFlash because commercial titles depend on it. If that emulation is faithful, the
-tool boots needing no RAM at all, tests low memory unaided, then switches to 8K/16K mode to
-reach the other 60 KB — matching MAX-Switch's capability **on hardware people already own**.
+tool boots without needing the KERNAL, tests low memory unaided, then switches to 8K/16K mode
+to reach the other 60 KB — matching MAX-Switch's capability **on hardware people already own**.
+⚠ This originally said "boots needing no RAM at all"; see **G5** below, which withdraws that.
 
 ✅ **ANSWERED ON HARDWARE, 2026-09-26 — Ultimate II+ reports `DE02=02 SWITCHED, CART STILL
 MAPPED`.** `$02` asserts EXROM with GAME released, i.e. 8 K cartridge mode: ROML stays at
 `$8000–$9FFF` and everything else is RAM. So the tool boots in Ultimax needing **no working
-RAM at all**, proves low memory unaided, then switches and reaches the other 60 KB — on
-hardware people already own. Measured with `src/g1probe_roml.asm`, which sweeps all eight
+KERNAL**, proves low memory unaided, then switches and reaches the other 60 KB — on
+hardware people already own. ⚠ This said "no working RAM at all" until G5 withdrew it. Measured with `src/g1probe_roml.asm`, which sweeps all eight
 register values rather than assuming one, so the result carries no assumption.
 
 ✅ **Kung Fu Flash reports identically** (2026-09-26). Two independent devices agree, so the
 delivery vehicle is settled.
+
+---
+
+### ⚠⚠ G5 — "needs no working RAM to start" is WRONG, and it was wrong in two independent ways
+
+**Reported from the bench, 2026-09-27: on an Ultimate II+ with every DRAM removed from the
+C64, DRAMscope does not boot.** The claim above is withdrawn. It was made from the boot
+mechanism alone and never tested against a machine with no memory fitted, which is precisely
+the machine it was a claim about.
+
+**Reason 1 — the delivery vehicle needs working RAM, and this is decisive.** The Ultimate II+
+and Kung Fu Flash menus are **C64 programs**. They execute on the 6510, hold their state in
+C64 RAM and draw to the screen matrix in C64 RAM. With the DRAMs pulled that menu cannot run,
+so there is no way to reach the point of mounting `dramscope.crt` and starting it. ⚠ **This
+has nothing to do with our code**: no amount of RAM independence inside the cartridge helps
+when the thing that loads the cartridge is itself a RAM-resident program. A real Dead Test
+cartridge does not have this problem because it is plugged into the cartridge port directly
+and is mapped by a cold reset.
+
+**Reason 2 — the P0 probes were designed for FAULTY RAM, not ABSENT RAM.** Every P0 check is a
+write immediately followed by a read-back *of the same address*:
+
+```
+        lda #$55
+        sta mptr,x
+        cmp mptr,x      ; ⚠ nothing drives the data bus here if no chip is fitted
+```
+
+With no DRAM in the sockets nothing drives the data bus on that read, so what `cmp` sees is
+whatever the last driven bus cycle left on it — and the last driven cycle is an instruction
+fetch from cartridge ROM, not the store. Whether the probe passes, fails, or behaves
+erratically therefore depends on bus capacitance, on the socket stubs, and on what the PLA
+does with CASRAM when no chip answers. ⚠ **It is not predictable from the source, and it must
+not be asserted from the source.** If the probes pass falsely, execution runs on to
+`jmp ENGINE` and dies with no display at all, because the screen matrix is DRAM too — which
+presents exactly as "does not boot".
+
+⚠ **SIMULATION CANNOT CLOSE THIS.** VICE has no way to remove RAM; a C64 model without DRAM
+is not a machine it can emulate. `test/models.py` already carries that caveat for chip
+naming and it applies here with more force.
+
+**What is still true, and is still worth having:**
+
+| Claim | Status |
+|---|---|
+| Boots from its own reset vector in Ultimax, needing **no working KERNAL** | ✅ proven — the all-`$FF` KERNAL run in `test/models.py`, on 18 model × CIA combinations |
+| Needs no BASIC, no working KERNAL ROM and no autostart handshake | ✅ same evidence |
+| Reports rather than hangs when it cannot leave Ultimax | ✅ `INJECT_NOEF` → orange, and the MAX Machine → orange |
+| Tests a machine whose RAM is **faulty**, including too faulty to reach BASIC | ⚠ **partly** — the mutations cover single bad bytes and all-8-bits-at-one-byte, **not** a machine where every byte fails. See below. |
+| Starts on a machine with **no RAM fitted** | ❌ **withdrawn — it does not** |
+
+⚠ **The "too broken to reach BASIC" claim also needs narrowing.** `dramscope_fall` injects all
+eight bits bad at *one byte*; there is no mutation for a machine that fails *every* byte, so
+the case where the P0 probes themselves fail on real hardware is untested. The fatal-report
+paths are at least structurally sound — `lda #C_RED / sta BORDER / jmp rom_halt` touches no
+RAM and no stack — so a fatal report needs only the VIC, and with `DEN=0` it fills the whole
+screen with one colour.
+
+**OPEN, and the next fact needed is one observation:** what colour is the screen on that
+machine with the DRAMs out? Solid **red / purple / blue** means the cartridge got control and
+P0 correctly refused to continue, so only the claim is wrong. **Black, or an unchanged
+power-on screen,** means the cartridge never ran at all and Reason 1 is the whole story.
+**Solid white, frozen,** means the probes passed falsely and it died later — the Reason 2 case,
+and the one that needs a code change.
 
 ⚠ **The visible failure path stays anyway.** Two devices are not every device, and a future
 cartridge that ignores `$DE02` must say so with an orange border rather than hang. The
@@ -255,7 +321,7 @@ Ordered cheapest-and-most-diagnostic first, because a shorted data line makes ev
 result confusing and should be named in the first millisecond rather than inferred from a
 thousand march failures.
 
-### P0 — Bring-up probe · no RAM required
+### P0 — Bring-up probe · assumes no *working* RAM, but ⚠ does not survive *absent* RAM (G5)
 
 Ultimax, registers only. Proves the machine executes and that *some* RAM responds at all.
 Border-coded, readable across a room. Equivalent in role to the sibling project's `maxtest`.
@@ -429,7 +495,7 @@ Rules, evaluated in order — first match wins:
 | P1 fails | **Data line fault.** Name the bits and whether stuck, shorted or coupled |
 | P2 fails, implicating both members of an `An`/`An+8` pair | **Address multiplexer or series pack** — U13/U25, RP1/RP2 |
 | P2 fails on a single line | **Address line fault.** Name the line |
-| Every bit fails at every address | **Not a RAM chip.** Suspect PLA/CASRAM, or no RAM fitted |
+| Every bit fails at every address | **Not a RAM chip.** Suspect PLA/CASRAM, or no RAM fitted. ⚠ But a machine with genuinely no RAM fitted cannot reach this verdict — see **G5** |
 | One bit lane fails across ≥2 distinct regions | **Single DRAM chip.** Name it from the board profile |
 | Failures at a regular address stride | **Decoder / aliasing.** Name the implicated address bit |
 | Failures confined to one page or small region | **Localised cell fault.** Report addresses |
@@ -607,7 +673,7 @@ Each step is intended to leave something that works.
 | 1 | Project skeleton, this spec, `PROVENANCE.md` | ✅ done |
 | 2 | **Resolve G1** on real KFF and U2+ hardware | ✅ closed — both devices, `$DE02=$02` |
 | 3 | Engine skeleton, P0/P1/P2, display framework, VICE harness | ✅ done — **already a useful tool**, bus faults named in under a second |
-| 3b | EasyFlash delivery, engine relocated, A15 closed | ✅ done — **no working RAM needed to start** |
+| 3b | EasyFlash delivery, engine relocated, A15 closed | ✅ done — ⚠ **"no working RAM needed" withdrawn, see G5** |
 | 4 | P3 March B + bad-byte count + failing-bit mask | ✅ done — parity with existing tools, plus shape |
 | 4b | Chip naming from the bit mask, Assy 250407 | ✅ done — and it refuses to name when all 8 bits fail |
 | 5 | P4 March LR, fixed patterns (G3 answered first) | ✅ done |

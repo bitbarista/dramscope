@@ -51,7 +51,9 @@ a stripe, a quadrant, a scatter — usually says more than its address.
 **It is not a replacement for Dead Test, and it is not a competitor to DesTestMAX.**
 
 - **Dead Test** is still the right first move on a machine that will not boot. It is proven,
-  it is everywhere, and it needs no working RAM.
+  it is everywhere, and it needs no working RAM — and ⚠ **unlike this tool it is a real
+  cartridge**, so it is mapped by a cold reset rather than launched from a menu. That
+  difference turns out to matter; see the note below.
 - **DesTest / DesTestMAX** are mature and thorough, and **MAX-Switch** solves the Ultimax
   4 KB ceiling properly, with hardware.
 
@@ -76,7 +78,7 @@ The two projects stay separate. This one has no dependency on that board and nev
 |---|---|
 | Specification | ✅ [`SPEC.md`](SPEC.md) |
 | Provenance policy | ✅ [`PROVENANCE.md`](PROVENANCE.md) |
-| **P0** bring-up probe, no RAM assumed | ✅ |
+| **P0** bring-up probe, assumes no *working* RAM | ✅ ⚠ but see the note on absent RAM below |
 | **P1** `DATA LINES` — walking ones/zeroes/rails | ✅ |
 | **P2** `ADDR LINES` — **all 16 lines, A0–A15** | ✅ |
 | Display — 256-page map, bus lanes, verdict | ✅ |
@@ -84,7 +86,7 @@ The two projects stay separate. This one has no dependency on that board and nev
 | Whole-screen golden comparison | ✅ [`test/golden/`](test/golden/) |
 | **Variant matrix** — every C64 model VICE emulates | ✅ 18 model × CIA combinations |
 | Gate G1 — EasyFlash mode switching | ✅ **closed** — Ultimate II+ *and* Kung Fu Flash, `$DE02 = $02` |
-| EasyFlash delivery — boots in Ultimax, **needs no working RAM to start** | ✅ |
+| EasyFlash delivery — boots in Ultimax, **needs no working KERNAL** | ✅ ⚠ the "no working RAM" claim is **withdrawn** — see below |
 | Engine relocated to `$C000`, banks out with `$01 = $30` | ✅ |
 | **P3** `MARCH B` — 17n, address-dependent pattern, 60,928 of 65,536 bytes | ✅ ~17 s |
 | **P4** `MARCH LR` — 14n, **fixed** patterns — linked faults | ✅ ~11 s |
@@ -132,8 +134,31 @@ exercise.
 ### What a run looks like
 
 It is an **EasyFlash cartridge** and boots in Ultimax, so it takes the reset vector straight
-from the cartridge and runs with no KERNAL, no stack and no zero page required. A machine
-whose low memory is dead can still be tested — which is the machine most in need of it.
+from the cartridge and runs with **no working KERNAL** — proven by booting it against a KERNAL
+of 8 KB of `$FF` across all 18 model × CIA combinations. A machine whose low memory is
+**faulty** can still be tested, which is the machine most in need of it.
+
+> ⚠ **It does NOT run on a machine with the RAM removed. That claim was wrong and is
+> withdrawn.**
+>
+> Reported from the bench on 2026-09-27: on an Ultimate II+ with every DRAM pulled, it does not
+> boot. The decisive reason has nothing to do with this code — **the Ultimate II+ and Kung Fu
+> Flash menus are themselves C64 programs**, running on the 6510 out of C64 RAM and drawing to
+> the screen matrix in C64 RAM. With no DRAM fitted that menu cannot run, so there is no way to
+> reach the point of mounting the `.crt` at all. A real Dead Test cartridge avoids this by
+> being mapped by a cold reset rather than launched from a menu.
+>
+> Separately, the `P0` probes were written to catch *faulty* RAM, not *absent* RAM: each one
+> writes a byte and immediately reads the same address back, and with no chip in the socket
+> nothing drives the data bus on that read. What it returns depends on bus capacitance and on
+> the preceding instruction fetch, so it is not predictable from the source and is not asserted
+> here. ⚠ **VICE cannot settle it either — there is no way to emulate a C64 with no DRAM.**
+>
+> Both are written up as **G5** in [`SPEC.md`](SPEC.md), which records what a single
+> observation — the screen colour on that machine — would tell us next.
+
+**Fit the cartridge and start it with the RAM in place.** Faulty RAM is what it is for;
+missing RAM is Dead Test's job.
 
 **The panel is a checklist**, headed `TESTS AND RESULTS`. Every test has a named row and a
 status cell — `..` not started, a turning marker while it runs, `OK` or `X` when it finishes —

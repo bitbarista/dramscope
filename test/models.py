@@ -20,6 +20,17 @@ across the family:
 VICE models the machine, not the DRAM arrangement. A short board's two 41464s
 and a long board's eight 4164s look identical to the emulator, so the chip
 naming can only ever be verified on real hardware.
+
+⚠⚠ NOR CAN IT COVER A MACHINE WITH NO DRAM FITTED. There is no way to remove
+RAM from a VICE C64 -- a machine with empty sockets is not something it can
+emulate. This matters because the project claimed for several revisions that
+the tool "needs no working RAM to start", and that claim was false: measured on
+an Ultimate II+ with every DRAM pulled (2026-09-27) it does not boot, because
+the U2+ and Kung Fu Flash menus are themselves C64 programs that need RAM to
+run. See SPEC.md G5. What IS demonstrated below is the weaker and true claim --
+that it needs no working KERNAL -- and the difference between the two is
+exactly the kind of gap a test suite is supposed to stop the docs from
+inventing.
 """
 import re
 import subprocess

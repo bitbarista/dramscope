@@ -12,9 +12,25 @@ RUNNING IT
 It is an EasyFlash cartridge. Load it on the Ultimate II+ or Kung Fu Flash.
 
 It boots in Ultimax and takes its reset vector straight from the cartridge,
-so it needs NO WORKING RAM to start -- not even the stack page. A machine
-too broken to reach BASIC can still be tested, which is the machine most
-worth testing.
+so it needs NO WORKING KERNAL -- a machine with a dead or missing KERNAL ROM
+still runs it. A machine whose RAM is FAULTY can still be tested, which is
+the machine most worth testing.
+
+  ** FIT THE CARTRIDGE AND START IT WITH THE RAM IN PLACE. **
+
+⚠ IT DOES NOT RUN WITH THE RAM REMOVED. An earlier version of this sheet said
+it needed no working RAM at all. That was wrong and is withdrawn -- measured
+on an Ultimate II+ with every DRAM pulled, 2026-09-27: it does not boot.
+
+The reason is not in the test. The Ultimate II+ and Kung Fu Flash menus are
+themselves C64 programs -- they run on the 6510, keep their state in C64 RAM
+and draw to the screen using C64 RAM. With no DRAM fitted that menu cannot
+run, so you can never get as far as choosing the file. A real Dead Test
+cartridge gets round this by being mapped by a cold reset instead of being
+launched from a menu, which is why it is still the right first move on a
+machine with no memory in it.
+
+FAULTY RAM is what this tool is for. MISSING RAM is Dead Test's job.
 
 IT DOES NOT STOP. One run takes about 80 seconds, including a 12-second
 wait in RETENTION; then it counts the run and starts over, and keeps going
