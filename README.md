@@ -81,6 +81,7 @@ The two projects stay separate. This one has no dependency on that board and nev
 | **P2** address bus — **all 16 lines, A0–A15** | ✅ |
 | Display — 256-page map, bus lanes, verdict | ✅ |
 | Fault injection + headless VICE harness | ✅ 13/13 |
+| **Variant matrix** — every C64 model VICE emulates | ✅ 18 model × CIA combinations |
 | Gate G1 — EasyFlash mode switching | ✅ **closed** — Ultimate II+ *and* Kung Fu Flash, `$DE02 = $02` |
 | EasyFlash delivery — boots in Ultimax, **needs no working RAM to start** | ✅ |
 | Engine relocated to `$C000`, banks out with `$01 = $30` | ✅ |
@@ -101,9 +102,22 @@ The two projects stay separate. This one has no dependency on that board and nev
 ## Building
 
 ```
-bash build.sh        # clean build + two fault-injected variants
-bash test/run.sh     # run all three headless in VICE and assert the results
+bash build.sh          # clean build + every fault-injected variant
+bash test/run.sh       # 13 fault-injection cases on one machine
+bash test/models.sh    # the same build across every C64 variant VICE emulates
 ```
+
+The two harnesses answer different questions and neither substitutes for the other:
+`run.sh` proves the tool **reports faults correctly**, `models.sh` proves it **behaves
+identically on every machine**. The matrix covers PAL, NTSC (both VIC revisions), PAL-N,
+C64C, C64GS and the Educator 64, each against both the 6526 and 8521 CIA — and ⚠ boots one
+with a **KERNAL of 8 KB of `$FF`**, which a normal autostart cartridge could not survive,
+since it needs the KERNAL's own `JSR $FD02` to be handed control. Latest results:
+[`docs/VARIANT-MATRIX.txt`](docs/VARIANT-MATRIX.txt).
+
+⚠ **What simulation cannot cover, and the docs do not pretend otherwise:** VICE models the
+machine, not the DRAM arrangement. A short board's two 41464s and a long board's eight
+4164s look identical to it, so **chip naming can only ever be verified on real hardware**.
 
 Needs `acme`, and VICE for `cartconv` and `x64sc`.
 

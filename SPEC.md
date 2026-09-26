@@ -481,6 +481,44 @@ Per principle P1, publish these. A run that greens in 20 s has skipped something
 
 ---
 
+## 8a. Verification across the family
+
+⚠ **Carl, 2026-09-26: *"it really needs a thorough simulation test, on various C64
+variants."*** Until then the tool had run on exactly two machines — VICE's default PAL C64
+and one Ultimate II+ / Kung Fu Flash — and several things it depends on are not constant
+across the family: raster geometry (P7 waits on line `$80`), φ2 frequency (the dwell and the
+flash rate), and the CIA revision (which now *is* the flash rate).
+
+`test/models.sh` runs a complete pass on every model VICE emulates, against both CIAs:
+
+| | |
+|---|---|
+| Models | c64, c64c, c64old, ntsc, newntsc, oldntsc, drean (PAL-N), c64gs, pet64 |
+| CIA | 6526 and 8521 |
+| Assertion | identical outcome — GREEN, 0 errors, map row 0 `**#*****########`, PASSES 0001 |
+
+Two cases earn their place beyond the sweep:
+
+- ⚠ **A KERNAL of 8 KB of `$FF`.** The cartridge boots in Ultimax and supplies its own reset
+  vector, so it should never execute a KERNAL byte. That is a *claim*, and this is what
+  tests it — a normal autostart cartridge cannot survive it, because it needs the KERNAL's
+  own `JSR $FD02` to be handed control.
+- ⚠ **The MAX Machine.** 2 KB of RAM and no `$C000`, so the engine has nowhere to live. It
+  must **report a fatal border code and hold it**, not hang. It reports ORANGE — the check
+  that it failed to leave Ultimax — which is correct and legible.
+
+⚠ **Several models name a KERNAL image not installed here, and VICE refuses to initialise
+without one.** The stock ROM is substituted so the run can proceed; the cartridge never
+executes it, and what those models actually change — the VIC-II and CIA revisions — is
+unaffected. ⚠ **A machine VICE cannot start is reported as SKIPPED, never as a failure.**
+Reporting a missing ROM as a defect in the cartridge would be a lie, and the harness checks
+for it explicitly.
+
+⚠⚠ **WHAT SIMULATION CANNOT COVER.** VICE models the machine, not the DRAM arrangement. A
+short board's two 41464s and a long board's eight 4164s are indistinguishable to it, so
+**chip naming can only ever be verified on real hardware** — and the short-board caveat on
+screen exists precisely because no amount of simulation will catch that error.
+
 ## 8. Verification
 
 ⚠ **A RAM test that cannot fail is worthless, and this is not a hypothetical concern** — the

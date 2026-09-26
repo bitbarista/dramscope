@@ -1,0 +1,41 @@
+DRAMscope across every C64 variant VICE emulates
+
+A clean pass must look identical on all of them:
+  GREEN border, 0 errors, map row 0 = **#*****########, PASSES 0001
+
+  c64 + CIA 6526 old                 GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  c64c + CIA 6526 old                GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  c64old + CIA 6526 old              GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  ntsc + CIA 6526 old                GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  newntsc + CIA 6526 old             GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  oldntsc + CIA 6526 old             GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  drean + CIA 6526 old               GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  c64gs + CIA 6526 old               GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  pet64 + CIA 6526 old               GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+
+  c64 + CIA 8521 new                 GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  c64c + CIA 8521 new                GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  c64old + CIA 8521 new              GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  ntsc + CIA 8521 new                GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  newntsc + CIA 8521 new             GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  oldntsc + CIA 8521 new             GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  drean + CIA 8521 new               GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  c64gs + CIA 8521 new               GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+  pet64 + CIA 8521 new               GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+
+⚠ THE KERNAL IS NEVER EXECUTED, and here is the proof: the machine is
+  given a KERNAL of 8 KB of $FF and the run must be unaffected. A
+  normal autostart cartridge could not survive this at all -- it needs
+  the KERNAL's own JSR $FD02 to be handed control.
+  KERNAL replaced with $FF           GREEN  err=0     map=**#*****######## pass=0001 COL RAM
+
+⚠ A machine whose memory it cannot use must REPORT, not hang.
+  The MAX Machine has 2 KB and no $C000, so the engine has nowhere
+  to live -- that is a BLUE or PURPLE border, reached and held:
+  ultimax                            ORANGE
+
+A fault must be found and named the same way on PAL and on NTSC:
+  c64                                LTRED  BITS                               D0 / 250407                             U21
+  ntsc                               LTRED  BITS                               D0 / 250407                             U21
+
+  EVERY VARIANT PASSED
