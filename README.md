@@ -69,14 +69,15 @@ The two projects stay separate. This one has no dependency on that board and nev
 | **P1** data bus — walking ones/zeroes/rails | ✅ |
 | **P2** address bus — **all 16 lines, A0–A15** | ✅ |
 | Display — 256-page map, bus lanes, verdict | ✅ |
-| Fault injection + headless VICE harness | ✅ 8/8 |
+| Fault injection + headless VICE harness | ✅ 9/9 |
 | Gate G1 — EasyFlash mode switching | ✅ **closed** — Ultimate II+ *and* Kung Fu Flash, `$DE02 = $02` |
 | EasyFlash delivery — boots in Ultimax, **needs no working RAM to start** | ✅ |
 | Engine relocated to `$C000`, banks out with `$01 = $30` | ✅ |
 | **P3** March B 17n, address-dependent pattern, 60,928 of 65,536 bytes | ✅ ~17 s |
 | **P4** March LR 14n, **fixed** patterns — linked faults | ✅ ~11 s |
 | **P5** topographical row/column patterns — physical adjacency | ✅ ~34 s |
-| **P6–P9** dwell, disturb, colour RAM | ⬜ |
+| **P6** zero page and the stack — 9n, registers-only | ✅ |
+| **P7–P9** dwell, disturb, colour RAM | ⬜ |
 | **Chip naming** from the failing-bit mask, Assy 250407 | ✅ |
 | Classification rules beyond chip naming (stride, region, mux pairing) | ⬜ |
 | Board profiles for 250425 and the short boards | ⬜ |
@@ -124,3 +125,20 @@ specification is as demanding as it is.
 Algorithms come from the published memory-test literature — van de Goor's March B and
 March LR — and hardware facts from Commodore's schematics and Bauer's VIC-II reference. Every
 one is traced in [`PROVENANCE.md`](PROVENANCE.md).
+
+
+## Coverage — what is tested, and how deeply
+
+**60,414 of 65,536 bytes.** The map distinguishes the depths rather than averaging them:
+
+| Mark | Meaning | Where |
+|---|---|---|
+| solid | March B 17n + March LR 14n + six topographical passes | 59,904 bytes |
+| `*` | 9n march, registers-only | zero page and the stack, 510 bytes |
+| `+` | one address-dependent write/verify pass | screen matrix and the engine's own 4 KB |
+| `.` | nothing | `$0000`/`$0001` — ⚠ **not RAM**, they are the CPU's DDR and banking latch |
+
+⚠ **The two remaining `+` regions are a limitation, not a law.** The screen matrix can be
+tested by moving the VIC's matrix pointer to a second home in bank 2 and marching the
+vacated one; the engine's 4 KB by relocating the engine and marching behind it. Both are
+designed in `SPEC.md` and neither is written yet.

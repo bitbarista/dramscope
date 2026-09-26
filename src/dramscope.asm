@@ -58,7 +58,7 @@
 ; warning it is expected to ignore is where a real warning goes to hide.
 !ifndef INJECT_DB { !ifndef INJECT_AB { !ifndef INJECT_NOEF { !ifndef INJECT_MEM {
         !ifndef INJECT_ALL { !ifndef INJECT_LR { !ifndef INJECT_TOPO {
-        !to "build/dramscope_roml.bin", plain } } } } } } }
+        !ifndef INJECT_ZP { !to "build/dramscope_roml.bin", plain } } } } } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -76,7 +76,7 @@ BANK_RAM = $30                  ; ⚠ ALL RAM: no ROMs, no I/O, no cartridge
 SCREEN   = $0400
 COLRAM   = $d800
 ENGINE   = $c000
-ENG_PAGES = 14                  ; ⚠ pages copied; the march must skip them
+ENG_PAGES = 15                  ; ⚠ pages copied; the march must skip them
 
 ; ------------------------------------------------------------------ colours
 C_BLACK  = 0
@@ -99,6 +99,7 @@ CH_DASH  = $2d                  ; -  separator
 CH_FULL  = $a0                  ;    pass -- inverse space, a solid cell
 CH_X     = $18                  ; X  fail
 CH_PLUS  = $2b                  ; +  probed, but NOT marched
+CH_STAR  = $2a                  ; *  marched, but at 9n not 31n + topo
 CH_SPACE = $20
 
 ; ---------------------------------------------------- display geometry
@@ -134,7 +135,7 @@ SEED     = $5a
 ; It now sits just above the engine, inside the region P0c proves and every
 ; march already excludes: still verified before use, still never marched, and
 ; no longer able to run out of room silently.
-WORK     = $ce00
+WORK     = $cf00
 w_dbmask = WORK+0               ; data bus    -- 1 = that bit misbehaved
 w_ablo   = WORK+1               ; A7..A0      -- 1 = that line faulty
 w_abhi   = WORK+2               ; A15..A8     -- 1 = that line faulty
@@ -163,6 +164,10 @@ w_hpar   = WORK+24              ; the pattern's per-page constant half
 w_pmode  = WORK+25              ; 0 = write pass, 1 = verify pass
 w_tick   = WORK+26              ; liveness counter, one per page processed
 w_phcol  = WORK+27              ; this phase's border colour, for the pulse
+w_p6start= WORK+28              ; first index P6 may touch in the current page
+w_p6seed = WORK+29              ; P for this page, and its complement
+w_p6inv  = WORK+30
+w_p6bad  = WORK+31
 
 ; P2's base. ⚠ Every base+2^n must be RAM under BANK_RAM, including
 ; base+$8000 = $8800, which is why the engine had to leave the cartridge.
@@ -765,7 +770,7 @@ p5_pat:
         jmp p5_pat
 p5_done:
         jsr draw_errors
-        jmp verdict
+        jmp p6
 
 ; p5_pass -- one walk of every covered run, writing or verifying w_patt
 p5_pass:
@@ -1055,6 +1060,240 @@ tick_out:
         tay
         pla
         rts
+
+
+; ---------------------------------------------------------------------------
+; P6 -- ZERO PAGE AND THE STACK. The 501 bytes nothing else could reach.
+;
+; ⚠ Carl asked whether 59,904 of 65,536 was a limitation. It was, and this was
+; the part that mattered: every other excluded region gets at least P0b or
+; P0c's single address-dependent pass and shows as '+', but $0000-$00F4 and
+; $0100-$01FF had NOTHING run against them. They are also the most heavily
+; used bytes in the machine -- a bad stack byte crashes everything and a bad
+; zero-page byte corrupts almost any program, usually in a way that looks like
+; some other fault entirely.
+;
+; ⚠ REGISTERS AND SELF-MODIFYING CODE ONLY. This phase tests the pointers and
+; the stack it would otherwise be standing on, so: no (ptr),y, and NO JSR --
+; the whole phase is reached and left by jmp. Self-modification is available
+; because the engine runs from RAM; it is NOT available in the ROML bootstrap,
+; which is why P0a and P0b are written out longhand instead.
+;
+; ⚠⚠ $0000 AND $0001 ARE NOT RAM. They are the CPU's data-direction register
+; and banking latch. Writing a march pattern to $0001 would rearrange memory
+; underneath the running program. The scan starts at $0002 on page zero.
+;
+; 9n rather than March B's 17n: the algorithm is written out twice over (once
+; per page) because there is no pointer to walk, and the shorter march still
+; covers stuck-at, transition and address-decoder faults over 510 bytes.
+;
+;   M0        (w P)
+;   M1  up    (r P,  w ~P)
+;   M2  up    (r ~P, w P)
+;   M3  down  (r P,  w ~P)
+;   M4  down  (r ~P, w P)
+;
+; ⚠⚠ NOTHING IN THIS PHASE MAY TOUCH THE STACK WHILE PAGE $01 IS UNDER TEST.
+; Not jsr, not pha, not an interrupt -- every one of them writes into the page
+; being marched and corrupts a cell the test has already verified. The phase
+; is entered and left by jmp with a self-modified exit for exactly this
+; reason, interrupts are already masked, and A is the only register that ever
+; needs saving here, which is why Y is kept free.
+;
+; ⚠ On the FIRST failure the phase stops. Zero page or the stack being broken
+; is catastrophic rather than interesting, and a census of 510 bad bytes helps
+; nobody. The border goes red BEFORE the display is attempted, so if a bad
+; stack strands the report, a frozen red border still says "fault here".
+; ---------------------------------------------------------------------------
+p6:
+        lda #C_ORANGE
+        sta BORDER
+        sta w_phcol
+        lda #<s_p6                      ; ⚠ the phase text needs JSR and zero
+        ldy #>s_p6                      ; page, so it happens BEFORE either is
+        jsr phase                       ; put under test
+        lda #0
+        sta w_p6bad
+
+        lda #BANK_RAM
+        sta CPUPORT
+
+        ; ---- page $01, the stack ----
+        lda #$01
+        jsr p6_patch
+        lda #$01
+        eor #SEED
+        sta w_p6seed
+        eor #$ff
+        sta w_p6inv
+        lda #$00                        ; the whole page is RAM
+        sta w_p6start
+        ; ⚠⚠ jmp, NOT jsr. A jsr here leaves its return address in $01xx --
+        ; the very page about to be filled with march patterns -- so the rts
+        ; would return into garbage. The exit is a self-modified jmp instead.
+        ; This is the trap the "no JSR" note above is about, and the first
+        ; version of this phase walked straight into it and hung.
+        lda #<p6_r1
+        sta p6_exit+1
+        lda #>p6_r1
+        sta p6_exit+2
+        jmp p6_run
+p6_r1:
+
+        ; ---- page $00, the zero page ----
+        lda w_p6bad
+        bne p6_done
+        lda #$00
+        jsr p6_patch
+        lda #$00
+        eor #SEED
+        sta w_p6seed
+        eor #$ff
+        sta w_p6inv
+        lda #$02                        ; ⚠ $0000/$0001 are the CPU port
+        sta w_p6start
+        lda #<p6_r2
+        sta p6_exit+1
+        lda #>p6_r2
+        sta p6_exit+2
+        jmp p6_run
+p6_r2:
+
+p6_done:
+        lda #BANK_IO
+        sta CPUPORT
+        lda w_p6bad
+        beq p6_ok
+        lda #C_LTRED                    ; ⚠ red BEFORE the display is tried
+        sta BORDER
+        lda #$00
+        ldx #3
+        jsr mark_page
+        lda #$01
+        ldx #3
+        jsr mark_page
+        jmp p6_end
+p6_ok:
+        lda #$00
+        ldx #5                          ; marched, but at 9n
+        jsr mark_page
+        lda #$01
+        ldx #5
+        jsr mark_page
+p6_end:
+        jsr draw_errors
+        jmp verdict
+
+; p6_patch -- A = page. Writes the high byte into every address operand below.
+; ⚠ This is the self-modification the phase depends on. It is legal only
+; because the engine was copied into RAM; the same trick in the ROML bootstrap
+; would silently do nothing.
+p6_patch:
+        sta p6a+2
+        sta p6b+2
+        sta p6c+2
+        sta p6d+2
+        sta p6e+2
+        sta p6f+2
+        sta p6g+2
+        sta p6h+2
+        sta p6i+2
+        sta p6f_rd+2
+        rts
+
+p6_run:
+        ; M0  (w P)
+        ldx w_p6start
+p6_m0:  txa
+        eor w_p6seed
+p6a:    sta $0000,x
+        inx
+        bne p6_m0
+
+        ; M1  up (r P, w ~P)
+        ldx w_p6start
+p6_m1:  txa
+        eor w_p6seed
+!ifdef INJECT_ZP {                      ; mutation: one bad byte at $0140
+        ; ⚠ NO pha HERE, AND THAT IS NOT A STYLE CHOICE. The first version of
+        ; this mutation saved A on the stack -- while marching the stack page.
+        ; The push landed in a cell the march had already verified, so instead
+        ; of one wrong bit it reported seven. Y is unused by P6, so it does the
+        ; work; w_p6start tells the pages apart ($00 for the stack, $02 for the
+        ; zero page, which starts above the CPU port).
+        cpx #$40
+        bne inj_z_out
+        ldy w_p6start
+        bne inj_z_out
+        eor #$04
+inj_z_out:
+}
+p6b:    cmp $0000,x
+        bne p6_fail
+        txa
+        eor w_p6inv
+p6c:    sta $0000,x
+        inx
+        bne p6_m1
+
+        ; M2  up (r ~P, w P)
+        ldx w_p6start
+p6_m2:  txa
+        eor w_p6inv
+p6d:    cmp $0000,x
+        bne p6_fail
+        txa
+        eor w_p6seed
+p6e:    sta $0000,x
+        inx
+        bne p6_m2
+
+        ; M3  down (r P, w ~P)
+        ldx #$ff
+p6_m3:  txa
+        eor w_p6seed
+p6f:    cmp $0000,x
+        bne p6_fail
+        txa
+        eor w_p6inv
+p6g:    sta $0000,x
+        cpx w_p6start                   ; ⚠ test THEN decrement: a start of $00
+        beq p6_m3x                      ; would wrap dex round to $FF forever
+        dex
+        jmp p6_m3
+p6_m3x:
+
+        ; M4  down (r ~P, w P)
+        ldx #$ff
+p6_m4:  txa
+        eor w_p6inv
+p6h:    cmp $0000,x
+        bne p6_fail
+        txa
+        eor w_p6seed
+p6i:    sta $0000,x
+        cpx w_p6start
+        beq p6_m4x
+        dex
+        jmp p6_m4
+p6_m4x:
+p6_exit:
+        jmp $0000                       ; ⚠ patched by the caller, see above
+
+; ⚠ A = expected, X = index. Records, flags, and abandons the phase.
+; ⚠ Leaves through the same patched exit, for the same reason.
+p6_fail:
+        sta w_tmp
+p6f_rd: lda $0000,x
+        eor w_tmp
+        ora w_bitmask
+        sta w_bitmask
+        inc w_errlo
+        bne p6f_1
+        inc w_errhi
+p6f_1:  lda #1
+        sta w_p6bad
+        jmp p6_exit
 
 ; --- run setup -------------------------------------------------------------
 set_asc:
@@ -1982,8 +2221,13 @@ mp_end: rts
 ; but not 17n March B. Painting them the same solid green as a marched page
 ; would tell the reader those bytes got the full algorithm when they did not.
 ; '+' means probed; a solid cell means marched.
-st_char: !byte CH_DOT,    CH_DASH,  CH_FULL, CH_X,    CH_PLUS
-st_col:  !byte C_DKGREY,  C_YELLOW, C_GREEN, C_LTRED, C_CYAN
+; ⚠ STATE 5 IS THE SAME KIND OF HONESTY AS STATE 4. Zero page and the stack
+; get P6's 9n march, not P3+P4+P5's 31n plus six topographical passes -- there
+; is no pointer to walk them with and no room to write the long version out
+; twice. Painting them the same solid green would claim coverage they did not
+; get, so they are '*': marched, but not to the same depth.
+st_char: !byte CH_DOT,    CH_DASH,  CH_FULL, CH_X,    CH_PLUS, CH_STAR
+st_col:  !byte C_DKGREY,  C_YELLOW, C_GREEN, C_LTRED, C_CYAN,  C_GREEN
 bittab:  !byte 1,2,4,8,16,32,64,128
 
 ; ⚠ Raw screen codes, not !scr: these are the C64's own line graphics, and the
@@ -2013,7 +2257,7 @@ rowhi:   !for i, 0, 24 { !byte >(SCREEN + i*40) }
 
 ; ⚠ acme's !scr maps LOWERCASE source to uppercase screen codes, so every
 ; string here is written lower case on purpose.
-s_title:    !scr "dramscope 0.6", 0
+s_title:    !scr "dramscope 0.7", 0
 s_rule:     !scr "----------------------------------------", 0
 s_hex:      !scr "0123456789abcdef", 0
 s_data:     !scr "data bus", 0
@@ -2028,8 +2272,9 @@ s_p2:       !scr "p2 addr bus", 0
 s_p3:       !scr "p3 march b", 0
 s_p4:       !scr "p4 march lr", 0
 s_p5:       !scr "p5 topo", 0
+s_p6:       !scr "p6 zp+stack", 0
 s_errors:   !scr "bad bytes", 0
-s_legend:   !scr "solid=marched  +=probed  .=untested", 0
+s_legend:   !scr "solid=full *=9n +=probed .=none", 0
 
 ; ⚠ Four bytes per entry, space padded, indexed by bit*4. The designators are
 ; Assy 250407 ONLY -- schematic 251138, via c64-ice40-ram README §2.2.
@@ -2037,7 +2282,7 @@ bitlbl:     !scr "d0  d1  d2  d3  d4  d5  d6  d7  "
 chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
 s_pdone:    !scr "done", 0
 s_ok:       !scr "bus integrity ok, all 16 lines.", 0
-s_ok2:      !scr "march b+lr+topo, 59,904 of 65,536.", 0
+s_ok2:      !scr "60,414 of 65,536 tested. see the map.", 0
 s_databad:  !scr "data bus fault - see the d lane.", 0
 s_databad2: !scr "a marked bit is stuck, shorted or open.", 0
 s_addrbad:  !scr "address line fault - see the a lanes.", 0

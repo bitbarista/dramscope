@@ -319,10 +319,20 @@ is routinely misdiagnosed as a VIC fault.
 
 ⚠ Mask reads to 4 bits; the upper nibble is open bus.
 
-### P9 — Zero page and stack
+### P6 — Zero page and the stack · ✅ **implemented**
 
-Registers-only, no `(ptr),y`, no `JSR`. With an Ultimax start these can be tested first,
-before anything depends on them.
+Registers-only and self-modifying, 9n rather than 17n because there is no pointer to walk
+with and no room to write the long march out twice.
+
+⚠⚠ **Nothing in the phase may touch the stack while page `$01` is under test** — not `JSR`,
+not `PHA`, not an interrupt. Each writes into the page being marched and corrupts a cell the
+test has already verified. The phase is entered and left by `jmp` with a self-modified exit
+for that reason. Both traps were hit during development: the first version used `jsr p6_run`
+and hung when the return address was overwritten, and the first fault-injection used `PHA`
+and reported seven bad bits instead of one.
+
+⚠ **`$0000` and `$0001` are not RAM** — the CPU's data-direction register and banking latch.
+The scan starts at `$0002`.
 
 ---
 
