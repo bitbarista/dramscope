@@ -88,6 +88,7 @@ demultiplexing. It is carried here with its rationale intact.
 
 | Needed for | Question | Tag |
 |---|---|---|
+| ~~March LR + address-dependent pattern (G3)~~ | ⚠ **ANSWERED, AND THE ANSWER IS NO — see the section below. March LR is implemented with FIXED patterns.** | [M] |
 | Topographical patterns (P5) | Which multiplexer half is the **row** address and which the **column**? `c64-ice40-ram` §5.3 deliberately never determined it, because that design has no refresh or page-mode dependency. This project does. | [A] |
 | ~~Delivery vehicle (P0)~~ | ✅ **ANSWERED ON BOTH DEVICES, 2026-09-26: `$DE02 = $02` leaves Ultimax and the cartridge stays mapped at `$8000`.** Ultimate II+ and Kung Fu Flash report identically. Measured by `src/g1probe_roml.asm`, which sweeps all eight values rather than assuming one. VICE agrees, but VICE was not the evidence. | [M] |
 | Screen placement | In Ultimax mode the VIC's fetches in `$3000–$3FFF` of its bank are said to come from cartridge ROMH. Verify before choosing a screen home. | [A] |
@@ -105,3 +106,47 @@ and their trust in every other line the tool printed.
 **So: no verdict may be printed that is not derivable from evidence the run actually
 collected**, and no coverage may be claimed in the documentation that is not demonstrated by
 a fault-injection test that fails without it. See `SPEC.md` §8.
+
+
+---
+
+## ⚠ G3: the address-dependent substitution is NOT proven to preserve coupling coverage
+
+**The question.** `c64-ice40-ram/diag/README.md` justifies its address-dependent pattern
+like this: *"March B only requires two complementary values, so substituting P/~P preserves
+the algorithm exactly."* Gate G3 asked whether that argument carries over to March LR before
+building on it.
+
+**It does not carry over, and on inspection it is weaker than it looks for March B too.**
+
+The two-complementary-values argument is sound for the fault classes that concern **one
+cell** — stuck-at, transition, and address decoder faults. Each cell still holds a value the
+algorithm knows, still gets read back against it, and still makes both transitions. For
+decoder faults the substitution is strictly *better*, which is the whole reason it exists: a
+read from the wrong address returns the wrong value.
+
+⚠ **Coupling faults are not about one cell.** A CFid is detected only when the aggressor
+makes a particular transition *while the victim holds a particular value*. A fixed-pattern
+march guarantees that coincidence by construction, because every cell is in the same state
+at the same point in the march. With `P(a) = lo ⊕ hi ⊕ SEED` the cells are **not** in the
+same state — at any step roughly half hold 0 and half hold 1, per bit — so whether a given
+aggressor/victim pair is sensitised depends on whether `P` happens to differ between them.
+
+Working it through for March B's M1, the aggressor makes an ↑ transition regardless of
+`P(i)`, and the victim's state at that moment is `P(j)` above the march front and `~P(j)`
+below it. So M1 sensitises only the pairs where `P(j)` has the needed polarity — and M2,
+whose cells rest in the opposite state, appears to pick up the remainder. **That is an
+argument that coverage probably survives. It is not a proof, and it is not the argument the
+sibling project actually makes.**
+
+**Decision: do not build on an unproven substitution.**
+
+| Phase | Pattern | Why |
+|---|---|---|
+| **P3 March B** | address-dependent `P/~P` | decoder and aliasing coverage, which is what it was for |
+| **P4 March LR** | **fixed `$00`/`$FF`** | the published linked-fault proof holds exactly as written |
+
+Running both costs 31n and buys each property on its own terms, with neither resting on a
+claim nobody has proved. ⚠ **This also means `c64-ice40-ram`'s "preserves the algorithm
+exactly" is stronger than its evidence** — it is that project's line to correct, not this
+one's, but it should be corrected.

@@ -42,6 +42,7 @@ mk "-DINJECT_AB=1" dramscope_fab   "DS FAULT AB"
 mk "-DINJECT_NOEF=1" dramscope_fef "DS NO EASYFLASH"
 mk "-DINJECT_MEM=1"  dramscope_fmem "DS FAULT MEM"
 mk "-DINJECT_ALL=1"  dramscope_fall "DS FAULT ALLBITS"
+mk "-DINJECT_LR=1"   dramscope_flr  "DS FAULT LR"
 
 # --- gate G1 probe: EasyFlash $DE02 mode switching on real hardware ---------
 acme -l build/g1.labels src/g1probe_roml.asm

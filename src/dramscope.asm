@@ -57,7 +57,8 @@
 ; file name already chosen" on every one of them. A build that prints a
 ; warning it is expected to ignore is where a real warning goes to hide.
 !ifndef INJECT_DB { !ifndef INJECT_AB { !ifndef INJECT_NOEF { !ifndef INJECT_MEM {
-        !ifndef INJECT_ALL { !to "build/dramscope_roml.bin", plain } } } } }
+        !ifndef INJECT_ALL { !ifndef INJECT_LR {
+        !to "build/dramscope_roml.bin", plain } } } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -570,7 +571,7 @@ p2_restore:
 ; within a run are covered. The runs are simply what the exclusions leave.
 ;
 ; ⚠ THE WHOLE MARCH RUNS WITH $01 = $30 -- all RAM, no ROMs, no I/O, no
-; cartridge. p3_fail does its own bank dance for the one thing that needs I/O.
+; cartridge. march_fail does its own bank dance for the one thing that needs I/O.
 ; ---------------------------------------------------------------------------
 p3:
         lda #C_YELLOW
@@ -613,7 +614,201 @@ p3_run:
 
 p3_done:
         jsr draw_errors
+        jmp p4
+
+
+; ---------------------------------------------------------------------------
+; P4 -- March LR, 14n. LINKED FAULTS.
+;
+;   M0  (w 0)
+;   M1  DESCENDING (r 0, w 1)
+;   M2  ascending  (r 1, w 0, r 0, w 1)
+;   M3  ascending  (r 1, w 0)
+;   M4  ascending  (r 0, w 1, r 1, w 0)
+;   M5  ascending  (r 0)
+;
+; A linked fault is two defects close enough that the write exposing one masks
+; the other. March B's guarantee does not cover them; March LR is the published
+; answer, and at 14n it is CHEAPER than March B's 17n, so this is not a
+; trade-off -- both run, for 31n total.
+;
+; ⚠⚠ FIXED PATTERNS HERE, NOT THE ADDRESS-DEPENDENT ONE, AND THAT IS
+; DELIBERATE. Gate G3 asked whether "March B needs only two complementary
+; values, so P/~P preserves it" carries over to March LR. It does not. That
+; argument is sound for single-cell faults -- stuck-at, transition, decoder --
+; but COUPLING faults are detected only when the aggressor transitions WHILE
+; THE VICTIM HOLDS A PARTICULAR VALUE. A fixed-pattern march guarantees that
+; coincidence by construction, because every cell is in the same state at the
+; same point. With P = lo EOR hi EOR SEED they are not: half hold 0 and half
+; hold 1 at every step, so whether a given aggressor/victim pair is sensitised
+; depends on whether P happens to differ between them. Coverage probably
+; survives across elements with opposite resting states -- but "probably" is
+; not a proof, and the whole point of March LR is a proof. So P3 keeps the
+; address-dependent pattern for the decoder coverage it was introduced for,
+; and P4 uses $00/$FF where the published proof holds as written.
+; See PROVENANCE.md.
+;
+; ⚠ The march_fail handler, the bad-byte count and the failing-bit mask are
+; shared with P3, so a fault found by either phase names the same chip.
+; ---------------------------------------------------------------------------
+p4:
+        lda #C_YELLOW
+        sta BORDER
+        lda #<s_p4
+        ldy #>s_p4
+        jsr phase
+        lda #0
+        sta w_runidx
+p4_run:
+        ldx w_runidx
+        lda runtab,x
+        beq p4_done
+        sta w_startpg
+        lda runtab+1,x
+        sta w_endpg
+        jsr mark_run_testing
+        lda #BANK_RAM                   ; ⚠ I/O IS GONE FROM HERE
+        sta CPUPORT
+        jsr lr0
+        jsr lr1
+        jsr lr2
+        jsr lr3
+        jsr lr4
+        jsr lr5
+        lda #BANK_IO
+        sta CPUPORT
+        jsr mark_run_done
+        lda w_runidx
+        clc
+        adc #2
+        sta w_runidx
+        jmp p4_run
+p4_done:
+        jsr draw_errors
         jmp verdict
+
+; --- M0  (w 0) -------------------------------------------------------------
+lr0:    jsr set_asc
+lr0_pg: ldy #0
+        lda #$00
+lr0_c:  sta (mptr),y
+        iny
+        bne lr0_c
+        jsr nx_asc
+        bne lr0_pg
+        rts
+
+; --- M1  DESCENDING (r 0, w 1) ---------------------------------------------
+; ⚠ This descending element, immediately after M0, is what makes LR an LR:
+; it breaks the single address order that lets one fault mask another.
+lr1:    jsr set_desc
+lr1_pg: ldy #$ff
+lr1_c:  lda (mptr),y
+        bne lr1_e1
+lr1_k1: lda #$ff
+        sta (mptr),y
+        dey
+        cpy #$ff
+        bne lr1_c
+        jsr nx_desc
+        bne lr1_pg
+        rts
+lr1_e1: ldx #$00
+        jsr march_fail
+        jmp lr1_k1
+
+; --- M2  ascending (r 1, w 0, r 0, w 1) ------------------------------------
+lr2:    jsr set_asc
+lr2_pg: ldy #0
+lr2_c:  lda (mptr),y
+        cmp #$ff
+        bne lr2_e1
+lr2_k1: lda #$00
+        sta (mptr),y
+        lda (mptr),y
+        bne lr2_e2
+lr2_k2: lda #$ff
+        sta (mptr),y
+        iny
+        bne lr2_c
+        jsr nx_asc
+        bne lr2_pg
+        rts
+lr2_e1: ldx #$ff
+        jsr march_fail
+        jmp lr2_k1
+lr2_e2: ldx #$00
+        jsr march_fail
+        jmp lr2_k2
+
+; --- M3  ascending (r 1, w 0) ----------------------------------------------
+lr3:    jsr set_asc
+lr3_pg: ldy #0
+lr3_c:  lda (mptr),y
+        cmp #$ff
+        bne lr3_e1
+lr3_k1: lda #$00
+        sta (mptr),y
+        iny
+        bne lr3_c
+        jsr nx_asc
+        bne lr3_pg
+        rts
+lr3_e1: ldx #$ff
+        jsr march_fail
+        jmp lr3_k1
+
+; --- M4  ascending (r 0, w 1, r 1, w 0) ------------------------------------
+lr4:    jsr set_asc
+lr4_pg: ldy #0
+lr4_c:  lda (mptr),y
+        bne lr4_e1
+lr4_k1: lda #$ff
+        sta (mptr),y
+        lda (mptr),y
+        cmp #$ff
+        bne lr4_e2
+lr4_k2: lda #$00
+        sta (mptr),y
+        iny
+        bne lr4_c
+        jsr nx_asc
+        bne lr4_pg
+        rts
+lr4_e1: ldx #$00
+        jsr march_fail
+        jmp lr4_k1
+lr4_e2: ldx #$ff
+        jsr march_fail
+        jmp lr4_k2
+
+; --- M5  ascending (r 0) ---------------------------------------------------
+lr5:    jsr set_asc
+lr5_pg: ldy #0
+lr5_c:  lda (mptr),y
+!ifdef INJECT_LR {                      ; mutation: P4 must be able to fail too
+        cpy #$12
+        bne inj_l_out
+        pha
+        lda mptr+1
+        cmp #$50
+        bne inj_l_pop
+        pla
+        eor #$80
+        jmp inj_l_out
+inj_l_pop:
+        pla
+inj_l_out:
+}
+        bne lr5_e1
+lr5_k1: iny
+        bne lr5_c
+        jsr nx_asc
+        bne lr5_pg
+        rts
+lr5_e1: ldx #$00
+        jsr march_fail
+        jmp lr5_k1
 
 ; --- run setup -------------------------------------------------------------
 set_asc:
@@ -716,13 +911,13 @@ m1_k3:  lda pinv
         bne m1_pg
         rts
 m1_e1:  ldx pval
-        jsr p3_fail
+        jsr march_fail
         jmp m1_k1
 m1_e2:  ldx pinv
-        jsr p3_fail
+        jsr march_fail
         jmp m1_k2
 m1_e3:  ldx pval
-        jsr p3_fail
+        jsr march_fail
         jmp m1_k3
 
 ; --- M2  ascending (r ~P, w P, w ~P) ---------------------------------------
@@ -747,7 +942,7 @@ m2_k1:  lda pval
         bne m2_pg
         rts
 m2_e1:  ldx pinv
-        jsr p3_fail
+        jsr march_fail
         jmp m2_k1
 
 ; --- M3  descending (r ~P, w P, w ~P, w P) ---------------------------------
@@ -775,7 +970,7 @@ m3_k1:  lda pval
         bne m3_pg
         rts
 m3_e1:  ldx pinv
-        jsr p3_fail
+        jsr march_fail
         jmp m3_k1
 
 ; --- M4  descending (r P, w ~P, w P) ---------------------------------------
@@ -801,17 +996,17 @@ m4_k1:  lda pinv
         bne m4_pg
         rts
 m4_e1:  ldx pval
-        jsr p3_fail
+        jsr march_fail
         jmp m4_k1
 
 ; ---------------------------------------------------------------------------
-; p3_fail -- X = expected, A = got.
+; march_fail -- X = expected, A = got.
 ; ⚠ PRESERVES Y AND mptr, because it is called from the middle of a march
 ; element that is still walking a page. mark_page clobbers Y, hence the save.
 ; ⚠ Called from inside the banked window, so it banks I/O back in around the
 ; one thing that needs it.
 ; ---------------------------------------------------------------------------
-p3_fail:
+march_fail:
         sta w_tmp2                      ; got
         stx w_tmp                       ; expected
         tya
@@ -821,14 +1016,14 @@ p3_fail:
         ora w_bitmask                   ; names the chip, later
         sta w_bitmask
         inc w_errlo
-        bne p3f_1
+        bne mf_1
         inc w_errhi
-p3f_1:
+mf_1:
         ; ⚠ Paint a page red only the FIRST time it fails. A page with 256 bad
         ; bytes must not repaint its cell 256 times.
         lda mptr+1
         cmp w_lastfp
-        beq p3f_out
+        beq mf_out
         sta w_lastfp
         lda #BANK_IO
         sta CPUPORT
@@ -837,18 +1032,29 @@ p3f_1:
         jsr mark_page
         lda #BANK_RAM
         sta CPUPORT
-p3f_out:
+mf_out:
         pla
         tay
         rts
 
 ; --- map painting for a whole run ------------------------------------------
+; ⚠ SKIPS CELLS ALREADY MARKED X, and that is not cosmetic. P4 runs over the
+; same pages P3 did, so without this its "now testing" repaint erased every
+; fault P3 had found -- and the tidy-up pass then painted the cell green,
+; because it was no longer an X to skip. A page that failed stays failed.
 mark_run_testing:
         lda w_startpg
         sta w_tmp
 mrt_l:  lda w_tmp
+        jsr cell_pos
+        ldy #0
+        lda (sptr),y
+        cmp #CH_X
+        beq mrt_skip
+        lda w_tmp
         ldx #1                          ; testing
         jsr mark_page
+mrt_skip:
         lda w_tmp
         cmp w_endpg
         beq mrt_x
@@ -1508,7 +1714,7 @@ rowhi:   !for i, 0, 24 { !byte >(SCREEN + i*40) }
 
 ; ⚠ acme's !scr maps LOWERCASE source to uppercase screen codes, so every
 ; string here is written lower case on purpose.
-s_title:    !scr "dramscope 0.3", 0
+s_title:    !scr "dramscope 0.4", 0
 s_rule:     !scr "----------------------------------------", 0
 s_hex:      !scr "0123456789abcdef", 0
 s_data:     !scr "data bus", 0
@@ -1521,6 +1727,7 @@ s_blank:    !scr "                 ", 0
 s_p1:       !scr "p1 data bus", 0
 s_p2:       !scr "p2 addr bus", 0
 s_p3:       !scr "p3 march b", 0
+s_p4:       !scr "p4 march lr", 0
 s_errors:   !scr "bad bytes", 0
 s_legend:   !scr "solid=marched  +=probed  .=untested", 0
 
@@ -1530,13 +1737,13 @@ bitlbl:     !scr "d0  d1  d2  d3  d4  d5  d6  d7  "
 chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
 s_pdone:    !scr "done", 0
 s_ok:       !scr "bus integrity ok, all 16 lines.", 0
-s_ok2:      !scr "march b 17n over 60,928 of 65,536.", 0
+s_ok2:      !scr "march b + lr, 31n, 60,928 of 65,536.", 0
 s_databad:  !scr "data bus fault - see the d lane.", 0
 s_databad2: !scr "a marked bit is stuck, shorted or open.", 0
 s_addrbad:  !scr "address line fault - see the a lanes.", 0
 s_addrbad2: !scr "both of a pair = mux u13/u25 or rp1/rp2.", 0
 s_membad:   !scr "memory fault - see the red cells.", 0
-s_membad2:  !scr "march b 17n, address-dependent pattern.", 0
+s_membad2:  !scr "march b + march lr, 31n.", 0
 s_bits:     !scr "bits", 0
 s_assy:     !scr "250407", 0
 s_allbits:  !scr "all 8 bits - not one chip. check pla.", 0

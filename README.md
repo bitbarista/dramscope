@@ -67,12 +67,13 @@ The two projects stay separate. This one has no dependency on that board and nev
 | **P1** data bus — walking ones/zeroes/rails | ✅ |
 | **P2** address bus — **all 16 lines, A0–A15** | ✅ |
 | Display — 256-page map, bus lanes, verdict | ✅ |
-| Fault injection + headless VICE harness | ✅ 6/6 |
+| Fault injection + headless VICE harness | ✅ 7/7 |
 | Gate G1 — EasyFlash mode switching | ✅ **closed** — Ultimate II+ *and* Kung Fu Flash, `$DE02 = $02` |
 | EasyFlash delivery — boots in Ultimax, **needs no working RAM to start** | ✅ |
 | Engine relocated to `$C000`, banks out with `$01 = $30` | ✅ |
 | **P3** March B 17n, address-dependent pattern, 60,928 of 65,536 bytes | ✅ ~17 s |
-| **P4–P9** March LR, topographical, dwell, disturb, colour RAM | ⬜ |
+| **P4** March LR 14n, **fixed** patterns — linked faults | ✅ ~11 s |
+| **P5–P9** topographical, dwell, disturb, colour RAM | ⬜ |
 | **Chip naming** from the failing-bit mask, Assy 250407 | ✅ |
 | Classification rules beyond chip naming (stride, region, mux pairing) | ⬜ |
 | Board profiles for 250425 and the short boards | ⬜ |

@@ -104,7 +104,7 @@ CASES = [
      "dramscope.crt",      "halt",     "GREEN", "########", "########", "########",
      {"row0": "..##++++########", "rowC": "++++++++++++####",
       "page40": "#", "errors": " 0000",
-      "bits": " MARCH B 17N OVER 60,928 OF 65,536.", "chips": ""}),
+      "bits": " MARCH B + LR, 31N, 60,928 OF 65,536.", "chips": ""}),
     # ⚠ The classifier makes a claim about someone else's hardware. D3 is U10
     # on a 250407 -- schematic 251138 via c64-ice40-ram README §2.2.
     ("D3 stuck -- data lane X, and the chip named from the bit",
@@ -123,6 +123,13 @@ CASES = [
       "chips": " 250407                             U21"}),
     # ⚠ The one a real device might actually hit. A Kung Fu Flash that ignores
     # $DE02 must SAY SO, not hang in Ultimax pretending to test 64 KB.
+    # ⚠ P4 is a SEPARATE engine with its own read paths, so it needs its own
+    # mutation. One bit wrong at $5012, seen by March LR's final r0.
+    ("March LR catches what March B's pattern left -- page $50, bit D7",
+     "dramscope_flr.crt",  "halt",     "LTRED", "########", "########", "########",
+     {"errors": " 0001",
+      "bits":  " BITS   D7",
+      "chips": " 250407 U12"}),
     # ⚠ THE SAFETY RULE. All eight bits wrong must name NO chip at all.
     ("all 8 bits wrong -- must REFUSE to name a chip",
      "dramscope_fall.crt", "halt",     "LTRED", "########", "########", "########",

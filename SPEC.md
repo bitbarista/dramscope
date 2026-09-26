@@ -3,10 +3,11 @@
 ⚠ **The name is a placeholder.** It is used consistently so it can be changed with one
 `sed`, but it should be settled before anything is published.
 
-**Status:** iteration 3 implemented and verified — EasyFlash delivery (boots in Ultimax,
+**Status:** iteration 4 implemented and verified — EasyFlash delivery (boots in Ultimax,
 needs no working RAM), engine relocated to `$C000`, P0/P1/P2 with **all sixteen address
-lines**, and **P3 March B, 17n, over 60,928 of 65,536 bytes**. Verified on an Ultimate II+
-as well as in VICE. P4 onwards not started.
+lines**, **P3 March B 17n** and **P4 March LR 14n** over 60,928 of 65,536 bytes, and chip naming
+from the failing-bit mask. Verified on an Ultimate II+ and a Kung Fu Flash as well as in
+VICE. Measured end to end: 26–28 M cycles, **about 28 s on PAL**. P5 onwards not started.
 **Target:** Commodore 64, all assemblies. **Not specific to any one board or RAM replacement.**
 
 ---
@@ -232,16 +233,22 @@ at 16.5 M cycles, done by 16.8 M. That is **271 cycles per byte, 15.9 per operat
 to the sibling project's independently measured 15.03, which is a useful cross-check that
 nothing silly is happening in the inner loop.
 
-### P4 — March LR, address-dependent pattern · ~14 s
+### P4 — March LR, **fixed patterns** · ✅ **implemented; ~11 s**
 
 14n, six elements. **Linked faults** — two defects close enough that the write exposing one
 masks the other — are outside March B's guarantee, and March LR is the published answer.
 
-Note that at 14n it is **cheaper than March B, not dearer**. Both run; total 31n.
+Note that at 14n it is **cheaper than March B, not dearer**. Both run; total 31n, measured
+end to end at 26–28 M cycles, about 28 s on PAL.
 
-⚠ **Gate G3 (§9): the P/~P substitution argument must be re-made for March LR, not
-inherited.** It very likely holds — LR also requires only complementary values — but this
-project does not inherit proofs. Paper exercise, not a build.
+⚠ **Gate G3 ANSWERED, and not the way it was expected to go: the substitution is NOT used
+here.** The "only two complementary values are needed" argument holds for single-cell fault
+classes but **not for coupling faults**, which are detected only when the aggressor
+transitions *while the victim holds a particular value* — a coincidence a fixed-pattern
+march guarantees by construction and an address-dependent one does not. So **March LR runs
+with fixed `$00`/`$FF`**, where the published linked-fault proof holds exactly as written,
+and March B keeps the address-dependent pattern for the decoder coverage it was introduced
+for. Full reasoning in `PROVENANCE.md`.
 
 ### P5 — Topographical patterns · ~12 s
 
@@ -439,7 +446,7 @@ synthetic failure set that triggers it and a neighbouring set that does not.
 | ~~**G1**~~ | ✅ **CLOSED. Ultimate II+ and Kung Fu Flash both: `$DE02 = $02`** (2026-09-26, measured on both). | — | [M] |
 | ~~**G5**~~ | ✅ **CLOSED for Assy 250407** — the bit→designator table is confirmed from schematic 251138. Other assemblies remain [A]. | — | [D] |
 | **G2** | Which multiplexer half carries the row address and which the column? | P5 topographical | [A] |
-| **G3** | Does the address-dependent P/~P substitution preserve March LR's linked-fault coverage? | P4 claims | [A] |
+| ~~**G3**~~ | ⚠ **ANSWERED: no, not provably.** March LR therefore uses fixed patterns. See `PROVENANCE.md`. | — | [M] |
 | **G4** | In Ultimax, do VIC fetches in `$3000–$3FFF` come from cartridge ROMH? | Screen home selection | [A] |
 | **G5** | Bit → chip designator tables per assembly, from schematics | Chip naming in §5 | [A] |
 
@@ -459,7 +466,8 @@ Each step is intended to leave something that works.
 | 3b | EasyFlash delivery, engine relocated, A15 closed | ✅ done — **no working RAM needed to start** |
 | 4 | P3 March B + bad-byte count + failing-bit mask | ✅ done — parity with existing tools, plus shape |
 | 4b | Chip naming from the bit mask, Assy 250407 | ✅ done — and it refuses to name when all 8 bits fail |
-| 4c | The remaining classifier rules in §5 (stride, region, mux pairing) | ⬜ **next** |
+| 5 | P4 March LR, fixed patterns (G3 answered first) | ✅ done |
+| 5b | The remaining classifier rules in §5 (stride, region, mux pairing) | ⬜ **next** |
 | 5 | Board profiles (G5) → chip naming | the headline feature |
 | 6 | P4 March LR (G3 first) | linked faults |
 | 7 | G2, then P5 topographical | physical coupling |
