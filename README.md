@@ -1,10 +1,39 @@
 # DRAMscope
 
-⚠ **Placeholder name.** Iteration 1 builds, runs and is verified; see
-[`SPEC.md`](SPEC.md) for the whole plan and what is still missing.
-
 A memory diagnostic cartridge for the Commodore 64 — for **any** C64, not for any particular
 RAM replacement board.
+
+It boots from the cartridge in Ultimax mode with its own reset vector, so it needs **no
+working KERNAL and no working RAM to start** — verified on a machine with every DRAM pulled
+from its sockets. It tests all 65,534 bytes of RAM there are, names the failing data bit and,
+where it can do so safely, the chip that carries it.
+
+## Running it
+
+1. Put `dramscope.crt` on an **Ultimate II+** or **Kung Fu Flash** and start it.
+2. It runs continuously until you reset the machine, counting completed runs.
+3. Read [`docs/BENCH-SHEET.txt`](docs/BENCH-SHEET.txt) — it explains every colour, every mark
+   on the map, and carries the chip chart for all five C64 board assemblies.
+
+⚠ **The cartridge must be mapped without a menu if the RAM is missing.** A Kung Fu Flash
+boots the last cartridge straight away, which is why the no-RAM case works there. The
+Ultimate II+ menu is itself a C64 program and needs working RAM to run.
+
+A healthy machine finishes a run in about 80 seconds and looks like this:
+
+```
+ DRAMSCOPE  RUNS     1  BAD BYTES     0
+ ----------------------------------------
+   0123456789ABCDEF TESTS AND RESULTS
+ 0 **#*****######## DATA LINES   OK
+ …
+ 64K MAP: #=FULL *=LIGHTER X=BAD     1.4
+ ----------------------------------------
+ ALL TESTS PASSED.
+ 59,648 FULL + 5,886 LIGHTER = 65,534
+
+ RUNS UNTIL YOU RESET.
+```
 
 ## What it is for
 
@@ -20,14 +49,16 @@ that come next and are harder:
   is a named chip. The tool prints, under the bit number, the designator it maps to:
 
   ```
-   MEMORY FAULT - SEE THE RED CELLS.
+   MEMORY FAULT, FIRST BAD BYTE AT $4037
    BITS                               D0
-   250407                             U21
+   4164                               U21
+   41464? D0-D3 IS ONE CHIP - SEE SHEET.
   ```
 
-  ⚠ The designators sit under a heading naming the **assembly they belong to**, because the
-  tool cannot tell which board it is plugged into. **Short boards carry two 41464s, not eight
-  4164s** — four bits per chip — so a named chip there would be plain wrong, and the tool
+  ⚠ The designators sit under a heading naming the **part they belong to**, because the tool
+  cannot tell which board it is plugged into. The row says `4164`, which is the number printed
+  on the chip itself, so it can be checked by looking. **Boards with only two RAM chips carry
+  41464s** — four bits per chip — so a named chip there would be plain wrong, and the tool
   prints that caveat whenever it names one. The **bit number** is
   always shown and is true on every C64. And if *every* bit fails it names no chip at all —
   eight simultaneously dead DRAMs is not the likely reading, and pointing at eight chips is
@@ -64,7 +95,7 @@ even be looked at.
 
 ## Where it came from
 
-It is a spin-out of [DRAMa Free 64](../c64-ice40-ram), an FPGA replacement for the eight
+It is a spin-out of DRAMa Free 64 (the author's own, unpublished), an FPGA replacement for the eight
 4164 DRAMs on a C64 Assy 250407. Building that required a memory test good enough to trust a
 board with, and the result turned out to be more generally useful than the board it was
 written for — in particular the **address-dependent pattern** (`value = lo XOR hi XOR seed`),
@@ -282,6 +313,19 @@ fact that holds on any board, while the designator is not. The full chart is on 
 
 ⚠ **250466 is a long board with two RAM chips**, so counting chips does not identify the board
 type. The old on-screen caveat `SHORT BOARD? 2 CHIPS` was wrong on that point and is gone.
+
+## Documentation in this repository
+
+| File | Who it is for |
+|---|---|
+| [`docs/BENCH-SHEET.txt`](docs/BENCH-SHEET.txt) | **Read this one.** Every colour, every mark on the map, and the chip chart for all five board assemblies. It ships alongside the `.crt`. |
+| [`docs/VARIANT-MATRIX.txt`](docs/VARIANT-MATRIX.txt) | Generated proof that a clean run looks identical on every C64 model VICE emulates. |
+| [`SPEC.md`](SPEC.md) | *Background.* Why each algorithm was chosen, what was tried and rejected, and what is still open. |
+| [`PROVENANCE.md`](PROVENANCE.md) | *Background.* Where every algorithm and hardware fact came from, with the rule about not reading other RAM tests' code. |
+
+## Licence
+
+[MIT](LICENSE). Use it, fork it, bundle it with a flash cart — attribution is all that is asked.
 
 ## Credits
 

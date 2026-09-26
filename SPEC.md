@@ -655,7 +655,7 @@ and say the profile is unavailable.
 The tool should offer a profile selector and default to reporting bits only.
 
 ⚠ **Until a selector exists, a named chip carries the short-board caveat on screen** —
-`SHORT BOARD? 2X41464 - NAMES DIFFER.` — printed in place of the legend, because the legend
+`41464? D0-D3 IS ONE CHIP - SEE SHEET.` — printed in place of the last line, because it
 matters most when nothing is wrong and this matters most when the tool is telling someone
 which part to desolder.
 
