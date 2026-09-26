@@ -246,7 +246,7 @@ CASES = [
       "errcount": 0,
       "checklist": cl(0),
       "bits":  " BITS                   D3",
-      "chips": " 4164                   U10"}),
+      "chips": " LIKELY                 U10"}),
     ("A5 faulty -- one X in the low address lane, data lane clean",
      "dramscope_fab.crt",  "pass_obs",     "LTRED", "########", "########", "##X#####",
      {"redpages": 9,
@@ -262,8 +262,8 @@ CASES = [
       "row0": "**#*****########", "rowC": "****************", "page40": "X",
       "errors": "1",
       "bits":  " BITS                               D0",
-      "chips": " 4164                               U21",
-      "caveat": " 41464? D0-D3 IS ONE CHIP - SEE SHEET."}),
+      "chips": " LIKELY                             U21",
+      "caveat": " 8X4164 ASSUMED. 41464? D0-D3=1 CHIP."}),
     # ⚠ The one a real device might actually hit. A Kung Fu Flash that ignores
     # $DE02 must SAY SO, not hang in Ultimax pretending to test 64 KB.
     # ⚠ P4 is a SEPARATE engine with its own read paths, so it needs its own
@@ -275,7 +275,7 @@ CASES = [
       "checklist": cl(3),
       "errors": "1",
       "bits":  " BITS   D7",
-      "chips": " 4164   U12"}),
+      "chips": " LIKELY U12"}),
     # ⚠ P5 is a third engine again -- its own pattern generator and read path.
     # One bit wrong at $6071, on the topographical verify pass.
     ("topographical pass catches a disturbed cell -- page $60, D6",
@@ -285,7 +285,7 @@ CASES = [
       "checklist": cl(4),
       "errors": "6",
       "bits":  " BITS       D6",
-      "chips": " 4164       U24"}),
+      "chips": " LIKELY     U24"}),
     # ⚠ P6 is a fourth engine again -- registers-only, self-modifying, and the
     # only one that runs with its own stack under test. One bad byte at $0140.
     ("zero page / stack phase catches a bad stack byte",
@@ -295,7 +295,7 @@ CASES = [
       "checklist": cl(5),
       "errors": "1",
       "bits":  " BITS                       D2",
-      "chips": " 4164                       U22"}),
+      "chips": " LIKELY                     U22"}),
     # ⚠ The handover is a FIFTH engine, and the only one that marches the
     # region the display is standing on. One bad byte at $0555.
     ("handover catches a fault in the screen's own memory",
@@ -307,7 +307,7 @@ CASES = [
       "checklist": cl(6),
       "errors": "1",
       "bits":  " BITS               D4",
-      "chips": " 4164               U23"}),
+      "chips": " LIKELY             U23"}),
     # ⚠ P7 is the only phase where the fault appears AFTER a wait rather than
     # during a write/read pair. One cell forgets a bit over the dwell.
     ("retention: a cell that forgets a bit over 12 seconds",
@@ -317,7 +317,7 @@ CASES = [
       "checklist": cl(7),
       "errors": "1",
       "bits":  " BITS           D5",
-      "chips": " 4164           U11"}),
+      "chips": " LIKELY         U11"}),
     # ⚠ Colour RAM is a DIFFERENT CHIP. Its verdict is its own, its label goes
     # red, and it must NOT appear in the DRAM bad-byte count or name a 4164.
     ("colour ram fault -- own verdict, and no DRAM blamed",
@@ -349,11 +349,11 @@ CASES = [
     ("D4-D7 bad -- must say the HIGH nibble is one chip",
      "dramscope_fnhi.crt", "pass_obs", "LTRED", "########", "########", "########",
      {"redpages": 1, "errcount": 1, "checklist": cl(2), "errors": "1",
-      "caveat": " 41464? D4-D7 IS ONE CHIP - SEE SHEET."}),
+      "caveat": " 8X4164 ASSUMED. 41464? D4-D7=1 CHIP."}),
     ("D0 and D4 bad -- must say TWO chips, not one",
      "dramscope_fnbo.crt", "pass_obs", "LTRED", "########", "########", "########",
      {"redpages": 1, "errcount": 1, "checklist": cl(2), "errors": "1",
-      "caveat": " 41464? D0-D3 AND D4-D7 ARE 2 CHIPS."}),
+      "caveat": " 8X4164 ASSUMED. 41464? 2 CHIPS."}),
     ("bad scratch byte, memory fitted -- STEADY red",
      "dramscope_fscr.crt", "rom_halt", "RED", None, None, None, None),
 ]

@@ -21,5 +21,5 @@ F ################
 ----------------------------------------
  MEMORY FAULT, FIRST BAD BYTE AT $4863
  BITS               D4              D0
- 4164               U23             U21
- 41464? D0-D3 AND D4-D7 ARE 2 CHIPS.
+ LIKELY             U23             U21
+ 8X4164 ASSUMED. 41464? 2 CHIPS.

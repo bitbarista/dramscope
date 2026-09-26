@@ -194,14 +194,53 @@ It prints the failing DATA BIT, and under it the chip that carries that bit:
 
    MEMORY FAULT, FIRST BAD BYTE AT $4037
    BITS                               D0
-   4164                               U21
-   41464? D0-D3 IS ONE CHIP - SEE SHEET.
+   LIKELY                             U21
+   8X4164 ASSUMED. 41464? D0-D3=1 CHIP.
 
 The address is where the FIRST bad byte was found, so there is something
 concrete to probe. The map shows every page that has one.
 
-The row labelled 4164 names the chip. ⚠ THAT ROW IS FOR BOARDS WITH EIGHT
-4164s -- read the part number off one of your own RAM chips and check.
+⚠ THE ROW SAYS "LIKELY" AND MEANS IT. The bit number is measured; the chip
+name is a lookup. That row assumes a board with eight 4164s -- read the part
+number off one of your own RAM chips and check.
+
+*** BEFORE YOU DESOLDER ANYTHING ***
+
+THE BIT NUMBER IS MEASURED. THE CHIP NAME IS A SUGGESTION.
+
+DRAMscope proves that data bit D0 (or whichever) did not hold what was
+written to it. That is a measurement and it is reliable. Turning that bit
+into a chip is a LOOKUP, and a lookup rests on two things the tool cannot
+check for you:
+
+  1. THAT YOU HAVE THE BOARD IT ASSUMES. It cannot see which board it is
+     plugged into. Check the assembly number yourself.
+
+  2. THAT THE FAULT IS IN THE CHIP AT ALL. A failing bit means the fault is
+     somewhere ON THAT DATA LINE. The RAM chip is the likeliest part on it,
+     but these look IDENTICAL to any software test:
+
+       - a dry or cracked solder joint on that pin
+       - a corroded, bent or spread socket contact
+       - a broken track between the RAM and the CPU
+       - the PLA, or whatever gates /CAS to the RAM
+       - the CPU or VIC end of the same line
+
+So work in this order, cheapest and most reversible first:
+
+  1. Reseat the chip. Socketed RAM that has sat for forty years is a common
+     fault all by itself.
+  2. Inspect and reflow the joints on that chip and its socket.
+  3. Check continuity along the data line, RAM pin to CPU pin.
+  4. Only then swap the chip -- and keep the old one until the repair is
+     confirmed, because it may well be good.
+
+If you replace a chip and the same bit still fails, the chip was not the
+fault. That is information, not a wasted part: it points at the line.
+
+⚠ DRAMscope is offered with no warranty of any kind (see LICENSE). It tells
+you what it measured. Deciding what to replace is yours.
+
 
 If your board has only TWO RAM chips they are 41464s, each FOUR BITS WIDE, so
 four of the bit numbers share a single chip. The last line tells you which

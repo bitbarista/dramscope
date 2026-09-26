@@ -35,7 +35,7 @@ A clean pass must look identical on all of them:
   ultimax                            ORANGE
 
 A fault must be found and named the same way on PAL and on NTSC:
-  c64                                LTRED  BITS                               D0 / 4164                               U21
-  ntsc                               LTRED  BITS                               D0 / 4164                               U21
+  c64                                LTRED  BITS                               D0 / LIKELY                             U21
+  ntsc                               LTRED  BITS                               D0 / LIKELY                             U21
 
   EVERY VARIANT PASSED

@@ -3092,14 +3092,19 @@ chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
 ; live there were dead for several commits, still costing 63 bytes of an
 ; engine capped at 4 KB.
 s_bits:     !scr "bits", 0
-; ⚠ THE LABEL NAMES THE PART, NOT AN ASSEMBLY, AND THAT IS A WIDENING.
-; The designators U21/U9/U22/U10/U23/U11/U24/U12 are IDENTICAL on 326298,
-; 250407 and 250425 -- verified from schematic 251138 and independently from
-; the opencbm hardware reference, which reproduces all eight. Labelling the row
-; "250407" claimed one board when the table was right for three. "4164" is also
-; what the user can physically READ OFF THE CHIP, which beats asking them to
-; find an assembly number etched on the board.
-s_assy:     !scr "4164", 0
+; ⚠⚠ THE LABEL SAYS "LIKELY" BECAUSE THE CHIP NAME IS AN INFERENCE AND THE BIT
+; NUMBER IS A MEASUREMENT. "4164  U21" reads as an instruction to desolder U21;
+; "LIKELY  U21" reads as what it actually is. Carl: a user who changes the
+; wrong chip on our say-so blames us, and rightly.
+; ⚠ AND IT IS NOT ONLY ABOUT THE BOARD TYPE. Even on a correctly identified
+; board, a failing bit means the fault is somewhere on THAT DATA LINE -- the
+; DRAM is the likeliest part on it, but a dry joint, a corroded socket pin, the
+; PLA or the CPU end of the line look identical to this test. Nothing in
+; software can tell them apart, so nothing here may claim to.
+; ⚠ The designators are identical on 326298, 250407 and 250425 -- schematic
+; 251138 plus the opencbm reference, which reproduces all eight. The board
+; assumption moved to the line below, which had room for it.
+s_assy:     !scr "likely", 0
 
 eng_end:
 }
@@ -3148,9 +3153,11 @@ s_addrbad2: !scr "two of a pair? suspect u13/u25/rp1/rp2", 0
 s_membad:   !scr "memory fault, first bad byte at $", 0
 s_allbits:  !scr "all 8 bits bad - not one chip. see pla", 0
 
-s_niblo:    !scr "41464? d0-d3 is one chip - see sheet.", 0
-s_nibhi:    !scr "41464? d4-d7 is one chip - see sheet.", 0
-s_nibboth:  !scr "41464? d0-d3 and d4-d7 are 2 chips.", 0
+; ⚠ These carry the BOARD ASSUMPTION that used to be the row label above, so
+; nothing was lost by changing it to "likely". Max 37 chars: cleared to col 38.
+s_niblo:    !scr "8x4164 assumed. 41464? d0-d3=1 chip.", 0
+s_nibhi:    !scr "8x4164 assumed. 41464? d4-d7=1 chip.", 0
+s_nibboth:  !scr "8x4164 assumed. 41464? 2 chips.", 0
 
 
 ; ===========================================================================

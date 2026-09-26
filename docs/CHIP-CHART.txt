@@ -28,16 +28,53 @@ STEP 2 -- READ ACROSS
            DRAMscope says D5 on a 250469  ->  replace U11 (it carries D4-D7).
 
 
+*** BEFORE YOU DESOLDER ANYTHING ***
+
+THE BIT NUMBER IS MEASURED. THE CHIP NAME IS A SUGGESTION.
+
+DRAMscope proves that data bit D0 (or whichever) did not hold what was
+written to it. That is a measurement and it is reliable. Turning that bit
+into a chip is a LOOKUP, and a lookup rests on two things the tool cannot
+check for you:
+
+  1. THAT YOU HAVE THE BOARD IT ASSUMES. It cannot see which board it is
+     plugged into. Check the assembly number yourself.
+
+  2. THAT THE FAULT IS IN THE CHIP AT ALL. A failing bit means the fault is
+     somewhere ON THAT DATA LINE. The RAM chip is the likeliest part on it,
+     but these look IDENTICAL to any software test:
+
+       - a dry or cracked solder joint on that pin
+       - a corroded, bent or spread socket contact
+       - a broken track between the RAM and the CPU
+       - the PLA, or whatever gates /CAS to the RAM
+       - the CPU or VIC end of the same line
+
+So work in this order, cheapest and most reversible first:
+
+  1. Reseat the chip. Socketed RAM that has sat for forty years is a common
+     fault all by itself.
+  2. Inspect and reflow the joints on that chip and its socket.
+  3. Check continuity along the data line, RAM pin to CPU pin.
+  4. Only then swap the chip -- and keep the old one until the repair is
+     confirmed, because it may well be good.
+
+If you replace a chip and the same bit still fails, the chip was not the
+fault. That is information, not a wasted part: it points at the line.
+
+⚠ DRAMscope is offered with no warranty of any kind (see LICENSE). It tells
+you what it measured. Deciding what to replace is yours.
+
 WHAT THE SCREEN SHOWS
 ---------------------
 
    MEMORY FAULT, FIRST BAD BYTE AT $4037
    BITS                               D0
-   4164                               U21
-   41464? D0-D3 IS ONE CHIP - SEE SHEET.
+   LIKELY                             U21
+   8X4164 ASSUMED. 41464? D0-D3=1 CHIP.
 
-The row labelled 4164 is filled in for you, because all three 8 x 4164 boards
-are wired identically. If your board has only TWO RAM chips, ignore that row
+The row says LIKELY, not the chip's name as a fact. It is filled in for you
+because all three 8 x 4164 boards are wired identically. If your board has only TWO RAM chips, ignore that row
 and use this chart -- the tool cannot tell which board it is plugged into.
 
 

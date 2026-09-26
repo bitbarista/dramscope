@@ -50,8 +50,8 @@ that come next and are harder:
   ```
    MEMORY FAULT, FIRST BAD BYTE AT $4037
    BITS                               D0
-   4164                               U21
-   41464? D0-D3 IS ONE CHIP - SEE SHEET.
+   LIKELY                             U21
+   8X4164 ASSUMED. 41464? D0-D3=1 CHIP.
   ```
 
   ⚠ The designators sit under a heading naming the **part they belong to**, because the tool
@@ -299,6 +299,27 @@ class as schematic 251138, which this project already used.
 | 250425 | long | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 |
 | 250466 | **long** | 2 × 41464 | U10 | U10 | U10 | U10 | U9 | U9 | U9 | U9 |
 | 250469 | short | 2 × 41464 | U10 | U10 | U10 | U10 | U11 | U11 | U11 | U11 |
+
+### ⚠ The bit is measured. The chip is a suggestion.
+
+The row says **`LIKELY`**, not the designator as a fact, and that wording is deliberate.
+DRAMscope proves that a given data bit did not hold what was written to it — that is a
+measurement. Turning the bit into a chip is a **lookup**, resting on two things the tool
+cannot check:
+
+1. **That you have the board it assumes.** It cannot see which board it is plugged into.
+2. ⚠ **That the fault is in the chip at all.** A failing bit means the fault is somewhere *on
+   that data line*. The RAM is the likeliest part on it, but a dry joint, a corroded socket
+   contact, a broken track, the PLA, or the CPU end of the line are **indistinguishable to any
+   software test**.
+
+So the advice is: reseat the chip, reflow its joints, check continuity along the line — and
+only then swap the part, keeping the old one until the repair is confirmed. If the same bit
+fails with a new chip, the chip was never the fault, and that is information rather than a
+wasted part.
+
+**No warranty** — see [LICENSE](LICENSE). The tool reports what it measured; deciding what to
+replace is the user's.
 
 ✅ **All three 8 × 4164 boards are identical**, and the table matches schematic 251138 on all
 eight bits. The screen therefore names chips for any of them, and the row is labelled `4164` —

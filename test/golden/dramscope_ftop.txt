@@ -21,5 +21,5 @@ F ################
 ----------------------------------------
  MEMORY FAULT, FIRST BAD BYTE AT $6071
  BITS       D6
- 4164       U24
- 41464? D4-D7 IS ONE CHIP - SEE SHEET.
+ LIKELY     U24
+ 8X4164 ASSUMED. 41464? D4-D7=1 CHIP.
