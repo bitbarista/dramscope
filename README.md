@@ -51,9 +51,9 @@ a stripe, a quadrant, a scatter — usually says more than its address.
 **It is not a replacement for Dead Test, and it is not a competitor to DesTestMAX.**
 
 - **Dead Test** is still the right first move on a machine that will not boot. It is proven,
-  it is everywhere, and it needs no working RAM — and ⚠ **unlike this tool it is a real
-  cartridge**, so it is mapped by a cold reset rather than launched from a menu. That
-  difference turns out to matter; see the note below.
+  it is everywhere, and it needs no working RAM — and being a real cartridge it is mapped by a
+  cold reset rather than launched from a menu, which ⚠ **is the one thing this tool depends on
+  its device for**. See the note below.
 - **DesTest / DesTestMAX** are mature and thorough, and **MAX-Switch** solves the Ultimax
   4 KB ceiling properly, with hardware.
 
@@ -78,7 +78,7 @@ The two projects stay separate. This one has no dependency on that board and nev
 |---|---|
 | Specification | ✅ [`SPEC.md`](SPEC.md) |
 | Provenance policy | ✅ [`PROVENANCE.md`](PROVENANCE.md) |
-| **P0** bring-up probe, assumes no *working* RAM | ✅ ⚠ but see the note on absent RAM below |
+| **P0** bring-up probe, assumes no working RAM | ✅ **verified with every DRAM removed** — red screen, not a hang |
 | **P1** `DATA LINES` — walking ones/zeroes/rails | ✅ |
 | **P2** `ADDR LINES` — **all 16 lines, A0–A15** | ✅ |
 | Display — 256-page map, bus lanes, verdict | ✅ |
@@ -86,7 +86,7 @@ The two projects stay separate. This one has no dependency on that board and nev
 | Whole-screen golden comparison | ✅ [`test/golden/`](test/golden/) |
 | **Variant matrix** — every C64 model VICE emulates | ✅ 18 model × CIA combinations |
 | Gate G1 — EasyFlash mode switching | ✅ **closed** — Ultimate II+ *and* Kung Fu Flash, `$DE02 = $02` |
-| EasyFlash delivery — boots in Ultimax, **needs no working KERNAL** | ✅ ⚠ the "no working RAM" claim is **withdrawn** — see below |
+| EasyFlash delivery — boots in Ultimax, **needs no working RAM or KERNAL to start** | ✅ measured with the DRAMs out; ⚠ the launcher must map the cartridge without a menu |
 | Engine relocated to `$C000`, banks out with `$01 = $30` | ✅ |
 | **P3** `MARCH B` — 17n, address-dependent pattern, 60,928 of 65,536 bytes | ✅ ~17 s |
 | **P4** `MARCH LR` — 14n, **fixed** patterns — linked faults | ✅ ~11 s |
@@ -135,30 +135,35 @@ exercise.
 
 It is an **EasyFlash cartridge** and boots in Ultimax, so it takes the reset vector straight
 from the cartridge and runs with **no working KERNAL** — proven by booting it against a KERNAL
-of 8 KB of `$FF` across all 18 model × CIA combinations. A machine whose low memory is
-**faulty** can still be tested, which is the machine most in need of it.
+of 8 KB of `$FF` across all 18 model × CIA combinations — and with **no working RAM**, proven
+on a machine with every DRAM pulled. A machine too broken to reach BASIC can still be tested,
+which is the machine most in need of it.
 
-> ⚠ **It does NOT run on a machine with the RAM removed. That claim was wrong and is
-> withdrawn.**
+> ✅ **It starts and reports on a machine with every DRAM removed — measured, 2026-09-27.**
 >
-> Reported from the bench on 2026-09-27: on an Ultimate II+ with every DRAM pulled, it does not
-> boot. The decisive reason has nothing to do with this code — **the Ultimate II+ and Kung Fu
-> Flash menus are themselves C64 programs**, running on the 6510 out of C64 RAM and drawing to
-> the screen matrix in C64 RAM. With no DRAM fitted that menu cannot run, so there is no way to
-> reach the point of mounting the `.crt` at all. A real Dead Test cartridge avoids this by
-> being mapped by a cold reset rather than launched from a menu.
+> On a **Kung Fu Flash**, with all eight DRAMs out of their sockets, it boots and puts up a
+> **solid red screen**. `C_RED` appears at exactly one place in the source — `p0a_dead` — so
+> that screen is unambiguous: the cartridge took control, found that the zero-page scratch
+> would not hold a value, and reported instead of hanging. ⚠ **VICE cannot emulate a C64 with
+> empty sockets, so this could only ever have been shown on the bench.**
 >
-> Separately, the `P0` probes were written to catch *faulty* RAM, not *absent* RAM: each one
-> writes a byte and immediately reads the same address back, and with no chip in the socket
-> nothing drives the data bus on that read. What it returns depends on bus capacitance and on
-> the preceding instruction fetch, so it is not predictable from the source and is not asserted
-> here. ⚠ **VICE cannot settle it either — there is no way to emulate a C64 with no DRAM.**
+> ⚠ **The launcher is part of the dependency chain, and that is the one real caveat.** KFF
+> remembers the last cartridge loaded and boots straight into it, with no menu — which is what
+> makes the no-RAM case reachable at all. The **Ultimate II+ menu is itself a C64 program**,
+> running on the 6510 out of C64 RAM and drawing to the screen matrix in C64 RAM, so with no
+> DRAM fitted it cannot run and the `.crt` cannot be reached. **The cartridge must be mapped
+> without a menu.**
 >
-> Both are written up as **G5** in [`SPEC.md`](SPEC.md), which records what a single
-> observation — the screen colour on that machine — would tell us next.
+> ⚠ **And it cannot *test* memory that is not there.** The screen matrix is DRAM too, so on a
+> machine with nothing fitted the only possible output is the border — the whole display in one
+> colour, since `DEN=0`. "Low memory does not respond" is true and actionable; a map, a bit
+> number and a chip name are not derivable without memory to test.
+>
+> Written up as **G6** in [`SPEC.md`](SPEC.md), together with a hypothesis it disproved: the P0
+> probes were expected to possibly *pass falsely* on an undriven bus, since each writes a byte
+> and immediately reads the same address back. They do not. No code change needed.
 
-**Fit the cartridge and start it with the RAM in place.** Faulty RAM is what it is for;
-missing RAM is Dead Test's job.
+
 
 **The panel is a checklist**, headed `TESTS AND RESULTS`. Every test has a named row and a
 status cell — `..` not started, a turning marker while it runs, `OK` or `X` when it finishes —

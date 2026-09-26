@@ -12,25 +12,28 @@ RUNNING IT
 It is an EasyFlash cartridge. Load it on the Ultimate II+ or Kung Fu Flash.
 
 It boots in Ultimax and takes its reset vector straight from the cartridge,
-so it needs NO WORKING KERNAL -- a machine with a dead or missing KERNAL ROM
-still runs it. A machine whose RAM is FAULTY can still be tested, which is
+so it needs NO WORKING KERNAL and NO WORKING RAM to start -- not even the
+stack page. A machine too broken to reach BASIC can still be tested, which is
 the machine most worth testing.
 
-  ** FIT THE CARTRIDGE AND START IT WITH THE RAM IN PLACE. **
+Tested with every DRAM out of its sockets (2026-09-27): it starts and puts up
+a SOLID RED SCREEN, which is its way of saying low memory does not respond.
+Red comes from exactly one place in the program, so it means nothing else.
 
-⚠ IT DOES NOT RUN WITH THE RAM REMOVED. An earlier version of this sheet said
-it needed no working RAM at all. That was wrong and is withdrawn -- measured
-on an Ultimate II+ with every DRAM pulled, 2026-09-27: it does not boot.
+⚠ BUT THE CARTRIDGE HAS TO BE MAPPED WITHOUT A MENU.
 
-The reason is not in the test. The Ultimate II+ and Kung Fu Flash menus are
-themselves C64 programs -- they run on the 6510, keep their state in C64 RAM
-and draw to the screen using C64 RAM. With no DRAM fitted that menu cannot
-run, so you can never get as far as choosing the file. A real Dead Test
-cartridge gets round this by being mapped by a cold reset instead of being
-launched from a menu, which is why it is still the right first move on a
-machine with no memory in it.
+  Kung Fu Flash   remembers the last cartridge and boots straight into it,
+                  so the no-RAM case works.
+  Ultimate II+    its menu is itself a C64 program -- it runs on the 6510 and
+                  draws using C64 RAM. With no DRAM fitted the menu cannot
+                  run, so you never get as far as choosing the file. Start it
+                  once with RAM in place, or use a KFF for that job.
 
-FAULTY RAM is what this tool is for. MISSING RAM is Dead Test's job.
+⚠ AND IT CANNOT TEST MEMORY THAT IS NOT THERE. The screen itself lives in
+DRAM, so on a machine with nothing fitted the border is the only output there
+can be. A solid colour IS the report in that case. You get "low memory does
+not respond"; you do not get a map, a bit number or a chip name, because
+none of those can be worked out without memory to test.
 
 IT DOES NOT STOP. One run takes about 80 seconds, including a 12-second
 wait in RETENTION; then it counts the run and starts over, and keeps going
@@ -70,7 +73,10 @@ BORDER COLOURS
 Before the test proper, the border reports faults the display cannot:
 
   white    the cartridge has control
-  red      FATAL: zero-page scratch unusable
+  red      FATAL: low memory will not hold a value. Either the zero-page
+           scratch bytes are bad, or NO RAM IS FITTED AT ALL -- this is the
+           screen you get with the DRAMs out. ⚠ It cannot yet tell those two
+           apart, so check the sockets are populated before suspecting a chip
   purple   FATAL: the screen page is unusable
   orange   FATAL: this device ignores $DE02 and cannot leave Ultimax
   blue     FATAL: $C000-$CFFF is unusable
