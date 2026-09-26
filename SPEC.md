@@ -106,6 +106,15 @@ unbounded.
 The spinner runs at 7.5 changes/s but occupies **one character cell — 0.1 % of the display**,
 far below the 25 %-of-field threshold, and is a shape change rather than a luminance flash.
 
+**P9. Nothing the burn-in has learned may be forgotten.** The map's red cells, the bad-byte
+count, the failing-bit mask, the border pulse **and the phase checklist** all persist for the
+life of the run. ⚠ This has now been got wrong twice in the same way — once on the map
+(fixed by `mark_page_keep`) and once on the checklist, where cumulative error counts meant a
+phase that failed in pass 1 showed no *delta* in pass 2 and had its `X` overwritten with
+`OK`. Both were invisible to every mutation in the suite, because all of them fire on every
+pass. `INJECT_ONCE` exists to model the one thing they could not: a fault that happens once
+and never again.
+
 **P6. A working run must not look like a hung one.** ⚠ Carl, 2026-09-26: *"whilst the crt
 is running it is impossible to know whether it is proceeding or crashed."* A run takes about
 a minute and the marches spend ~20 s stretches with nothing on screen changing. Every long

@@ -59,7 +59,8 @@
 !ifndef INJECT_DB { !ifndef INJECT_AB { !ifndef INJECT_NOEF { !ifndef INJECT_MEM {
         !ifndef INJECT_ALL { !ifndef INJECT_LR { !ifndef INJECT_TOPO {
         !ifndef INJECT_ZP { !ifndef INJECT_HV { !ifndef INJECT_RET {
-        !ifndef INJECT_COL { !to "build/dramscope_roml.bin", plain } } } } } } } } } } }
+        !ifndef INJECT_COL { !ifndef INJECT_ONCE {
+        !to "build/dramscope_roml.bin", plain } } } } } } } } } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -203,6 +204,8 @@ w_phidx  = WORK+39              ; which phase is running
 w_snaplo = WORK+40              ; error count when it started
 w_snaphi = WORK+41
 w_phextra= WORK+42              ; a phase's own verdict, beyond the error count
+w_phfail = WORK+43              ; ⚠ one bit per phase: has it EVER failed?
+                                ; (two bytes, nine phases)
 
 ; P2's base. ⚠ Every base+2^n must be RAM under BANK_RAM, including
 ; base+$8000 = $8800, which is why the engine had to leave the cartridge.
@@ -477,6 +480,8 @@ eng_start:
         ; last pass happened to see. The workspace starts full of P0c's probe
         ; pattern, so these are garbage until cleared.
         lda #0
+        sta w_phfail
+        sta w_phfail+1
         sta w_dbmask
         sta w_ablo
         sta w_abhi
@@ -1526,6 +1531,30 @@ m1_c:   tya
         eor #$ff
         sta pinv
         lda (mptr),y
+!ifdef INJECT_ONCE {                    ; ⚠ mutation: a TRANSIENT fault -- it
+        ; happens on the first pass only and never again, which is the exact
+        ; failure a burn-in exists to catch and the only one none of the other
+        ; twelve mutations models.
+        ; ⚠ A IS THE VALUE JUST READ FROM MEMORY and must be preserved: the
+        ; first version of this loaded w_passlo straight into A and so
+        ; compared the pass counter against the expected pattern, firing
+        ; 53,294 times instead of once. pha is safe here because March B does
+        ; not march the stack page.
+        pha
+        lda w_passlo
+        bne inj_o_pop
+        cpy #$37
+        bne inj_o_pop
+        ldx mptr+1
+        cpx #$40
+        bne inj_o_pop
+        pla
+        eor #$01
+        jmp inj_o_out
+inj_o_pop:
+        pla
+inj_o_out:
+}
 !ifdef INJECT_MEM {                     ; mutation: one stuck bit at $4037
         cpy #$37
         bne inj_m_out
@@ -1923,6 +1952,18 @@ ph_cell:
         ldx #STAT_COL
         jmp setpos
 
+; ⚠⚠ A PHASE THAT HAS EVER FAILED STAYS FAILED, for the life of the run.
+; Carl asked whether the statuses should reset to '..' between passes. They
+; should not -- that would read as "not tested", which is false after the
+; first pass. But what was happening was worse than either option: the error
+; counts are cumulative, so a phase that failed in pass 1 showed no DELTA in
+; pass 2 and had its X quietly overwritten with OK. Demonstrated with a
+; transient fault: one bad byte in pass 1, checklist OKOK X OK.. at the end of
+; pass 1, and OKOK OK OK.. at the end of pass 2 -- while the map cell and the
+; bad-byte count both still said the fault had happened.
+;
+; That is the same defect mark_page_keep exists to prevent on the map, and the
+; exact failure a burn-in is FOR: the fault that happened once, an hour ago.
 ph_end:
         lda w_errlo
         cmp w_snaplo
@@ -1932,6 +1973,8 @@ ph_end:
         bne ph_bad
         lda w_phextra
         bne ph_bad
+        jsr ph_isfail                   ; clean THIS pass -- but ever failed?
+        bne ph_showbad
         jsr ph_cell
         ldy #0
         lda #$0f                        ; 'O'
@@ -1945,6 +1988,8 @@ ph_end:
         sta (cptr),y
         rts
 ph_bad:
+        jsr ph_setfail
+ph_showbad:
         jsr ph_cell
         ldy #0
         lda #CH_X
@@ -1954,6 +1999,29 @@ ph_bad:
         iny
         lda #CH_SPACE
         sta (sptr),y
+        rts
+
+; ph_bitpos -- X = which byte of w_phfail, A = this phase's bit
+ph_bitpos:
+        ldx #0
+        lda w_phidx
+        cmp #8
+        bcc phb_lo
+        sbc #8
+        ldx #1
+phb_lo: tay
+        lda bittab,y
+        rts
+
+ph_isfail:
+        jsr ph_bitpos
+        and w_phfail,x
+        rts
+
+ph_setfail:
+        jsr ph_bitpos
+        ora w_phfail,x
+        sta w_phfail,x
         rts
 
 ; draw_phases -- the checklist itself, every phase named and marked not-run

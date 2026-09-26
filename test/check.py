@@ -264,6 +264,38 @@ def main() -> int:
         if want_db is not None:
             print(f"     verdict  {text(scr, V_ROW)!r}")
             print(f"              {text(scr, V_ROW + 1)!r}")
+    # ⚠⚠ A TRANSIENT FAULT MUST SURVIVE THE NEXT CLEAN PASS.
+    # Every other mutation fires on every pass, so none of them can catch a
+    # checklist that forgets. This one fails once, in pass 1, and never again
+    # -- which is the exact fault a burn-in exists for, and the case where the
+    # status was being quietly overwritten with OK.
+    print("  transient fault -- must still be X at the end of pass 2")
+    stem = "dramscope_fonce"
+    for label, resumes, want_pass, want_cl in (
+            ("end of pass 1", 0, "0001", cl(2)),
+            ("end of pass 2", 1, "0002", cl(2))):
+        (BUILD / "mon.txt").write_text(
+            "x\n" * resumes +
+            'bank ram\nsave "build/screen.bin" 0 0400 07ff\n'
+            'save "build/work.bin" 0 0300 0330\n'
+            'bank io\nsave "build/colour.bin" 0 d800 dbff\n'
+            'save "build/vic.bin" 0 d020 d02f\nquit\n')
+        subprocess.run(
+            ["x64sc", "-console", "-warp", "-initbreak", halt_address(stem, "pass_obs"),
+             "-moncommands", "build/mon.txt",
+             "-cartcrt", str(BUILD / f"{stem}.crt")],
+            cwd=ROOT, timeout=400,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        scr = (BUILD / "screen.bin").read_bytes()[2:]
+        got_p = text(scr, 0, 33, 38).strip()
+        got_c = "".join(text(scr, r, STAT, STAT + 2).strip() or ".."
+                        for r in (3, 6, 11, 12, 13, 14, 15, 16, 17))
+        ok = got_p == want_pass and got_c == want_cl
+        print(f"     {label:14s} pass={got_p} checklist={got_c}"
+              f"{'' if ok else f'   <-- *** wanted {want_pass} / {want_cl}'}")
+        if not ok:
+            failures += 1
+
     print()
     if failures:
         print(f"  *** {failures} MISMATCHES")

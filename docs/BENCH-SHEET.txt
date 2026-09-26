@@ -85,7 +85,7 @@ status. You can see at a glance what has been done to the machine:
   P1 DATA BUS    OK      ..   not started
   P2 ADDR BUS    OK      /    running -- the marker turns
   P3 MARCH B     OK      OK   passed
-  P4 MARCH LR    OK      X    FAILED
+  P4 MARCH LR    OK      X    FAILED, and STAYS failed
   P5 TOPO        OK
   P6 ZP+STACK    OK    P7's marker counts the dwell down in seconds
   P6B HANDOVER   OK    while it waits, so that row stays alive too.
@@ -93,6 +93,11 @@ status. You can see at a glance what has been done to the machine:
   P9 COL RAM     OK
 
 Under P1 and P2 are their bus lanes, bit by bit.
+
+⚠ A phase that has failed ONCE keeps its X for the rest of the run, even
+if every later pass is clean. That is the whole point of leaving it going:
+the fault that happens once an hour is the one worth finding, and a
+display that forgot it would be worse than none.
 
 BAD and PASS are on the title line: bytes failed so far, and completed
 passes. Both are cumulative for the whole run.
