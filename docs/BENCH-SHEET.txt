@@ -1,4 +1,4 @@
-DRAMSCOPE 1.1  --  C64 memory diagnostic          updated 2026-09-26
+DRAMSCOPE 1.2  --  C64 memory diagnostic          updated 2026-09-26
 ====================================================================
 
 DRAMSCOPE.CRT is the test. G1PROBE.CRT is a one-question hardware probe
@@ -76,10 +76,31 @@ column the low nibble -- so top left is $0000 and bottom right is $FF00.
 The SHAPE of a fault usually says more than its address: a stripe, a
 quadrant, a scatter each mean something different.
 
-COL RAM on the right panel is the colour RAM -- a SEPARATE 1K x 4 chip,
-not part of the 64 KB. Green means good, red means bad. When it fails you
-get wrong colours rather than a crash, so it gets blamed on the VIC. It is
-never counted against the DRAMs and never names a 4164.
+THE CHECKLIST
+-------------
+
+The right-hand panel lists every test, in the order it runs, with its
+status. You can see at a glance what has been done to the machine:
+
+  P1 DATA BUS    OK      ..   not started
+  P2 ADDR BUS    OK      /    running -- the marker turns
+  P3 MARCH B     OK      OK   passed
+  P4 MARCH LR    OK      X    FAILED
+  P5 TOPO        OK
+  P6 ZP+STACK    OK    P7's marker counts the dwell down in seconds
+  P6B HANDOVER   OK    while it waits, so that row stays alive too.
+  P7 DWELL       OK
+  P9 COL RAM     OK
+
+Under P1 and P2 are their bus lanes, bit by bit.
+
+BAD and PASS are on the title line: bytes failed so far, and completed
+passes. Both are cumulative for the whole run.
+
+⚠ P9 COL RAM is the colour RAM -- a SEPARATE 1K x 4 chip, not part of the
+64 KB. When it fails you get wrong colours rather than a crash, so it gets
+blamed on the VIC. It is never counted against the DRAMs and never names
+a 4164.
 
   solid   fully tested: March B 17n, March LR 14n, six topographical
           passes, and the retention dwell

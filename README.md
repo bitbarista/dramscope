@@ -134,6 +134,26 @@ It is an **EasyFlash cartridge** and boots in Ultimax, so it takes the reset vec
 from the cartridge and runs with no KERNAL, no stack and no zero page required. A machine
 whose low memory is dead can still be tested — which is the machine most in need of it.
 
+**The panel is a checklist.** Every phase has a named row and a status cell — `..` not
+started, a turning marker while it runs, `OK` or `X` when it finishes — so the screen answers
+"what has been done to this machine, and did it pass" without anyone reading a manual:
+
+```
+ DRAMSCOPE 1.2      BAD 0000 PASS 0001
+   0123456789ABCDEF P1 DATA BUS  OK
+ 0 **#*****########  76543210
+ 1 ################  ########
+ 2 ################ P2 ADDR BUS  OK
+ …                   FEDCBA98
+ 8 ################ P3 MARCH B   OK
+ 9 ################ P4 MARCH LR  OK
+ A ################ P5 TOPO      OK
+ B ################ P6 ZP+STACK  OK
+ C **************** P6B HANDOVER OK
+ D ################ P7 DWELL     OK
+ E ################ P9 COL RAM   OK
+```
+
 **It runs as a burn-in.** One pass takes about 80 seconds; when it finishes it counts the
 pass and starts again, and keeps going until the machine is reset. Faults are **cumulative**
 — a red cell stays red, the bad-byte count only grows, and once anything has failed the

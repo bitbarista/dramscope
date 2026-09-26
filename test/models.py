@@ -119,12 +119,14 @@ def check_clean(label, args):
     border, scr, wrk = got
     errs = wrk[14] + 256 * wrk[15]
     row0 = text(scr, 3, 2, 18)
-    passes = text(scr, 19, 21, 26)
-    colram = text(scr, 12, 21, 28)
-    ok = (BORDER.get(border) == "GREEN" and errs == 0
+    passes = text(scr, 0, 33, 38)
+    # ⚠ the checklist is the point: every phase must have run AND passed
+    checks = "".join(text(scr, r, 32, 34).strip() or ".."
+                     for r in (3, 6, 11, 12, 13, 14, 15, 16, 17))
+    ok = (BORDER.get(border) == "GREEN" and errs == 0 and checks == "OK" * 9
           and row0 == CLEAN_ROW0 and passes.strip() == "0001")
-    print(f"  {label:34s} {BORDER.get(border, border):6s} err={errs:<5d} "
-          f"map={row0} pass={passes.strip()} {colram}"
+    print(f"  {label:32s} {BORDER.get(border, border):6s} err={errs:<4d} "
+          f"{row0} {checks} p={passes.strip()}"
           f"{'' if ok else '   <-- ***'}")
     if not ok:
         fails += 1
@@ -133,7 +135,7 @@ def check_clean(label, args):
 print("DRAMscope across every C64 variant VICE emulates")
 print()
 print("A clean pass must look identical on all of them:")
-print(f"  GREEN border, 0 errors, map row 0 = {CLEAN_ROW0}, PASSES 0001")
+print(f"  GREEN, 0 errors, map {CLEAN_ROW0}, all 9 phases OK, PASSES 0001")
 print()
 for cia, cianame in ((0, "6526 old"), (1, "8521 new")):
     for model in C64_MODELS:
