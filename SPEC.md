@@ -5,9 +5,10 @@
 
 **Status:** iteration 4 implemented and verified — EasyFlash delivery (boots in Ultimax,
 needs no working RAM), engine relocated to `$C000`, P0/P1/P2 with **all sixteen address
-lines**, **P3 March B 17n** and **P4 March LR 14n** over 60,928 of 65,536 bytes, and chip naming
-from the failing-bit mask. Verified on an Ultimate II+ and a Kung Fu Flash as well as in
-VICE. Measured end to end: 26–28 M cycles, **about 28 s on PAL**. P5 onwards not started.
+lines**, **P3 March B 17n**, **P4 March LR 14n** and **P5 topographical patterns** over 59,904 of
+65,536 bytes, plus chip naming from the failing-bit mask. Verified on an Ultimate II+ and a
+Kung Fu Flash as well as in VICE. Measured end to end: 58–61 M cycles, **about 62 s on
+PAL**. P6 onwards not started.
 **Target:** Commodore 64, all assemblies. **Not specific to any one board or RAM replacement.**
 
 ---
@@ -250,7 +251,7 @@ with fixed `$00`/`$FF`**, where the published linked-fault proof holds exactly a
 and March B keeps the address-dependent pattern for the decoder coverage it was introduced
 for. Full reasoning in `PROVENANCE.md`.
 
-### P5 — Topographical patterns · ~12 s
+### P5 — Topographical patterns · ✅ **implemented; ~34 s**
 
 A 4164 is physically **256 rows × 256 columns**, and the row and column addresses *are* the
 grid coordinates. Patterns structured by row-index and column-index therefore stress
@@ -260,10 +261,13 @@ Patterns: row/column parity checkerboard and its inverse, row stripes, column st
 single-cell-in-a-field (write a uniform value, flip one cell, verify the whole row and
 column).
 
-⚠ **Gate G2 (§9): which multiplexer half is row and which is column must be determined
-first.** The sibling project deliberately never established this — its §5.3 states the
-mapping need not be determined *because that design has no refresh or page-mode dependency*.
-This phase is precisely that dependency.
+✅ **Gate G2 ANSWERED: ROW = A0–A7, COLUMN = A8–A15**, from Bauer §3.13 — the refresh
+counter generates *"256 DRAM row addresses"* and its table puts `REF7..REF0` on bits 7..0.
+
+⚠ **This inverts the intuitive reading.** A DRAM *row* is one byte offset taken across all
+256 pages, so physically row-adjacent cells are **256 bytes apart**; a DRAM *column* is a
+single page, so column-adjacent cells are **1 byte apart**. The patterns are built from that,
+not from address order.
 
 ⚠⚠ **HONEST LIMIT, AND IT MUST BE STATED WHEREVER THE CLAIM IS MADE.** This covers row and
 column adjacency **as addressed**. It does **not** model true die layout. Real 4164 dies use
@@ -345,7 +349,7 @@ data table, not code, so profiles can be added without touching the engine.
 |---|---|
 | 250407 | 8 × 4164, U9–U12 and U21–U24 |
 | 250425 | 8 × 4164, different bank geometry |
-| 250469 | short board, 2 × 41464 |
+| 250469 and relatives | ⚠ **short board — TWO 41464s, 64K × 4.** Each chip carries **four** bits, so a failing bit narrows to one of two chips and no further, and the 250407 designators are simply wrong there. Carl, 2026-09-26. |
 
 ✅ **250407 is verified and implemented** — `D0=U21, D1=U9, D2=U22, D3=U10, D4=U23, D5=U11,
 D6=U24, D7=U12`, from schematic 251138 via `c64-ice40-ram` README §2.2. The other two
@@ -357,6 +361,11 @@ is the worst output this tool could produce. Until a profile is verified, report
 and say the profile is unavailable.
 
 The tool should offer a profile selector and default to reporting bits only.
+
+⚠ **Until a selector exists, a named chip carries the short-board caveat on screen** —
+`SHORT BOARD? 2X41464 - NAMES DIFFER.` — printed in place of the legend, because the legend
+matters most when nothing is wrong and this matters most when the tool is telling someone
+which part to desolder.
 
 ---
 
@@ -445,7 +454,7 @@ synthetic failure set that triggers it and a neighbouring set that does not.
 |---|---|---|---|
 | ~~**G1**~~ | ✅ **CLOSED. Ultimate II+ and Kung Fu Flash both: `$DE02 = $02`** (2026-09-26, measured on both). | — | [M] |
 | ~~**G5**~~ | ✅ **CLOSED for Assy 250407** — the bit→designator table is confirmed from schematic 251138. Other assemblies remain [A]. | — | [D] |
-| **G2** | Which multiplexer half carries the row address and which the column? | P5 topographical | [A] |
+| ~~**G2**~~ | ✅ **ANSWERED: row = A0–A7, column = A8–A15** (Bauer §3.13). | — | [C] |
 | ~~**G3**~~ | ⚠ **ANSWERED: no, not provably.** March LR therefore uses fixed patterns. See `PROVENANCE.md`. | — | [M] |
 | **G4** | In Ultimax, do VIC fetches in `$3000–$3FFF` come from cartridge ROMH? | Screen home selection | [A] |
 | **G5** | Bit → chip designator tables per assembly, from schematics | Chip naming in §5 | [A] |
@@ -467,7 +476,9 @@ Each step is intended to leave something that works.
 | 4 | P3 March B + bad-byte count + failing-bit mask | ✅ done — parity with existing tools, plus shape |
 | 4b | Chip naming from the bit mask, Assy 250407 | ✅ done — and it refuses to name when all 8 bits fail |
 | 5 | P4 March LR, fixed patterns (G3 answered first) | ✅ done |
-| 5b | The remaining classifier rules in §5 (stride, region, mux pairing) | ⬜ **next** |
+| 6 | P5 topographical patterns (G2 answered first) | ✅ done |
+| 6b | P6 dwell / retention | ⬜ **next** |
+| 6c | The remaining classifier rules in §5 (stride, region, mux pairing) | ⬜ |
 | 5 | Board profiles (G5) → chip naming | the headline feature |
 | 6 | P4 March LR (G3 first) | linked faults |
 | 7 | G2, then P5 topographical | physical coupling |

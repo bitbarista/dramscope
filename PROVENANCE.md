@@ -89,7 +89,7 @@ demultiplexing. It is carried here with its rationale intact.
 | Needed for | Question | Tag |
 |---|---|---|
 | ~~March LR + address-dependent pattern (G3)~~ | ⚠ **ANSWERED, AND THE ANSWER IS NO — see the section below. March LR is implemented with FIXED patterns.** | [M] |
-| Topographical patterns (P5) | Which multiplexer half is the **row** address and which the **column**? `c64-ice40-ram` §5.3 deliberately never determined it, because that design has no refresh or page-mode dependency. This project does. | [A] |
+| ~~Topographical patterns (P5)~~ | ✅ **ANSWERED: ROW = A0–A7, COLUMN = A8–A15.** Bauer §3.13 states the 8-bit refresh counter generates *"256 DRAM **row** addresses"*, and its bit-level table places `REF7..REF0` on address bits **7..0**. 256 distinct rows from a counter that only moves the low byte means the row address IS the low byte. Cross-checked against the same article's *"A0-A5 and A8-A13 are multiplexed in pairs (i.e. A0/A8, A1/A9)"*, which matches U13/U25's `An`/`An+8` wiring. | [C] |
 | ~~Delivery vehicle (P0)~~ | ✅ **ANSWERED ON BOTH DEVICES, 2026-09-26: `$DE02 = $02` leaves Ultimax and the cartridge stays mapped at `$8000`.** Ultimate II+ and Kung Fu Flash report identically. Measured by `src/g1probe_roml.asm`, which sweeps all eight values rather than assuming one. VICE agrees, but VICE was not the evidence. | [M] |
 | Screen placement | In Ultimax mode the VIC's fetches in `$3000–$3FFF` of its bank are said to come from cartridge ROMH. Verify before choosing a screen home. | [A] |
 | ~~Chip naming, Assy 250407~~ | ✅ **HELD.** `D0=U21, D1=U9, D2=U22, D3=U10, D4=U23, D5=U11, D6=U24, D7=U12` — confirmed from schematic 251138 in `c64-ice40-ram` README §2.2, where the drawing places the RAMs in bus order U12, U24, U11, U23, U10, U22, U9, U21 against D7…D0. | [D] |
@@ -107,6 +107,28 @@ and their trust in every other line the tool printed.
 collected**, and no coverage may be claimed in the documentation that is not demonstrated by
 a fault-injection test that fails without it. See `SPEC.md` §8.
 
+
+---
+
+## G2: row is the low byte, and that is not where intuition puts it
+
+**ROW = A0–A7. COLUMN = A8–A15.** Two independent statements in Bauer's VIC-II reference
+agree: §3.13 says the 8-bit refresh counter generates *"256 DRAM row addresses"*, and its
+table places `REF7..REF0` on address bits 7..0. A counter that only varies the low byte
+cannot produce 256 distinct **rows** unless the row address is the low byte.
+
+⚠ **The consequence is the opposite of what the address space suggests.** On a 4164 organised
+256 × 256:
+
+| Physically adjacent | In the address space |
+|---|---|
+| Same row, next column | **256 bytes apart** — same offset, next page |
+| Same column, next row | **1 byte apart** — next offset, same page |
+
+So a DRAM *row* is one byte offset taken across all 256 pages, and a DRAM *column* is a
+single page. Any pattern meant to stress physical adjacency has to be built from that, not
+from address order. This is exactly the dependency `c64-ice40-ram` §5.3 declined to
+establish — correctly, since that design has neither refresh nor page mode.
 
 ---
 

@@ -57,8 +57,8 @@
 ; file name already chosen" on every one of them. A build that prints a
 ; warning it is expected to ignore is where a real warning goes to hide.
 !ifndef INJECT_DB { !ifndef INJECT_AB { !ifndef INJECT_NOEF { !ifndef INJECT_MEM {
-        !ifndef INJECT_ALL { !ifndef INJECT_LR {
-        !to "build/dramscope_roml.bin", plain } } } } } }
+        !ifndef INJECT_ALL { !ifndef INJECT_LR { !ifndef INJECT_TOPO {
+        !to "build/dramscope_roml.bin", plain } } } } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -76,7 +76,7 @@ BANK_RAM = $30                  ; ⚠ ALL RAM: no ROMs, no I/O, no cartridge
 SCREEN   = $0400
 COLRAM   = $d800
 ENGINE   = $c000
-ENG_PAGES = 12                  ; ⚠ pages copied; the march must skip them
+ENG_PAGES = 14                  ; ⚠ pages copied; the march must skip them
 
 ; ------------------------------------------------------------------ colours
 C_BLACK  = 0
@@ -123,10 +123,16 @@ cptr     = $fd
 SEED     = $5a
 
 ; ---------------------------------------------------- workspace RAM
-; ⚠ LIVES IN THE SCREEN PAGE ON PURPOSE. The matrix is 1000 bytes of a 1024
-; byte page, so $07E8-$07FF is 24 bytes the VIC never fetches -- and P0b has
-; already proven the whole page before any of it is relied on.
-WORK     = $07e8
+; ⚠⚠ MOVED OUT OF THE SCREEN PAGE, AND THE MOVE IS LOAD-BEARING.
+; It used to live in the 24 bytes at $07E8 that the VIC never fetches, which
+; was neat until P5 needed five more fields and three were left. The two that
+; overflowed landed on $0800 and $0801 -- the first two bytes of the region P5
+; MARCHES -- so the phase overwrote its own w_hpar and w_pmode on its first
+; write and then failed 40,961 cells against patterns it had corrupted itself.
+; It now sits just above the engine, inside the region P0c proves and every
+; march already excludes: still verified before use, still never marched, and
+; no longer able to run out of room silently.
+WORK     = $ce00
 w_dbmask = WORK+0               ; data bus    -- 1 = that bit misbehaved
 w_ablo   = WORK+1               ; A7..A0      -- 1 = that line faulty
 w_abhi   = WORK+2               ; A15..A8     -- 1 = that line faulty
@@ -148,6 +154,11 @@ w_lastfp = WORK+17              ; last page already painted red
 w_tidx   = WORK+18              ; table offset while naming chips
 w_slot   = WORK+19
 w_chipok = WORK+20              ; 0 = show the bits but name no chip
+w_patt   = WORK+21              ; P5 pattern index
+w_pflags = WORK+22              ; bit0 use lo, bit1 use hi, bit2 invert
+w_lomask = WORK+23
+w_hpar   = WORK+24              ; the pattern's per-page constant half
+w_pmode  = WORK+25              ; 0 = write pass, 1 = verify pass
 
 ; P2's base. ⚠ Every base+2^n must be RAM under BANK_RAM, including
 ; base+$8000 = $8800, which is why the engine had to leave the cartridge.
@@ -561,8 +572,8 @@ p2_restore:
 ; ⚠ THREE REGIONS ARE NOT MARCHED, AND THE MAP LEAVES THEM AS DOTS:
 ;     $0000-$01FF   zero page and the stack -- the engine uses both
 ;     $0400-$07FF   the screen matrix and this test's own workspace
-;     $C000-$CBFF   the engine itself
-; 4,608 bytes of 65,536, so 60,928 are covered. Reaching the rest needs a
+;     $C000-$CFFF   the engine, and the workspace just above it
+; 5,632 bytes of 65,536, so 59,904 are covered. Reaching the rest needs a
 ; second pass with the engine and display relocated, which is a later
 ; iteration. ⚠ CLAIMING 64 KB WHILE MARCHING 60,928 IS EXACTLY THE QUIET
 ; OVER-CLAIM PROVENANCE.md EXISTS TO PREVENT, so the verdict prints the figure.
@@ -685,7 +696,158 @@ p4_run:
         jmp p4_run
 p4_done:
         jsr draw_errors
+        jmp p5
+
+
+; ---------------------------------------------------------------------------
+; P5 -- topographical patterns. PHYSICAL row/column adjacency, not address
+; order.
+;
+; ⚠ GATE G2, ANSWERED FROM BAUER §3.13: the VIC's 8-bit refresh counter
+; generates "256 DRAM row addresses" and its table places REF7..REF0 on
+; address bits 7..0. A counter that only moves the low byte cannot produce 256
+; distinct ROWS unless the row address IS the low byte. So:
+;
+;       ROW    = A0-A7    the offset within a page
+;       COLUMN = A8-A15   the page number
+;
+; ⚠ WHICH IS THE OPPOSITE OF WHAT THE ADDRESS SPACE SUGGESTS. Two cells in the
+; same DRAM row, adjacent columns, are 256 BYTES APART. Two cells in the same
+; column, adjacent rows, are 1 byte apart. A march walking addresses in order
+; is walking DOWN a column, one row at a time -- it never moves along a row at
+; all. That is the gap this phase fills.
+;
+; Six passes: row stripes, column stripes, checkerboard, and each inverted.
+; Every pass writes the whole covered space, then verifies it, so a cell that
+; is disturbed by its physical neighbours is caught on the read-back.
+;
+; ⚠⚠ HONEST LIMIT, AND IT IS STATED WHEREVER THE CLAIM IS MADE: this is row and
+; column adjacency AS ADDRESSED. It does NOT model true die layout. Real 4164
+; dies use address scrambling, array folding and true/complement bitlines that
+; differ by manufacturer and die revision, and that is proprietary layout data
+; absent from every datasheet. A C64 holds whatever chips someone fitted, often
+; mixed. A CONFIDENTLY WRONG PHYSICAL MAP IS WORSE THAN NONE, because it claims
+; adjacency coverage it is not delivering. So there is no per-manufacturer
+; scrambler here and no claim of one.
+; ---------------------------------------------------------------------------
+p5:
+        lda #C_YELLOW
+        sta BORDER
+        lda #<s_p5
+        ldy #>s_p5
+        jsr phase
+        lda #0
+        sta w_patt
+p5_pat:
+        ldx w_patt
+        cpx #6
+        beq p5_done
+        lda pattab,x
+        sta w_pflags
+        and #$01                        ; lo contributes only if bit 0 is set
+        sta w_lomask
+        lda #0                          ; write pass
+        sta w_pmode
+        jsr p5_pass
+        lda #1                          ; verify pass
+        sta w_pmode
+        jsr p5_pass
+        inc w_patt
+        jmp p5_pat
+p5_done:
+        jsr draw_errors
         jmp verdict
+
+; p5_pass -- one walk of every covered run, writing or verifying w_patt
+p5_pass:
+        lda #0
+        sta w_runidx
+p5p_run:
+        ldx w_runidx
+        lda runtab,x
+        bne p5p_go
+        rts                             ; ⚠ the run table's terminator, taken
+                                        ; as an early return rather than a long
+                                        ; branch past the whole page loop
+p5p_go:
+        sta w_startpg
+        lda runtab+1,x
+        sta w_endpg
+        jsr set_asc
+        lda #BANK_RAM                   ; ⚠ I/O IS GONE FROM HERE
+        sta CPUPORT
+p5p_pg:
+        ; ⚠ The column half of the pattern is constant across a page, because
+        ; the column IS the page. Compute it once per page, not per cell.
+        lda #$00
+        ldx w_pflags
+        txa
+        and #$02
+        beq p5p_nohi
+        lda mptr+1
+        and #$01
+p5p_nohi:
+        sta w_hpar
+        lda w_pflags
+        and #$04
+        beq p5p_noinv
+        lda w_hpar
+        eor #$01
+        sta w_hpar
+p5p_noinv:
+        ldy #0
+p5p_c:  tya                             ; the row half varies per cell
+        and w_lomask
+        eor w_hpar
+        lsr
+        lda #$00
+        bcc p5p_val
+        lda #$ff
+p5p_val:
+        ldx w_pmode
+        bne p5p_ver
+        sta (mptr),y
+        jmp p5p_nx
+p5p_ver:
+        tax                             ; X = expected
+        lda (mptr),y
+!ifdef INJECT_TOPO {                    ; mutation: P5 must be able to fail too
+        cpy #$71
+        bne inj_t_out
+        pha
+        lda mptr+1
+        cmp #$60
+        bne inj_t_pop
+        pla
+        eor #$40
+        jmp inj_t_out
+inj_t_pop:
+        pla
+inj_t_out:
+}
+        stx w_tmp
+        cmp w_tmp
+        beq p5p_nx
+        jsr march_fail                  ; A = got, X = expected
+p5p_nx:
+        ; ⚠ jmp, not a relative branch: with the fault-injection block present
+        ; the loop head is more than 128 bytes back and the assembler refuses.
+        ; Same cost, and it does not change with the next edit to the body.
+        iny
+        beq p5p_pgend
+        jmp p5p_c
+p5p_pgend:
+        jsr nx_asc
+        beq p5p_runend
+        jmp p5p_pg
+p5p_runend:
+        lda #BANK_IO                    ; ⚠ I/O BACK BEFORE ANYTHING ELSE
+        sta CPUPORT
+        lda w_runidx
+        clc
+        adc #2
+        sta w_runidx
+        jmp p5p_run
 
 ; --- M0  (w 0) -------------------------------------------------------------
 lr0:    jsr set_asc
@@ -1089,6 +1251,16 @@ mrd_x:  rts
 ; draw_diag -- name the failing bits, and the chips that carry them.
 ; Caller puts the failing-bit mask in w_tmp.
 ;
+; ⚠⚠ SHORT BOARDS ARE NOT EIGHT CHIPS. Carl, 2026-09-26: a C64 short board
+; (250469 and relatives) carries TWO 41464s -- 64K x 4 -- not eight 4164s.
+; Each chip therefore supplies FOUR bits, so a single failing bit narrows to
+; one of two chips and no further, and the designators below are simply not
+; that board's designators. The tool cannot tell which board it is plugged
+; into, so it does three things: it prints the BIT, which is true everywhere;
+; it prints designators only under a heading naming the assembly they belong
+; to; and when it names a chip at all it prints the short-board caveat
+; underneath. Guessing here would send someone to desolder the wrong part.
+;
 ; ⚠ THIS IS THE ONE OUTPUT THAT IS A CLAIM ABOUT SOMEONE ELSE'S HARDWARE.
 ; "Replace U10" costs them a chip, an hour, and their trust in every other
 ; line on the screen if it is wrong. So:
@@ -1196,7 +1368,21 @@ dg_next:
         lda w_slot
         cmp #8
         bne dg_slot
-        rts
+        ; ⚠ A named chip gets the short-board caveat under it, in place of the
+        ; legend. The legend matters most when nothing is wrong; this matters
+        ; most when the tool is telling someone which part to replace.
+        lda w_chipok
+        beq dg_end
+        lda #C_ORANGE
+        sta w_col2
+        lda #V_ROW+3
+        sta w_row
+        lda #1
+        sta w_col
+        lda #<s_shortbd
+        ldy #>s_shortbd
+        jmp prstr
+dg_end: rts
 
 ; --- error count ------------------------------------------------------------
 draw_errors:
@@ -1696,6 +1882,11 @@ st_char: !byte CH_DOT,    CH_DASH,  CH_FULL, CH_X,    CH_PLUS
 st_col:  !byte C_DKGREY,  C_YELLOW, C_GREEN, C_LTRED, C_CYAN
 bittab:  !byte 1,2,4,8,16,32,64,128
 
+; P5 patterns: bit0 = row half (low byte) contributes, bit1 = column half
+; (page number) contributes, bit2 = invert. Row stripes, column stripes,
+; checkerboard, and each inverted.
+pattab:  !byte %001, %101, %010, %110, %011, %111
+
 ; Pages P2 writes to: ABASE, and ABASE + 2^n for n = 0..15.
 p2pages: !byte $08,$09,$0a,$0c,$10,$18,$28,$48,$88,$ff
 
@@ -1704,7 +1895,7 @@ p2pages: !byte $08,$09,$0a,$0c,$10,$18,$28,$48,$88,$ff
 ; and workspace, $C0-$CB the engine. 238 pages, 60,928 bytes of 65,536.
 runtab:  !byte $02,$03
          !byte $08,$bf
-         !byte $cc,$ff
+         !byte $d0,$ff
          !byte $00
 
 addrlo:  !for i, 0, 15 { !byte <(ABASE + (1 << i)) }
@@ -1714,7 +1905,7 @@ rowhi:   !for i, 0, 24 { !byte >(SCREEN + i*40) }
 
 ; ⚠ acme's !scr maps LOWERCASE source to uppercase screen codes, so every
 ; string here is written lower case on purpose.
-s_title:    !scr "dramscope 0.4", 0
+s_title:    !scr "dramscope 0.5", 0
 s_rule:     !scr "----------------------------------------", 0
 s_hex:      !scr "0123456789abcdef", 0
 s_data:     !scr "data bus", 0
@@ -1728,6 +1919,7 @@ s_p1:       !scr "p1 data bus", 0
 s_p2:       !scr "p2 addr bus", 0
 s_p3:       !scr "p3 march b", 0
 s_p4:       !scr "p4 march lr", 0
+s_p5:       !scr "p5 topo", 0
 s_errors:   !scr "bad bytes", 0
 s_legend:   !scr "solid=marched  +=probed  .=untested", 0
 
@@ -1737,7 +1929,7 @@ bitlbl:     !scr "d0  d1  d2  d3  d4  d5  d6  d7  "
 chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
 s_pdone:    !scr "done", 0
 s_ok:       !scr "bus integrity ok, all 16 lines.", 0
-s_ok2:      !scr "march b + lr, 31n, 60,928 of 65,536.", 0
+s_ok2:      !scr "march b+lr+topo, 59,904 of 65,536.", 0
 s_databad:  !scr "data bus fault - see the d lane.", 0
 s_databad2: !scr "a marked bit is stuck, shorted or open.", 0
 s_addrbad:  !scr "address line fault - see the a lanes.", 0
@@ -1747,6 +1939,7 @@ s_membad2:  !scr "march b + march lr, 31n.", 0
 s_bits:     !scr "bits", 0
 s_assy:     !scr "250407", 0
 s_allbits:  !scr "all 8 bits - not one chip. check pla.", 0
+s_shortbd:  !scr "short board? 2x41464 - names differ.", 0
 
 eng_end:
 }

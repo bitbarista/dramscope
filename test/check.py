@@ -102,9 +102,9 @@ BORDER = {1: "WHITE", 2: "RED", 3: "CYAN", 4: "PURPLE", 5: "GREEN",
 CASES = [
     ("clean -- every lane solid, all 16 address lines tested",
      "dramscope.crt",      "halt",     "GREEN", "########", "########", "########",
-     {"row0": "..##++++########", "rowC": "++++++++++++####",
+     {"row0": "..##++++########", "rowC": "++++++++++++++++",
       "page40": "#", "errors": " 0000",
-      "bits": " MARCH B + LR, 31N, 60,928 OF 65,536.", "chips": ""}),
+      "bits": " MARCH B+LR+TOPO, 59,904 OF 65,536.", "chips": ""}),
     # ⚠ The classifier makes a claim about someone else's hardware. D3 is U10
     # on a 250407 -- schematic 251138 via c64-ice40-ram README §2.2.
     ("D3 stuck -- data lane X, and the chip named from the bit",
@@ -117,10 +117,11 @@ CASES = [
     # exactly one bad byte, every other page still clean.
     ("one stuck bit at $4037 -- page $40 red, count 1, nothing else",
      "dramscope_fmem.crt", "halt",     "LTRED", "########", "########", "########",
-     {"row0": "..##++++########", "rowC": "++++++++++++####", "page40": "X",
+     {"row0": "..##++++########", "rowC": "++++++++++++++++", "page40": "X",
       "errors": " 0001",
       "bits":  " BITS                               D0",
-      "chips": " 250407                             U21"}),
+      "chips": " 250407                             U21",
+      "caveat": " SHORT BOARD? 2X41464 - NAMES DIFFER."}),
     # ⚠ The one a real device might actually hit. A Kung Fu Flash that ignores
     # $DE02 must SAY SO, not hang in Ultimax pretending to test 64 KB.
     # ⚠ P4 is a SEPARATE engine with its own read paths, so it needs its own
@@ -130,11 +131,19 @@ CASES = [
      {"errors": " 0001",
       "bits":  " BITS   D7",
       "chips": " 250407 U12"}),
+    # ⚠ P5 is a third engine again -- its own pattern generator and read path.
+    # One bit wrong at $6071, on the topographical verify pass.
+    ("topographical pass catches a disturbed cell -- page $60, D6",
+     "dramscope_ftop.crt", "halt",     "LTRED", "########", "########", "########",
+     {"errors": " 0006",
+      "bits":  " BITS       D6",
+      "chips": " 250407     U24"}),
     # ⚠ THE SAFETY RULE. All eight bits wrong must name NO chip at all.
     ("all 8 bits wrong -- must REFUSE to name a chip",
      "dramscope_fall.crt", "halt",     "LTRED", "########", "########", "########",
      {"bits":  " BITS   D7  D6  D5  D4  D3  D2  D1  D0",
-      "chips": " ALL 8 BITS - NOT ONE CHIP. CHECK PLA."}),
+      "chips": " ALL 8 BITS - NOT ONE CHIP. CHECK PLA.",
+      "caveat": " SOLID=MARCHED  +=PROBED  .=UNTESTED"}),
     ("device ignores $DE02 -- must report ORANGE, not hang",
      "dramscope_fef.crt",  "rom_halt", "ORANGE", None, None, None, None),
 ]
@@ -161,6 +170,8 @@ def main() -> int:
                 got["errors"] = text(scr, 17, PAN - 1, PAN + 5)
             got["bits"] = text(scr, V_ROW + 1)
             got["chips"] = text(scr, V_ROW + 2)
+            if "caveat" in extra:
+                got["caveat"] = text(scr, V_ROW + 3)
             want.update(extra)
         for k in got:
             flag = "" if got[k] == want[k] else f"   <-- *** wanted {want[k]!r}"

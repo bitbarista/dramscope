@@ -21,7 +21,9 @@ that come next and are harder:
   ```
 
   ⚠ The designators sit under a heading naming the **assembly they belong to**, because the
-  tool cannot tell which board it is plugged into and 250425 differs. The **bit number** is
+  tool cannot tell which board it is plugged into. **Short boards carry two 41464s, not eight
+  4164s** — four bits per chip — so a named chip there would be plain wrong, and the tool
+  prints that caveat whenever it names one. The **bit number** is
   always shown and is true on every C64. And if *every* bit fails it names no chip at all —
   eight simultaneously dead DRAMs is not the likely reading, and pointing at eight chips is
   worse than pointing at none.
@@ -67,13 +69,14 @@ The two projects stay separate. This one has no dependency on that board and nev
 | **P1** data bus — walking ones/zeroes/rails | ✅ |
 | **P2** address bus — **all 16 lines, A0–A15** | ✅ |
 | Display — 256-page map, bus lanes, verdict | ✅ |
-| Fault injection + headless VICE harness | ✅ 7/7 |
+| Fault injection + headless VICE harness | ✅ 8/8 |
 | Gate G1 — EasyFlash mode switching | ✅ **closed** — Ultimate II+ *and* Kung Fu Flash, `$DE02 = $02` |
 | EasyFlash delivery — boots in Ultimax, **needs no working RAM to start** | ✅ |
 | Engine relocated to `$C000`, banks out with `$01 = $30` | ✅ |
 | **P3** March B 17n, address-dependent pattern, 60,928 of 65,536 bytes | ✅ ~17 s |
 | **P4** March LR 14n, **fixed** patterns — linked faults | ✅ ~11 s |
-| **P5–P9** topographical, dwell, disturb, colour RAM | ⬜ |
+| **P5** topographical row/column patterns — physical adjacency | ✅ ~34 s |
+| **P6–P9** dwell, disturb, colour RAM | ⬜ |
 | **Chip naming** from the failing-bit mask, Assy 250407 | ✅ |
 | Classification rules beyond chip naming (stride, region, mux pairing) | ⬜ |
 | Board profiles for 250425 and the short boards | ⬜ |
