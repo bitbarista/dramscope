@@ -9,7 +9,37 @@ record and does not need running again.
 RUNNING IT
 ----------
 
-It is an EasyFlash cartridge. Load it on the Ultimate II+ or Kung Fu Flash.
+It is an EasyFlash cartridge. Load it on an Ultimate II+, a Kung Fu Flash, or
+any other cartridge that can be an EasyFlash.
+
+WHAT IT RUNS ON
+---------------
+
+  Ultimate II+          confirmed on hardware
+  Kung Fu Flash         confirmed on hardware
+  EasyFlash 1 or 3      expected -- and flashing one gives you a DEDICATED
+                        TEST CARTRIDGE. Untested by us; please report.
+  Other EasyFlash carts expected, if the $DE02 emulation is faithful
+  A plain EPROM cart    ⚠ NOT FULLY -- see below
+
+⚠ IT IS AN EASYFLASH CARTRIDGE, NOT A PLAIN ROM IMAGE, AND THAT IS NOT A
+PACKAGING CHOICE. It boots in Ultimax mode, which is the only mode where the
+CARTRIDGE supplies the reset vector instead of the KERNAL -- that is what lets
+it start on a machine with no working KERNAL and no working RAM. But Ultimax
+only maps $0000-$0FFF of RAM. Writing $02 to the EasyFlash register at $DE02
+releases GAME, leaving Ultimax for 8K mode with the cartridge still at $8000,
+and the other 60 KB becomes reachable.
+
+A plain EPROM cart has no $DE02 -- GAME and EXROM are strapped in hardware and
+cannot change. Strapped for Ultimax it boots and runs, but the $DE02 write does
+nothing, the border goes ORANGE to say so, and it can only ever see 4 KB.
+Strapped for 8K or 16K the KERNAL supplies the reset vector, so it can only be
+entered through the autostart handshake -- which needs a working KERNAL, stack
+and zero page, discarding the whole point.
+
+⚠ GOT A CARTRIDGE NOT LISTED? Run G1PROBE.CRT. It sweeps all eight values of
+$DE02 and reports which, if any, leaves Ultimax with the cartridge still
+mapped. GREEN means DRAMscope will work on that device.
 
 It boots in Ultimax and takes its reset vector straight from the cartridge,
 so it needs NO WORKING KERNAL and NO WORKING RAM to start -- not even the

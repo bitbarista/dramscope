@@ -9,14 +9,59 @@ where it can do so safely, the chip that carries it.
 
 ## Running it
 
-1. Put `dramscope.crt` on an **Ultimate II+** or **Kung Fu Flash** and start it.
-2. It runs continuously until you reset the machine, counting completed runs.
-3. Read [`docs/BENCH-SHEET.txt`](docs/BENCH-SHEET.txt) — it explains every colour, every mark
-   on the map, and carries the chip chart for all five C64 board assemblies.
+1. **[Download `dramscope.crt`](https://github.com/bitbarista/dramscope/releases/latest/download/dramscope.crt)** — always the current version.
+2. Put it on an **Ultimate II+**, **Kung Fu Flash** or other EasyFlash-capable cartridge and
+   start it.
+3. It runs continuously until you reset the machine, counting completed runs.
+4. **[Download the bench sheet](https://github.com/bitbarista/dramscope/releases/latest/download/READ-ME-FIRST.txt)**
+   and **[the printable chip chart](https://github.com/bitbarista/dramscope/releases/latest/download/CHIP-CHART.txt)** —
+   every colour, every mark on the map, and the bit→chip table for all five board assemblies.
 
 ⚠ **The cartridge must be mapped without a menu if the RAM is missing.** A Kung Fu Flash
 boots the last cartridge straight away, which is why the no-RAM case works there. The
 Ultimate II+ menu is itself a C64 program and needs working RAM to run.
+
+## What it runs on
+
+⚠ **It is an EasyFlash cartridge, not a plain ROM image**, and that is not a packaging choice —
+it is the whole reason the tool can do what it does.
+
+It boots in **Ultimax** mode, which is the only mode where the *cartridge* supplies the reset
+vector at `$FFFC` instead of the KERNAL. That is what lets it start with no working KERNAL and
+no working RAM. But Ultimax maps only `$0000–$0FFF` of RAM, so it would be stuck testing 4 KB.
+Writing `$02` to the EasyFlash control register at **`$DE02`** releases GAME, leaving Ultimax
+for 8 K mode with the cartridge still at `$8000` — and the other 60 KB becomes reachable.
+
+| Hardware | Works? |
+|---|---|
+| **Ultimate II+** | ✅ confirmed on hardware — `$DE02 = $02`, measured |
+| **Kung Fu Flash** | ✅ confirmed on hardware, reports identically |
+| **A real EasyFlash 1 or 3** | ✅ expected — this is exactly the hardware `$DE02` belongs to, and flashing one gives you a **dedicated test cartridge**. Untested by us; please report. |
+| Other EasyFlash-capable carts | ✅ expected if the `$DE02` emulation is faithful. Untested. |
+| ⚠ **A plain EPROM cartridge** | ❌ **not fully.** See below. |
+
+### ⚠ Why a plain EPROM cartridge is not enough
+
+A plain EPROM cart has no `$DE02` — GAME and EXROM are strapped by hardware and cannot change.
+So it can be *one* mode, not two:
+
+- **Strapped for Ultimax**, it boots and runs, but the write to `$DE02` does nothing. The tool
+  detects that and says so with an **orange border** rather than pretending — but it can only
+  ever see the 4 KB at `$0000–$0FFF`.
+- **Strapped for 8 K or 16 K**, the cartridge is mapped but the *KERNAL* supplies the reset
+  vector, so it can only be entered through the autostart handshake — which needs a working
+  KERNAL, a working stack and working zero page. That discards the one property the tool is
+  built around.
+
+**Building a dedicated cartridge?** You need two 8 KB windows (ROML + ROMH), Ultimax strapping
+at reset, and a latch at `$DE02` that can release GAME. That last part is what makes it an
+EasyFlash rather than a ROM cart — so the easy route is a real EasyFlash 1/3, and the raw
+`dramscope_roml.bin` and `dramscope_romh.bin` are attached to the release for anyone building
+their own. ⚠ ROMH holds only the reset vectors, and in Ultimax it appears at `$E000–$FFFF`.
+
+**Got a cartridge not listed above?** `g1probe.crt` (also in the release) answers the one
+question that matters: it sweeps all eight values of `$DE02` and reports on screen which, if
+any, leaves Ultimax with the cartridge still mapped. Green means DRAMscope will work on it.
 
 A healthy machine finishes a run in about 80 seconds and looks like this:
 
