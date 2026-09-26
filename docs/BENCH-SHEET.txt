@@ -1,4 +1,4 @@
-DRAMSCOPE 0.9  --  C64 memory diagnostic          updated 2026-09-26
+DRAMSCOPE 1.0  --  C64 memory diagnostic          updated 2026-09-26
 ====================================================================
 
 DRAMSCOPE.CRT is the test. G1PROBE.CRT is a one-question hardware probe
@@ -16,7 +16,17 @@ so it needs NO WORKING RAM to start -- not even the stack page. A machine
 too broken to reach BASIC can still be tested, which is the machine most
 worth testing.
 
-A full run takes about 75 seconds, including a 12-second wait in P7.
+IT DOES NOT STOP. One pass takes about 80 seconds, including a 12-second
+wait in P7; then it counts the pass and starts over, and keeps going until
+you reset the machine. Leave it running.
+
+Everything accumulates. A cell that has failed stays red even if later
+passes pass. BAD BYTES only ever grows. And once anything has failed the
+border pulses RED instead of grey for the rest of the run, so you can walk
+past an hour later and know.
+
+That is what the burn-in is for: a chip that fails once an hour looks
+perfect on a single pass, and it is the one worth finding.
 
 
 IS IT STILL ALIVE?

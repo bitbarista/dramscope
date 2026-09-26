@@ -185,6 +185,8 @@ w_hvscr  = WORK+32              ; handover: screen region failed
 w_hveng  = WORK+33              ; handover: engine region failed
 w_dwell  = WORK+34              ; P7 countdown, in units
 w_frames = WORK+35
+w_passlo = WORK+36              ; completed passes, for the burn-in
+w_passhi = WORK+37
 
 ; P2's base. ⚠ Every base+2^n must be RAM under BANK_RAM, including
 ; base+$8000 = $8800, which is why the engine had to leave the cartridge.
@@ -437,6 +439,21 @@ rom_halt:
 eng_src:
 !pseudopc ENGINE {
 eng_start:
+        ; ⚠ EVERY CUMULATIVE COUNTER IS CLEARED HERE, ONCE, AND NOWHERE ELSE.
+        ; Each phase used to zero its own results on entry, which was right
+        ; for a single run and wrong the moment the burn-in looped: pass two
+        ; wiped pass one's findings and the totals never grew past what the
+        ; last pass happened to see. The workspace starts full of P0c's probe
+        ; pattern, so these are garbage until cleared.
+        lda #0
+        sta w_dbmask
+        sta w_ablo
+        sta w_abhi
+        sta w_bitmask
+        sta w_errlo
+        sta w_errhi
+        sta w_passlo
+        sta w_passhi
         jsr clear_screen
         jsr draw_chrome
         jsr map_init
@@ -464,8 +481,6 @@ p1:
         lda #<s_p1
         ldy #>s_p1
         jsr phase
-        lda #0
-        sta w_dbmask
 
         lda #$01                        ; walking ones
         sta w_tmp
@@ -535,9 +550,6 @@ p2:
         lda #<s_p2
         ldy #>s_p2
         jsr phase
-        lda #0
-        sta w_ablo
-        sta w_abhi
 
         lda #BANK_RAM                   ; ⚠ I/O IS GONE FROM HERE
         sta CPUPORT
@@ -651,11 +663,8 @@ p3:
         lda #<s_p3
         ldy #>s_p3
         jsr phase
-        lda #0
-        sta w_bitmask
-        sta w_errlo
-        sta w_errhi
-        sta w_runidx
+        lda #0                          ; ⚠ per-pass loop state only; the
+        sta w_runidx                    ; counters above are cumulative
         sta w_lastfp                    ; page $00 is never marched, so 0 = none
 
 p3_run:
@@ -1096,6 +1105,19 @@ tick:
         lda w_tick
         and #$20
         beq tick_on
+        ; ⚠ Once ANYTHING has failed the pulse alternates with red and stays
+        ; that way for the rest of the burn-in. On a run that has been going
+        ; for an hour, "a fault was found at some point" has to be visible
+        ; from across the room without reading the counters.
+        lda w_errlo
+        ora w_errhi
+        ora w_dbmask
+        ora w_ablo
+        ora w_abhi
+        beq tick_clean
+        lda #C_LTRED
+        bne tick_set
+tick_clean:
         lda #C_DKGREY
         bne tick_set                    ; always: 11 is not zero
 tick_on:
@@ -1339,7 +1361,7 @@ phv_scr_m:
 phv_sl: txa
         pha
         ldx w_tmp
-        jsr mark_page
+        jsr mark_page_keep
         pla
         tax
         inx
@@ -1356,12 +1378,12 @@ phv_eng_m:
         stx w_tmp
         lda #>WORK                      ; the workspace page shares the verdict
         ldx w_tmp
-        jsr mark_page
+        jsr mark_page_keep
         ldx #$c0
 phv_el: txa
         pha
         ldx w_tmp
-        jsr mark_page
+        jsr mark_page_keep
         pla
         tax
         inx
@@ -1485,10 +1507,10 @@ p6_done:
 p6_ok:
         lda #$00
         ldx #5                          ; marched, but at 9n
-        jsr mark_page
+        jsr mark_page_keep
         lda #$01
         ldx #5
-        jsr mark_page
+        jsr mark_page_keep
 p6_end:
         jsr draw_errors
         jmp phv
@@ -1850,14 +1872,8 @@ mark_run_testing:
         lda w_startpg
         sta w_tmp
 mrt_l:  lda w_tmp
-        jsr cell_pos
-        ldy #0
-        lda (sptr),y
-        cmp #CH_X
-        beq mrt_skip
-        lda w_tmp
         ldx #1                          ; testing
-        jsr mark_page
+        jsr mark_page_keep
 mrt_skip:
         lda w_tmp
         cmp w_endpg
@@ -1872,14 +1888,8 @@ mark_run_done:
         lda w_startpg
         sta w_tmp
 mrd_l:  lda w_tmp
-        jsr cell_pos
-        ldy #0
-        lda (sptr),y
-        cmp #CH_X
-        beq mrd_skip
-        lda w_tmp
         ldx #2                          ; pass
-        jsr mark_page
+        jsr mark_page_keep
 mrd_skip:
         lda w_tmp
         cmp w_endpg
@@ -2026,6 +2036,26 @@ dg_next:
         jmp prstr
 dg_end: rts
 
+; draw_passes -- the burn-in counter
+draw_passes:
+        lda #C_GREY
+        sta w_col2
+        lda #PH_ROW+4
+        sta w_row
+        lda #PAN_COL
+        sta w_col
+        lda #<s_passes
+        ldy #>s_passes
+        jsr prstr
+        lda #PH_ROW+5
+        ldx #PAN_COL+1
+        jsr setpos
+        ldy #0
+        lda w_passhi
+        jsr hexpair
+        lda w_passlo
+        jmp hexpair
+
 ; --- error count ------------------------------------------------------------
 draw_errors:
         lda #C_GREY
@@ -2107,7 +2137,7 @@ v_mem:
         lda w_bitmask                   ; ⚠ no second verdict line here: the
         sta w_tmp                       ; bit and chip lines are rows 22 and 23
         jsr draw_diag                   ; and say more than a sentence would
-        jmp halt
+        jmp pass_end
 
 v_data:
         lda #C_LTRED
@@ -2120,7 +2150,7 @@ v_data:
         lda w_dbmask
         sta w_tmp
         jsr draw_diag
-        jmp halt
+        jmp pass_end
 
 v_addr:
         lda #C_LTRED
@@ -2134,8 +2164,32 @@ v_addr:
         ldy #>s_addrbad2
         jmp verdict_line2
 
-halt:
-        jmp halt
+; ---------------------------------------------------------------------------
+; End of a pass. ⚠ THE BURN-IN LOOP.
+;
+; Carl, 2026-09-26: "the RAM test runs once only. Typically ram tests have a
+; burn in whereby they cycle and count the number of cycles." One pass catches
+; a dead chip; it does not catch the one that fails once an hour, and that is
+; the fault people actually chase.
+;
+; ⚠ It loops back to P1, NOT to the top. Re-running eng_start would clear the
+; screen and re-initialise the map, throwing away every failure found so far.
+; The counters and the red cells are cumulative on purpose: the whole value of
+; a burn-in is that pass 400 still remembers what pass 3 found.
+;
+; ⚠ pass_end is also the harness's observation point -- test/check.py
+; breakpoints it to read the screen after exactly one pass.
+; ---------------------------------------------------------------------------
+pass_end:
+        inc w_passlo
+        bne pe_1
+        inc w_passhi
+pe_1:   jsr draw_passes
+pass_obs:
+        ; ⚠ THE HARNESS BREAKPOINTS HERE, NOT AT pass_end -- the counter has
+        ; to be on screen before the screen is read, and pass_end's first
+        ; instruction is the increment.
+        jmp p1
 
 verdict_line:
         sta strp
@@ -2147,7 +2201,7 @@ verdict_line:
         jmp putstr
 verdict_line2:
         jsr verdict_line2_nohalt
-        jmp halt
+        jmp pass_end
 verdict_line2_nohalt:
         sta strp
         sty strp+1
@@ -2312,7 +2366,25 @@ cell_pos:
         lda w_row
         jmp setpos
 
-; mark_page -- A = page number, X = state 0..3
+; mark_page_keep -- like mark_page, but ⚠ LEAVES A FAILED CELL ALONE.
+; Needed once the burn-in loops: pass two must not paint over pass one's
+; findings just because it happened to pass itself.
+mark_page_keep:
+        stx w_tmp2
+        pha
+        jsr cell_pos
+        ldy #0
+        lda (sptr),y
+        cmp #CH_X
+        beq mpk_skip
+        pla
+        ldx w_tmp2
+        jmp mark_page
+mpk_skip:
+        pla
+        rts
+
+; mark_page -- A = page number, X = state 0..5
 mark_page:
         stx w_tmp2
         jsr cell_pos
@@ -2356,20 +2428,11 @@ draw_chrome:
         ldy #>s_title
         jsr prstr
 
-        lda #C_DKGREY
-        sta w_col2
-        lda #1
-        sta w_row
-        lda #0
-        sta w_col
-        lda #<s_rule
-        ldy #>s_rule
-        jsr prstr
-        lda #V_ROW-1
-        sta w_row
-        lda #<s_rule
-        ldy #>s_rule
-        jsr prstr
+        lda #1                          ; ⚠ drawn, not stored: the engine is
+        jsr draw_rule                   ; hard-capped at 4 KB because $D000 is
+        lda #V_ROW-1                    ; I/O, so a 40-byte string for a row of
+        jsr draw_rule                   ; dashes is 40 bytes that cannot be
+                                        ; spent on a test
 
         lda #C_GREY
         sta w_col2
@@ -2463,6 +2526,22 @@ dc_rows:
         lda #<s_legend
         ldy #>s_legend
         jsr prstr
+        rts
+
+; draw_rule -- A = row. A full-width separator, generated rather than stored.
+draw_rule:
+        ldx #0
+        jsr setpos
+        ldy #39
+        lda #CH_DASH
+dr_ch:  sta (sptr),y
+        dey
+        bpl dr_ch
+        ldy #39
+        lda #C_DKGREY
+dr_co:  sta (cptr),y
+        dey
+        bpl dr_co
         rts
 
 ; map_init -- all 256 pages untested, then mark what P0 proved
@@ -2579,8 +2658,7 @@ rowhi:   !for i, 0, 24 { !byte >(SCREEN + i*40) }
 
 ; ⚠ acme's !scr maps LOWERCASE source to uppercase screen codes, so every
 ; string here is written lower case on purpose.
-s_title:    !scr "dramscope 0.9", 0
-s_rule:     !scr "----------------------------------------", 0
+s_title:    !scr "dramscope 1.0", 0
 s_hex:      !scr "0123456789abcdef", 0
 s_data:     !scr "data bus", 0
 s_bitno:    !scr "76543210", 0
@@ -2598,6 +2676,7 @@ s_p6:       !scr "p6 zp+stack", 0
 s_phv:      !scr "p6b handover", 0
 s_p7:       !scr "p7 dwell", 0
 s_errors:   !scr "bad bytes", 0
+s_passes:   !scr "passes", 0
 s_legend:   !scr "solid=full *=9n +=probed .=none", 0
 
 ; ⚠ Four bytes per entry, space padded, indexed by bit*4. The designators are

@@ -66,6 +66,15 @@ does — the documentation says so in the same place it makes the claim.
 **P5. Degrade visibly, not silently.** If the display cannot be trusted because its own
 memory is faulty, the tool must say so rather than show a plausible-looking screen.
 
+**P7. One pass is a spot check; a burn-in is a test.** ⚠ Carl, 2026-09-26: *"the RAM test
+runs once only. Typically ram tests have a burn in whereby they cycle and count the number
+of cycles."* The phases loop back to P1 rather than halting, and every result is cumulative:
+the map's red cells, the bad-byte count and the failing-bit mask all persist, and the
+liveness pulse turns red permanently once anything has failed. ⚠ **Each phase used to zero
+its own results on entry** — correct for a single run, and wrong the instant it looped,
+because pass two wiped pass one's findings. The counters are now cleared exactly once, in
+`eng_start`.
+
 **P6. A working run must not look like a hung one.** ⚠ Carl, 2026-09-26: *"whilst the crt
 is running it is impossible to know whether it is proceeding or crashed."* A run takes about
 a minute and the marches spend ~20 s stretches with nothing on screen changing. Every long

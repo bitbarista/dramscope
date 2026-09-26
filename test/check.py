@@ -22,7 +22,7 @@ GLYPH = {0x20: " ", 0x2E: ".", 0x2D: "-", 0x2F: "/", 0x2C: ",", 0x3D: "=",
          0x18: "X", 0xA0: "#", 0x2B: "+", 0x2A: "*"}
 
 
-def halt_address(stem: str, sym: str = "halt") -> str:
+def halt_address(stem: str, sym: str = "pass_obs") -> str:
     """⚠ Per build. Injected instructions move every later address, so the
     clean build's halt is not the fault build's halt -- breakpointing the
     wrong one just hangs."""
@@ -103,22 +103,22 @@ BORDER = {1: "WHITE", 2: "RED", 3: "CYAN", 4: "PURPLE", 5: "GREEN",
 # If probed regions ever paint the same as marched ones, this case fails.
 CASES = [
     ("clean -- every lane solid, all 16 address lines tested",
-     "dramscope.crt",      "halt",     "GREEN", "########", "########", "########",
+     "dramscope.crt",      "pass_obs",     "GREEN", "########", "########", "########",
      {"row0": "**#*****########", "rowC": "****************",
       "page40": "#", "errors": " 0000",
       "bits": " ALL RAM TESTED, INCL. 12S RETENTION.", "chips": ""}),
     # ⚠ The classifier makes a claim about someone else's hardware. D3 is U10
     # on a 250407 -- schematic 251138 via c64-ice40-ram README §2.2.
     ("D3 stuck -- data lane X, and the chip named from the bit",
-     "dramscope_fdb.crt",  "halt",     "LTRED", "####X###", "########", "########",
+     "dramscope_fdb.crt",  "pass_obs",     "LTRED", "####X###", "########", "########",
      {"bits":  " BITS                   D3",
       "chips": " 250407                 U10"}),
     ("A5 faulty -- one X in the low address lane, data lane clean",
-     "dramscope_fab.crt",  "halt",     "LTRED", "########", "########", "##X#####", None),
+     "dramscope_fab.crt",  "pass_obs",     "LTRED", "########", "########", "##X#####", None),
     # ⚠ P3 must be able to fail too. One stuck bit at $4037: page $40 red,
     # exactly one bad byte, every other page still clean.
     ("one stuck bit at $4037 -- page $40 red, count 1, nothing else",
-     "dramscope_fmem.crt", "halt",     "LTRED", "########", "########", "########",
+     "dramscope_fmem.crt", "pass_obs",     "LTRED", "########", "########", "########",
      {"row0": "**#*****########", "rowC": "****************", "page40": "X",
       "errors": " 0001",
       "bits":  " BITS                               D0",
@@ -129,41 +129,41 @@ CASES = [
     # ⚠ P4 is a SEPARATE engine with its own read paths, so it needs its own
     # mutation. One bit wrong at $5012, seen by March LR's final r0.
     ("March LR catches what March B's pattern left -- page $50, bit D7",
-     "dramscope_flr.crt",  "halt",     "LTRED", "########", "########", "########",
+     "dramscope_flr.crt",  "pass_obs",     "LTRED", "########", "########", "########",
      {"errors": " 0001",
       "bits":  " BITS   D7",
       "chips": " 250407 U12"}),
     # ⚠ P5 is a third engine again -- its own pattern generator and read path.
     # One bit wrong at $6071, on the topographical verify pass.
     ("topographical pass catches a disturbed cell -- page $60, D6",
-     "dramscope_ftop.crt", "halt",     "LTRED", "########", "########", "########",
+     "dramscope_ftop.crt", "pass_obs",     "LTRED", "########", "########", "########",
      {"errors": " 0006",
       "bits":  " BITS       D6",
       "chips": " 250407     U24"}),
     # ⚠ P6 is a fourth engine again -- registers-only, self-modifying, and the
     # only one that runs with its own stack under test. One bad byte at $0140.
     ("zero page / stack phase catches a bad stack byte",
-     "dramscope_fzp.crt",  "halt",     "LTRED", "########", "########", "########",
+     "dramscope_fzp.crt",  "pass_obs",     "LTRED", "########", "########", "########",
      {"errors": " 0001",
       "bits":  " BITS                       D2",
       "chips": " 250407                     U22"}),
     # ⚠ The handover is a FIFTH engine, and the only one that marches the
     # region the display is standing on. One bad byte at $0555.
     ("handover catches a fault in the screen's own memory",
-     "dramscope_fhv.crt",  "halt",     "LTRED", "########", "########", "########",
+     "dramscope_fhv.crt",  "pass_obs",     "LTRED", "########", "########", "########",
      {"errors": " 0001",
       "bits":  " BITS               D4",
       "chips": " 250407             U23"}),
     # ⚠ P7 is the only phase where the fault appears AFTER a wait rather than
     # during a write/read pair. One cell forgets a bit over the dwell.
     ("retention: a cell that forgets a bit over 12 seconds",
-     "dramscope_fret.crt", "halt",     "LTRED", "########", "########", "########",
+     "dramscope_fret.crt", "pass_obs",     "LTRED", "########", "########", "########",
      {"errors": " 0001",
       "bits":  " BITS           D5",
       "chips": " 250407         U11"}),
     # ⚠ THE SAFETY RULE. All eight bits wrong must name NO chip at all.
     ("all 8 bits wrong -- must REFUSE to name a chip",
-     "dramscope_fall.crt", "halt",     "LTRED", "########", "########", "########",
+     "dramscope_fall.crt", "pass_obs",     "LTRED", "########", "########", "########",
      {"bits":  " BITS   D7  D6  D5  D4  D3  D2  D1  D0",
       "chips": " ALL 8 BITS - NOT ONE CHIP. CHECK PLA.",
       "caveat": " SOLID=FULL *=9N +=PROBED .=NONE"}),
@@ -180,6 +180,13 @@ def main() -> int:
         scr, _col, border, wrk = run(BUILD / cart, halt_address(stem, sym))
         got = {"border": BORDER.get(border, f"colour {border}")}
         want = {"border": want_border}
+        # ⚠ BURN-IN GUARD. pass_end fires after exactly one complete pass, so
+        # the counter must read 0001 there. A zero means the loop never
+        # completed; anything higher means the breakpoint is in the wrong place
+        # and the harness is reading a later pass than it thinks.
+        if want_db is not None:
+            got["passes"] = text(scr, 19, PAN - 1, PAN + 5)
+            want["passes"] = " 0001"
         # ⚠ LIVENESS GUARD. w_tick counts pages processed and drives both the
         # spinner and the border pulse. The final phase text blanks the spinner
         # cell, so the screen cannot prove it ran -- but a zero tick count

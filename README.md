@@ -84,6 +84,7 @@ The two projects stay separate. This one has no dependency on that board and nev
 | **P5** topographical row/column patterns — physical adjacency | ✅ ~34 s |
 | **P6** zero page and the stack — 9n, registers-only | ✅ |
 | **P7** retention — write, dwell 12 s, verify | ✅ |
+| **Burn-in** — cycles continuously, counts passes, accumulates faults | ✅ |
 | **P8–P9** disturb, colour RAM | ⬜ |
 | **Chip naming** from the failing-bit mask, Assy 250407 | ✅ |
 | Classification rules beyond chip naming (stride, region, mux pairing) | ⬜ |
@@ -112,6 +113,12 @@ exercise.
 It is an **EasyFlash cartridge** and boots in Ultimax, so it takes the reset vector straight
 from the cartridge and runs with no KERNAL, no stack and no zero page required. A machine
 whose low memory is dead can still be tested — which is the machine most in need of it.
+
+**It runs as a burn-in.** One pass takes about 80 seconds; when it finishes it counts the
+pass and starts again, and keeps going until the machine is reset. Faults are **cumulative**
+— a red cell stays red, the bad-byte count only grows, and once anything has failed the
+border pulses red instead of grey for the rest of the run. That is the point: the chip that
+fails once an hour is invisible to a single pass, and it is the one people actually chase.
 
 **It is visibly alive while it works.** A full run is about a minute, so a spinner turns
 beside the phase name and the border pulses between the phase colour and dark grey, a
