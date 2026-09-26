@@ -53,6 +53,13 @@ mk '-DINJECT_RET=1  -DINJ_PG=$70 -DINJ_OFF=$23 -DINJ_MASK=$20' dramscope_fret "D
 mk '-DINJECT_COL=1  -DINJ_PG=$d9 -DINJ_OFF=$44 -DINJ_MASK=$02' dramscope_fcol "DS FAULT COLRAM"
 mk '-DINJECT_ONCE=1 -DINJ_PG=$40 -DINJ_OFF=$37 -DINJ_MASK=$01 -DINJ_FIRSTPASS=1' dramscope_fonce "DS FAULT TRANSIENT"
 
+# ⚠ The two P0a verdicts. INJECT_P0A alone = scratch bad but memory fitted, so
+# the sweep must find RAM and report a STEADY red. Adding INJECT_NORAM also
+# breaks the sweep, so nothing responds anywhere and it must report a FLASHING
+# red. One flag apart, and they must not give the same answer.
+mk '-DINJECT_P0A=1'                  dramscope_fscr  "DS FAULT SCRATCH"
+mk '-DINJECT_P0A=1 -DINJECT_NORAM=1' dramscope_fnor  "DS FAULT NO RAM"
+
 # --- gate G1 probe: EasyFlash $DE02 mode switching on real hardware ---------
 acme -l build/g1.labels src/g1probe_roml.asm
 acme src/g1probe_romh.asm

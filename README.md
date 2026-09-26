@@ -226,10 +226,27 @@ beside the phase name and the border pulses between the phase colour and dark gr
 couple of times a second. ⚠ **A static border once testing has begun means hung** — that is
 now the fault report, not an ambiguity.
 
-Border colours report even when the display cannot: white = has control, red = zero-page
-scratch dead, purple = screen page dead, **orange = this device ignores `$DE02` and cannot
-leave Ultimax**, blue = `$C000` dead, green = clean, light red = fault found. A black border
-means the cartridge never got control at all.
+Border colours report even when the display cannot: white = has control, **red = the zero-page
+scratch will not hold a value but RAM is fitted**, **slowly flashing red = nothing in
+`$0000–$0FFF` responds at all, so no RAM is fitted (or the PLA is not selecting it)**, purple =
+screen page dead, **orange = this device ignores `$DE02` and cannot leave Ultimax**, blue =
+`$C000` dead, green = clean, light red = fault found. A black border means the cartridge never
+got control at all.
+
+⚠ **Steady red and flashing red are different repairs**, which is why they are different
+signals. Both used to be steady red, sending someone to hunt for a faulty chip on a machine
+whose sockets were empty. After `P0a` fails, sixteen unrolled probes — one per page of
+`$0000–$0FFF`, at offset `$80` so `$0000`/`$0001` are never written, **registers only and no
+pointer, because zero page has just failed by definition** — ask whether *anything* holds a
+value. Something does → steady red. Nothing does → flashing red.
+
+The flash is a slow alternation rather than a new colour, because every steady colour is
+already spoken for and two of them double as running-phase colours. ⚠ **It is timed from the
+raster, not from the CIA chain the running pulse uses** — the engine sets those timers up and
+on this machine the engine never runs. Measured at **850,000–900,000 PAL cycles per interval**
+by bracketing four intervals in emulated cycles, i.e. 0.86–0.91 s, so **0.55–0.58 Hz** against
+the 3 flashes/second limit in WCAG 2.3.1 — a ≥5.2× margin, wider than the running pulse's 3.2×
+on purpose, because `DEN=0` makes this fill the whole screen rather than just the border.
 
 ## Credits
 

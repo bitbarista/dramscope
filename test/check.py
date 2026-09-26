@@ -169,6 +169,35 @@ def errors_field(scr):
     return text(scr, 0, ERR_C0, ERR_C1)
 
 
+def vice_border(stem: str, sym: str, resumes: int = 0, limit: int | None = None):
+    """Break at `sym` after `resumes` continues; return the border colour name,
+    or None if that point was never reached.
+
+    ⚠ A TIMEOUT IS A RESULT HERE, NOT A CRASH. When the regression this guards
+    against is present -- the no-RAM verdict folded back into the steady one --
+    the flash loop is never entered, the breakpoint is never hit and VICE runs
+    until it is killed. Letting TimeoutExpired escape turns a finding into a
+    traceback, and a traceback is not a report. Caught, it becomes None, which
+    mismatches and prints like any other failure."""
+    (BUILD / "mon.txt").write_text(
+        "x\n" * resumes +
+        'bank io\nsave "build/vic.bin" 0 d020 d02f\nquit\n')
+    (BUILD / "vic.bin").unlink(missing_ok=True)
+    cmd = ["x64sc", "-console", "-warp"]
+    if limit is not None:
+        cmd += ["-limitcycles", str(limit)]
+    cmd += ["-initbreak", halt_address(stem, sym),
+            "-moncommands", "build/mon.txt",
+            "-cartcrt", str(BUILD / f"{stem}.crt")]
+    try:
+        subprocess.run(cmd, cwd=ROOT, timeout=400, check=False,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        return None
+    f = BUILD / "vic.bin"
+    return BORDER.get(f.read_bytes()[2] & 0x0F) if f.exists() else None
+
+
 def cl(*bad):
     """⚠ The expected checklist. Naming WHICH phase must fail is far stronger
     than asserting that something did: it proves each mutation is caught by
@@ -185,7 +214,7 @@ def cell(scr: bytes, page: int) -> str:
 
 def maprow(scr: bytes, row: int) -> str:
     return text(scr, MAP_ROW + row, MAP_COL, MAP_COL + 16)
-BORDER = {1: "WHITE", 2: "RED", 3: "CYAN", 4: "PURPLE", 5: "GREEN",
+BORDER = {0: "BLACK", 1: "WHITE", 2: "RED", 3: "CYAN", 4: "PURPLE", 5: "GREEN",
           6: "BLUE", 7: "YELLOW", 8: "ORANGE", 10: "LTRED"}
 
 # name, cartridge, halt symbol, border, data lane, addr-hi, addr-lo
@@ -303,6 +332,12 @@ CASES = [
       "caveat": " RUNS UNTIL YOU RESET."}),
     ("device ignores $DE02 -- must report ORANGE, not hang",
      "dramscope_fef.crt",  "rom_halt", "ORANGE", None, None, None, None),
+    # ⚠ The scratch bytes are bad but memory IS fitted, so the sweep of
+    # $0000-$0FFF must FIND RAM and hold a STEADY red. If the sweep ever went
+    # the other way this would flash instead, and the user would be told to
+    # check empty sockets on a machine whose sockets are full.
+    ("bad scratch byte, memory fitted -- STEADY red",
+     "dramscope_fscr.crt", "rom_halt", "RED", None, None, None, None),
 ]
 
 
@@ -422,6 +457,41 @@ def main() -> int:
     # checklist that forgets. This one fails once, in pass 1, and never again
     # -- which is the exact fault a burn-in exists for, and the case where the
     # status was being quietly overwritten with OK.
+    # ⚠⚠ THE TWO P0a VERDICTS MUST NOT BE THE SAME ANSWER.
+    # "The scratch will not hold a value" means either a faulty chip or no RAM
+    # fitted at all, and those are different jobs for whoever is holding the
+    # board. The steady case is a CASES entry above; this is the flashing one,
+    # which no single sample can verify -- a sample of a flashing border looks
+    # exactly like a steady one. So it is sampled once per interval and the
+    # samples must ALTERNATE.
+    print("  nothing responds anywhere -- red must FLASH, not sit steady")
+    stem = "dramscope_fnor"
+    seen = [vice_border(stem, "nr_toggle", resumes=i) for i in range(4)]
+    want = ["RED", "BLACK", "RED", "BLACK"]
+    ok = seen == want
+    print(f"     intervals      {seen}"
+          f"{'' if ok else f'   <-- *** wanted {want}'}")
+    if not ok:
+        failures += 1
+
+    # ⚠ THE RATE IS A SAFETY CLAIM, SO IT IS MEASURED, NOT ASSERTED. Four
+    # intervals are bracketed in emulated cycles: they must take MORE than
+    # 3.4 M and LESS than 3.6 M, i.e. 850-900 k cycles each, i.e. 0.86-0.91 s
+    # at the PAL phi2 of 985,248 Hz. A full on/off cycle is therefore 0.55-0.58
+    # Hz against the three-flashes-per-second limit in WCAG 2.3.1 -- a 5.2x
+    # margin or better, and it matters here because DEN=0 makes this fill the
+    # whole screen rather than just the border.
+    print("     flash rate -- 4 intervals must fall between 3.4 M and 3.6 M cycles")
+    for limit, want_reach in ((3_400_000, False), (3_600_000, True)):
+        got_reach = vice_border(stem, "nr_toggle", resumes=3,
+                                limit=limit) is not None
+        ok = got_reach == want_reach
+        print(f"       {limit:>9,} cycles  "
+              f"{'reached' if got_reach else 'not reached':12s}"
+              f"{'' if ok else '   <-- *** too ' + ('fast' if got_reach else 'slow')}")
+        if not ok:
+            failures += 1
+
     print("  transient fault -- must still be X at the end of pass 2")
     stem = "dramscope_fonce"
     for label, resumes, want_pass, want_cl in (

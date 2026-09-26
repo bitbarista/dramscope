@@ -16,9 +16,17 @@ so it needs NO WORKING KERNAL and NO WORKING RAM to start -- not even the
 stack page. A machine too broken to reach BASIC can still be tested, which is
 the machine most worth testing.
 
-Tested with every DRAM out of its sockets (2026-09-27): it starts and puts up
-a SOLID RED SCREEN, which is its way of saying low memory does not respond.
-Red comes from exactly one place in the program, so it means nothing else.
+Tested with every DRAM out of its sockets (2026-09-27): it starts and reports
+that low memory does not respond. ⚠ AND IT NOW TELLS YOU WHICH KIND:
+
+  RED, STEADY        low memory will not hold a value, but something else in
+                     $0000-$0FFF does. So RAM IS FITTED and a chip is faulty.
+  RED, FLASHING      nothing anywhere in $0000-$0FFF holds a value. NO RAM
+  slowly on and off  FITTED, or the PLA is not selecting it. There is no chip
+                     to find -- check the sockets are populated first.
+
+Before this, both cases showed the same steady red, which sent people hunting
+for a faulty chip on a machine that had none in it.
 
 ⚠ BUT THE CARTRIDGE HAS TO BE MAPPED WITHOUT A MENU.
 
@@ -73,10 +81,12 @@ BORDER COLOURS
 Before the test proper, the border reports faults the display cannot:
 
   white    the cartridge has control
-  red      FATAL: low memory will not hold a value. Either the zero-page
-           scratch bytes are bad, or NO RAM IS FITTED AT ALL -- this is the
-           screen you get with the DRAMs out. ⚠ It cannot yet tell those two
-           apart, so check the sockets are populated before suspecting a chip
+  red      FATAL: the scratch bytes $F5-$FE will not hold a value, but
+           something else in $0000-$0FFF does -- RAM is fitted, a chip is bad
+  red, flashing slowly on and off
+           FATAL: nothing in $0000-$0FFF holds a value at all. No RAM fitted,
+           or the PLA is not selecting it. ⚠ CHECK THE SOCKETS ARE POPULATED
+           before suspecting a chip -- there may be no chip to suspect
   purple   FATAL: the screen page is unusable
   orange   FATAL: this device ignores $DE02 and cannot leave Ultimax
   blue     FATAL: $C000-$CFFF is unusable

@@ -39,7 +39,12 @@
 ; BORDER CODES -- the display needs working RAM, the border does not.
 ;
 ;   white    the cartridge has control    (set by the FIRST instruction)
-;   red      FATAL: zero-page scratch $F9-$FE unusable
+;   red      FATAL: the zero-page scratch $F5-$FE will not hold a value, but
+;            SOMETHING in $0000-$0FFF does -- so memory is fitted and a chip
+;            is faulty
+;   red, slowly flashing on and off
+;            FATAL: NOTHING in $0000-$0FFF holds a value. No RAM fitted, or
+;            CASRAM/the PLA is not selecting it. There is no chip to find
 ;   purple   FATAL: screen home page $0400-$07FF unusable
 ;   orange   FATAL: $DE02 did nothing -- this device cannot leave Ultimax
 ;   blue     FATAL: $C000-$CFFF unusable, the engine has nowhere to live
@@ -60,7 +65,8 @@
         !ifndef INJECT_ALL { !ifndef INJECT_LR { !ifndef INJECT_TOPO {
         !ifndef INJECT_ZP { !ifndef INJECT_HV { !ifndef INJECT_RET {
         !ifndef INJECT_COL { !ifndef INJECT_ONCE {
-        !to "build/dramscope_roml.bin", plain } } } } } } } } } } } }
+        !ifndef INJECT_P0A { !ifndef INJECT_NORAM {
+        !to "build/dramscope_roml.bin", plain } } } } } } } } } } } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -248,6 +254,11 @@ entry:
 p0a_l:
         lda #$55
         sta mptr,x
+        ; ⚠ THE MUTATION CORRUPTS A, NOT THE MEMORY. Skipping the store would
+        ; leave the comparison reading whatever VICE happened to power up with,
+        ; and if that were $55 the probe would PASS and the mutation would test
+        ; nothing. Flipping A makes the mismatch certain whatever the RAM holds.
+!ifdef INJECT_P0A { eor #$ff }
         cmp mptr,x
         bne p0a_dead
         lda #$aa
@@ -263,10 +274,119 @@ p0a_l:
         bpl p0a_l
         jmp p0b
 
+; ---------------------------------------------------------------------------
+; ⚠ P0a FAILED -- AND "the scratch will not hold a value" HAS TWO CAUSES THAT
+; CALL FOR COMPLETELY DIFFERENT WORK:
+;
+;   * a bad byte in the scratch range  -> memory IS fitted, one chip is faulty
+;   * nothing fitted at all, or CASRAM/PLA not selecting -> there is no chip
+;     to find, and the sockets or the PLA are the place to look
+;
+; Both used to report the same steady red screen, which sends someone hunting
+; for a faulty chip on a machine that has none in it. ⚠ Drawing the distinction
+; only became worth doing once the no-RAM case was measured on hardware
+; (SPEC.md G6): with every DRAM out, a Kung Fu Flash boots the cartridge and
+; P0a correctly refuses -- so this path is genuinely reached by real machines.
+;
+; ⚠ REGISTERS ONLY, AND NO POINTER, WHICH IS WHY IT IS UNROLLED. The scratch
+; has just failed, so zero page is unusable BY DEFINITION -- that rules out
+; (mptr),y and therefore any loop over pages. Sixteen unrolled probes is the
+; price of asking the question; ROML has ~2.5 KB spare while the engine has 16.
+;
+; ⚠ OFFSET $80 IN EVERY PAGE, AND NEVER $0000 OR $0001. Those two are the CPU's
+; data-direction register and banking latch, not RAM. Writing a test pattern to
+; them would change the memory map underneath this very code.
+;
+; ⚠ IN ULTIMAX $0000-$0FFF IS THE ONLY RAM THERE IS. $1000-$7FFF is unmapped,
+; so there is nowhere else to ask. That is a limit of the question, not a gap:
+; on both long and short boards every chip serves every page, so a machine with
+; memory fitted answers on all sixteen and a machine without answers on none.
+; ---------------------------------------------------------------------------
+!macro PROBEPAGE .a {
+        lda #$55
+        sta .a
+!ifdef INJECT_NORAM { eor #$ff }
+        cmp .a
+        bne .no
+        lda #$aa                ; ⚠ two complementary patterns, so a data line
+        sta .a                  ; stuck high or low cannot fake a response
+!ifdef INJECT_NORAM { eor #$ff }
+        cmp .a
+        bne .no
+        jmp p0a_scratch         ; this page holds what it was given
+.no:
+}
+
 p0a_dead:
+        +PROBEPAGE $0080
+        +PROBEPAGE $0180
+        +PROBEPAGE $0280
+        +PROBEPAGE $0380
+        +PROBEPAGE $0480
+        +PROBEPAGE $0580
+        +PROBEPAGE $0680
+        +PROBEPAGE $0780
+        +PROBEPAGE $0880
+        +PROBEPAGE $0980
+        +PROBEPAGE $0a80
+        +PROBEPAGE $0b80
+        +PROBEPAGE $0c80
+        +PROBEPAGE $0d80
+        +PROBEPAGE $0e80
+        +PROBEPAGE $0f80
+        jmp p0a_noram           ; nothing, anywhere, in the only RAM we can see
+
+; ---- verdict: memory IS fitted, but the scratch bytes are bad --------------
+p0a_scratch:
         lda #C_RED
         sta BORDER
         jmp rom_halt
+
+; ---------------------------------------------------------------------------
+; ---- verdict: nothing responds anywhere -----------------------------------
+;
+; ⚠ A SLOW ALTERNATION, NOT A NEW COLOUR. Every steady colour is already spoken
+; for and two of them double as running-phase colours, so another one would add
+; an ambiguity rather than remove one. Red going on and off cannot be mistaken
+; for any steady colour, and cannot be mistaken for a steady black "never got
+; control" either, because it changes.
+;
+; ⚠ THE FLASH-RATE ARGUMENT IS MADE AGAIN HERE, BECAUSE THIS ONE FILLS THE
+; SCREEN. DEN is 0, so there is no display and the whole frame is border --
+; exactly the large-area case WCAG 2.3.1 is strictest about. 45 frames per
+; colour is 0.9 s on PAL and 0.75 s on NTSC, so a full cycle is 1.8 s / 1.5 s:
+; 0.56 Hz PAL, 0.67 Hz NTSC against the three-per-second limit. That is a 5.4x
+; margin, wider than the 3.2x the running pulse has, and wider on purpose
+; because of the area.
+;
+; ⚠ TIMED FROM THE RASTER, NOT FROM A CYCLE COUNT. The CIA timer chain the
+; running pulse uses is set up by the engine, and on this machine the engine
+; has not run and never will. Raster line $80 exists on PAL and on NTSC, and
+; this is the same frame-counting idiom p7 uses -- one rule for the flash rate,
+; not two.
+; ---------------------------------------------------------------------------
+NR_FRAMES = 45
+
+p0a_noram:
+        ldy #C_RED
+nr_flip:
+        sty BORDER
+        ldx #NR_FRAMES
+nr_frame:
+        lda RASTER              ; wait for the raster to reach line $80
+        cmp #$80
+        bne nr_frame
+nr_left:
+        lda RASTER              ; and then to leave it -- that is one frame
+        cmp #$80
+        beq nr_left
+        dex
+        bne nr_frame
+nr_toggle:                      ; ⚠ THE HARNESS BREAKS HERE. BORDER still holds
+        tya                     ; the colour just shown for a whole interval, so
+        eor #C_RED              ; one break per interval samples the alternation.
+        tay                     ; ⚠ EOR toggles RED<->BLACK only because
+        jmp nr_flip             ; C_BLACK is 0; this is not a general toggle.
 
 ; ---------------------------------------------------------------------------
 ; P0b -- prove the screen home page $0400-$07FF. REGISTERS ONLY.

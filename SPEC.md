@@ -281,14 +281,67 @@ of measuring one.
 that fails every byte. The no-RAM case above is the nearest evidence and it is encouraging —
 the fatal path works — but it is not the same machine.
 
-**An improvement this makes possible, not yet built.** A steady red screen currently means
-"the zero-page scratch will not hold a value", which covers both *no RAM fitted* and *one bad
-byte in the scratch* — two different repairs. P0a could tell them apart by probing a handful of
-scattered addresses across `$0000–$0FFF` after the first failure: if **nothing anywhere**
-responds, the verdict is "no RAM fitted, or CASRAM/PLA dead" rather than "zero page bad". A
-slow alternation of the border at the established epilepsy-safe rate would distinguish the two
-without spending another colour. §8's fault table already lists "no RAM fitted" as a
-diagnosis; this is what would let the boot path actually reach it.
+### ✅ G6a — the two P0a verdicts, built 2026-09-27
+
+A steady red screen used to mean "the zero-page scratch will not hold a value", which covers
+both *no RAM fitted* and *one bad byte in the scratch* — **two different repairs**, and the
+first of them sends someone hunting for a faulty chip on a machine whose sockets are empty.
+They are now separated:
+
+| Signal | Meaning | Repair |
+|---|---|---|
+| **Red, steady** | the scratch `$F5–$FE` will not hold a value, but something else in `$0000–$0FFF` does | RAM **is** fitted; a chip is faulty |
+| **Red, flashing slowly on and off** | nothing in `$0000–$0FFF` holds a value at all | **No RAM fitted**, or the PLA is not selecting it — there is no chip to find |
+
+**How the question is asked.** After `P0a` fails, sixteen probes — one per page of
+`$0000–$0FFF` — write `$55`, read it back, write `$AA`, read it back, and jump to the steady
+verdict the moment any page returns both. Two complementary patterns, so a data line stuck high
+or low cannot fake a response.
+
+⚠ **Registers only, no pointer, and therefore unrolled.** The scratch has just failed, so zero
+page is unusable *by definition* — which rules out `(mptr),y` and with it any loop over pages.
+Sixteen unrolled probes is the price of asking the question at all; ROML has ~2.5 KB spare while
+the engine has 16 bytes, so it is the right half of the cartridge to spend.
+
+⚠ **Offset `$80` in every page, and never `$0000` or `$0001`** — those are the CPU's
+data-direction register and banking latch, not RAM, and writing a test pattern to them would
+change the memory map underneath the probe itself.
+
+⚠ **In Ultimax `$0000–$0FFF` is the only RAM there is**, so there is nowhere else to ask. That
+is a limit of the question rather than a gap in it: on both long and short boards every chip
+serves every page, so a machine with memory fitted answers on all sixteen and a machine without
+answers on none.
+
+**Why a slow alternation and not a new colour.** Every steady colour is already spoken for and
+two of them double as running-phase colours, so another one would add an ambiguity instead of
+removing one. Red going on and off cannot be confused with any steady colour, nor with a steady
+black "never got control", because it changes.
+
+⚠ **Timed from the raster, not from the CIA chain the running pulse uses** — the engine sets
+those timers up, and on this machine the engine has not run and never will. It is the same
+frame-counting idiom `P7` uses: one rule for the flash rate, not two.
+
+⚠ **THE RATE IS A SAFETY CLAIM, SO IT IS MEASURED.** `test/check.py` brackets four intervals in
+emulated cycles: more than 3.4 M and less than 3.6 M, i.e. **850,000–900,000 cycles each**, i.e.
+0.86–0.91 s at the PAL phi2 of 985,248 Hz. A full on/off cycle is therefore **0.55–0.58 Hz**
+against the three-flashes-per-second limit in WCAG 2.3.1 — a **≥5.2× margin**, wider than the
+running pulse's 3.2× *on purpose*, because `DEN=0` makes this fill the whole screen rather than
+just the border, which is the large-area case the standard is strictest about.
+
+**Both directions are tested, and one flag apart.** `dramscope_fscr` defines `INJECT_P0A`, which
+flips `A` after the scratch store so the mismatch is certain whatever the RAM holds — the sweep
+then finds healthy RAM and must report **steady** red. `dramscope_fnor` adds `INJECT_NORAM`,
+which breaks the sweep as well, so nothing responds and it must report **flashing** red, sampled
+once per interval and required to alternate. ⚠ **The mutation corrupts `A`, not the memory:**
+skipping the store would leave the comparison reading whatever VICE powered up with, and if that
+were `$55` the probe would pass and the mutation would test nothing.
+
+⚠ **A flashing border cannot be verified by one sample** — a sample of a flashing border looks
+exactly like a steady one. It is sampled once per interval, four times, and the samples must
+alternate. And when the verdicts were deliberately folded back together to prove the check can
+fail, the breakpoint became unreachable and VICE ran until killed; `TimeoutExpired` was escaping
+as a traceback rather than a reported failure, so a timeout is now caught and returned as `None`,
+which mismatches and prints like any other finding. **A traceback is not a report.**
 
 ---
 
@@ -494,7 +547,7 @@ Rules, evaluated in order — first match wins:
 | P1 fails | **Data line fault.** Name the bits and whether stuck, shorted or coupled |
 | P2 fails, implicating both members of an `An`/`An+8` pair | **Address multiplexer or series pack** — U13/U25, RP1/RP2 |
 | P2 fails on a single line | **Address line fault.** Name the line |
-| Every bit fails at every address | **Not a RAM chip.** Suspect PLA/CASRAM, or no RAM fitted. ⚠ A machine with genuinely **no** RAM fitted never reaches this verdict — it halts at P0a with a red screen instead, which is correct but coarser. See **G6** |
+| Every bit fails at every address | **Not a RAM chip.** Suspect PLA/CASRAM, or no RAM fitted. ⚠ A machine with genuinely **no** RAM fitted never reaches *this* verdict — it halts at P0a long before, and since **G6a** it says so specifically, with a slowly flashing red screen |
 | One bit lane fails across ≥2 distinct regions | **Single DRAM chip.** Name it from the board profile |
 | Failures at a regular address stride | **Decoder / aliasing.** Name the implicated address bit |
 | Failures confined to one page or small region | **Localised cell fault.** Report addresses |
@@ -658,6 +711,7 @@ synthetic failure set that triggers it and a neighbouring set that does not.
 | ~~**G3**~~ | ⚠ **ANSWERED: no, not provably.** March LR therefore uses fixed patterns. See `PROVENANCE.md`. | — | [M] |
 | **G4** | In Ultimax, do VIC fetches in `$3000–$3FFF` come from cartridge ROMH? | Screen home selection | [A] |
 | ~~**G6**~~ | ✅ **ANSWERED on hardware, 2026-09-27: it starts and reports with every DRAM removed** — solid red from `p0a_dead` on Kung Fu Flash, which boots the remembered cartridge with no menu. The Ultimate II+ needs its menu, and that menu needs RAM. | — | [M] |
+| ~~**G6a**~~ | ✅ **BUILT 2026-09-27** — red now distinguishes "scratch bad, RAM fitted" (steady) from "nothing responds anywhere, no RAM fitted" (slow flash). Both directions tested, flash rate measured at 0.55–0.58 Hz. | — | [M] |
 | **G5** | Bit → chip designator tables per assembly, from schematics | Chip naming in §5 | [A] |
 
 **G1 first.** It is cheap to test and it decides whether this is one binary or two.
