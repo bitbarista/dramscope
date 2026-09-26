@@ -158,7 +158,10 @@ started, a turning marker while it runs, `OK` or `X` when it finishes — so the
 **It runs as a burn-in.** One pass takes about 80 seconds; when it finishes it counts the
 pass and starts again, and keeps going until the machine is reset. Faults are **cumulative**
 — a red cell stays red, **a failed phase keeps its `X`**, the bad-byte count only grows, and
-once anything has failed the border pulses red instead of grey for the rest of the run. That is the point: the chip that
+once anything has failed the border pulses red instead of grey for the rest of the run.
+⚠ **Passed phases do reset to `..` each pass**, so the column always shows progress through
+the *current* one; only failures persist. Those are separable properties and the display
+needs both. That is the point: the chip that
 fails once an hour is invisible to a single pass, and it is the one people actually chase.
 
 ⚠ **On flashing and photosensitivity.** The border pulse is deliberately slow and its rate

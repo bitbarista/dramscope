@@ -374,6 +374,30 @@ def main() -> int:
         if want_db is not None:
             print(f"     verdict  {text(scr, V_ROW)!r}")
             print(f"              {text(scr, V_ROW + 1)!r}")
+    # ⚠ MID-PASS, THE COLUMN MUST SHOW PROGRESS THROUGH *THIS* PASS.
+    # Passed phases reset to '..' at the start of each pass; only failures
+    # persist. Without this the second pass onwards is a wall of OK left over
+    # from the first, with nothing to watch. Checked part-way through pass 2,
+    # where P1-P3 have run and P4 onwards have not.
+    print("  mid-pass 2 -- passed phases reset, progress visible")
+    (BUILD / "mon.txt").write_text(
+        'x\nbank ram\nsave "build/screen.bin" 0 0400 07ff\nquit\n')
+    subprocess.run(
+        ["x64sc", "-console", "-warp", "-initbreak", halt_address("dramscope", "p4"),
+         "-moncommands", "build/mon.txt",
+         "-cartcrt", str(BUILD / "dramscope.crt")],
+        cwd=ROOT, timeout=400,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    scr = (BUILD / "screen.bin").read_bytes()[2:]
+    mid = "".join(text(scr, r, STAT, STAT + 2).strip() or ".."
+                  for r in (3, 6, 11, 12, 13, 14, 15, 16, 17))
+    want_mid = "OK" * 3 + ".." * 6
+    ok = mid == want_mid
+    print(f"     at P4          checklist={mid}"
+          f"{'' if ok else f'   <-- *** wanted {want_mid}'}")
+    if not ok:
+        failures += 1
+
     # ⚠⚠ A TRANSIENT FAULT MUST SURVIVE THE NEXT CLEAN PASS.
     # Every other mutation fires on every pass, so none of them can catch a
     # checklist that forgets. This one fails once, in pass 1, and never again

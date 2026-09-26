@@ -130,6 +130,13 @@ unbounded.
 The spinner runs at 7.5 changes/s but occupies **one character cell — 0.1 % of the display**,
 far below the 25 %-of-field threshold, and is a shape change rather than a luminance flash.
 
+**P10. Showing progress and remembering faults are different jobs.** ⚠ Asked whether the
+phase statuses should reset between passes, the first answer here was "no, because the
+burn-in must not forget anything" — which conflated two separable properties. Passed phases
+**do** reset to `..` at the start of each pass, so the column shows progress through the
+*current* pass; failures **do not**, ever. A wall of `OK` left over from pass 1 gives a
+watcher nothing, and `..` truthfully means "not run yet, this pass".
+
 **P9. Nothing the burn-in has learned may be forgotten.** The map's red cells, the bad-byte
 count, the failing-bit mask, the border pulse **and the phase checklist** all persist for the
 life of the run. ⚠ This has now been got wrong twice in the same way — once on the map

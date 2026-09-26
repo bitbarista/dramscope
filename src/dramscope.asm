@@ -2005,6 +2005,37 @@ ph_setfail:
         sta w_phfail,x
         rts
 
+; reset_checklist -- run at the start of every burn-in pass.
+;
+; ⚠ OK GOES BACK TO '..', X DOES NOT. Carl asked whether the statuses should
+; reset between passes and the first answer here was "no", on the grounds that
+; the burn-in must not forget anything. That conflated two separable things.
+; NOT FORGETTING A FAILURE and NOT RESETTING A PASS are different: a phase
+; that has ever failed keeps its X for the life of the run, and everything
+; else goes back to '..' so the column shows progress through the CURRENT
+; pass. Otherwise pass 2 onwards is a wall of OK from pass 1 with nothing to
+; watch, and '..' truthfully means "not run YET, this pass".
+reset_checklist:
+        ldx #0
+rc_l:   stx w_tmp
+        stx w_phidx
+        jsr ph_isfail                   ; ⚠ ever failed? then leave it alone
+        bne rc_keep
+        jsr ph_cell
+        ldy #1
+rc_d:   lda #CH_DOT
+        sta (sptr),y
+        lda #C_DKGREY
+        sta (cptr),y
+        dey
+        bpl rc_d
+rc_keep:
+        ldx w_tmp
+        inx
+        cpx #NPHASE
+        bne rc_l
+        rts
+
 ; draw_phases -- the checklist itself, every phase named and marked not-run
 draw_phases:
         ldx #0
@@ -2178,6 +2209,7 @@ pass_end:
         inc w_passhi
 pe_1:   jsr draw_passes
 pass_obs:
+        jsr reset_checklist
         ; ⚠ THE HARNESS BREAKPOINTS HERE, NOT AT pass_end -- the counter has
         ; to be on screen before the screen is read, and pass_end's first
         ; instruction is the increment.
