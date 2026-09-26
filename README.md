@@ -191,8 +191,9 @@ one is traced in [`PROVENANCE.md`](PROVENANCE.md).
 
 **60,414 of 65,536 bytes.** The map distinguishes the depths rather than averaging them:
 
-**65,534 of 65,536 — every byte of RAM there is.** The map distinguishes depth rather than
-averaging it:
+**65,534 of 65,536 — every byte of RAM there is**, and the verdict line prints the split
+rather than rounding it to a claim: `59,648 FULL + 5,886 AT 9N = 65,534.` The map
+distinguishes depth rather than averaging it:
 
 | Mark | Meaning | Where |
 |---|---|---|

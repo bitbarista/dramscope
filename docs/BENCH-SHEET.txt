@@ -112,7 +112,13 @@ a 4164.
   .       not tested. Only $0000 and $0001, which are not RAM -- they are
           the CPU's data-direction register and banking latch
 
-Everything else is covered: 65,534 of 65,536 bytes.
+Everything else is covered, and the verdict line says so in numbers
+rather than in words:
+
+  59,648 FULL + 5,886 AT 9N = 65,534.
+
+65,534 of 65,536 bytes. The other two are $0000 and $0001, which are not
+RAM -- they are the CPU's data-direction register and banking latch.
 
 
 IF IT FINDS A FAULT

@@ -114,7 +114,7 @@ CASES = [
      "dramscope.crt",      "pass_obs",     "GREEN", "########", "########", "########",
      {"row0": "**#*****########", "rowC": "****************",
       "page40": "#", "errors": " 0000",
-      "bits": " ALL RAM TESTED, 12S RETENTION.", "chips": "",
+      "bits": " 59,648 FULL + 5,886 AT 9N = 65,534.", "chips": "",
       "colram": "OK"}),
     # ⚠ The classifier makes a claim about someone else's hardware. D3 is U10
     # on a 250407 -- schematic 251138 via c64-ice40-ram README §2.2.

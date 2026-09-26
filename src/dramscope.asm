@@ -2550,6 +2550,23 @@ runtab:  !byte $02,$02         ; ⚠ $03 is the workspace -- see WORK
          !byte $d0,$ff
          !byte $00
 
+; ⚠⚠ s_ok2 PRINTS THESE NUMBERS AND CANNOT RECOMPUTE THEM, so they are tied
+; to the table here. The coverage figure was silently lost once already --
+; replaced by the vaguer "all ram tested" while making room to mention the
+; dwell -- and a figure that drifts out of step with the run table would be
+; worse than no figure at all. Change the table, fail the build, fix the
+; string.
+;   full march (P3+P4+P5+P7), pages:   1 + 184 + 48 = 233  -> 59,648 bytes
+;   9n (P6 and the handover),  pages:  2 +   1 +  4 + 16 = 23 -> 5,888
+;                                      less $0000/$0001, which are not RAM
+;   tested: 59,648 + 5,886 = 65,534 of 65,536
+!if ($02-$02+1) + ($bf-$08+1) + ($ff-$d0+1) != 233 {
+        !error "run table changed -- the coverage figure in s_ok2 is now wrong"
+}
+!if ($01-$00+1) + 1 + ($07-$04+1) + ($cf-$c0+1) != 23 {
+        !error "excluded pages changed -- the coverage figure in s_ok2 is wrong"
+}
+
 ; ⚠⚠ ASSEMBLY-TIME GUARDS, BECAUSE THIS WENT WRONG TWICE.
 ; The workspace has moved three times as the engine grew, and both times it
 ; landed inside a marched run the symptom was the same and took a bisect to
@@ -2603,7 +2620,7 @@ s_legend:   !scr "#=full *=9n +=probed .=none", 0
 ; The matching bit labels are generated in draw_diag, not stored.
 chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
 s_ok:       !scr "bus ok, all 16 lines.", 0
-s_ok2:      !scr "all ram tested, 12s retention.", 0
+s_ok2:      !scr "59,648 full + 5,886 at 9n = 65,534.", 0
 s_databad:  !scr "data bus fault - see the d lane.", 0
 s_addrbad:  !scr "address line fault - see the a lanes.", 0
 s_addrbad2: !scr "both of a pair = mux u13/u25 or rp.", 0
@@ -2655,7 +2672,7 @@ hv_entry:
 ;
 ; P6 -- ZERO PAGE AND THE STACK. The 501 bytes nothing else could reach.
 ;
-; ⚠ Carl asked whether 59,904 of 65,536 was a limitation. It was, and this was
+; ⚠ Carl asked whether the coverage shortfall was a limitation. It was, and this was
 ; the part that mattered: every other excluded region gets at least P0b or
 ; P0c's single address-dependent pass and shows as '+', but $0000-$00F4 and
 ; $0100-$01FF had NOTHING run against them. They are also the most heavily
