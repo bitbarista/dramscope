@@ -56,8 +56,8 @@
 ; ⚠ BOTH fault builds pass -o, and an unguarded !to here would warn "output
 ; file name already chosen" on every one of them. A build that prints a
 ; warning it is expected to ignore is where a real warning goes to hide.
-!ifndef INJECT_DB { !ifndef INJECT_AB { !ifndef INJECT_NOEF {
-        !to "build/dramscope_roml.bin", plain } } }
+!ifndef INJECT_DB { !ifndef INJECT_AB { !ifndef INJECT_NOEF { !ifndef INJECT_MEM {
+        !to "build/dramscope_roml.bin", plain } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -75,6 +75,7 @@ BANK_RAM = $30                  ; ⚠ ALL RAM: no ROMs, no I/O, no cartridge
 SCREEN   = $0400
 COLRAM   = $d800
 ENGINE   = $c000
+ENG_PAGES = 12                  ; ⚠ pages copied; the march must skip them
 
 ; ------------------------------------------------------------------ colours
 C_BLACK  = 0
@@ -96,6 +97,7 @@ CH_DOT   = $2e                  ; .  untested
 CH_DASH  = $2d                  ; -  separator
 CH_FULL  = $a0                  ;    pass -- inverse space, a solid cell
 CH_X     = $18                  ; X  fail
+CH_PLUS  = $2b                  ; +  probed, but NOT marched
 CH_SPACE = $20
 
 ; ---------------------------------------------------- display geometry
@@ -111,9 +113,13 @@ V_ROW    = 21
 ; ---------------------------------------------------- zero-page scratch
 ; ⚠ SIX BYTES, PROVEN BEFORE ANYTHING USES THEM (P0a). An engine that needs a
 ; pointer cannot assume it has one.
+mptr     = $f5                  ; march pointer -- walks the run
+pval     = $f7                  ; P     for this cell
+pinv     = $f8                  ; ~P    for this cell
 strp     = $f9
 sptr     = $fb
 cptr     = $fd
+SEED     = $5a
 
 ; ---------------------------------------------------- workspace RAM
 ; ⚠ LIVES IN THE SCREEN PAGE ON PURPOSE. The matrix is 1000 bytes of a 1024
@@ -130,6 +136,14 @@ w_col    = WORK+6
 w_col2   = WORK+7
 w_label  = WORK+8               ; one mutable character, for map row labels
 w_labelz = WORK+9               ; its zero terminator
+w_endpg  = WORK+10              ; the run being marched
+w_startpg= WORK+11
+w_runidx = WORK+12
+w_bitmask= WORK+13              ; OR of (expected EOR got) -- names the chip
+w_errlo  = WORK+14
+w_errhi  = WORK+15
+w_npg    = WORK+16
+w_lastfp = WORK+17              ; last page already painted red
 
 ; P2's base. ⚠ Every base+2^n must be RAM under BANK_RAM, including
 ; base+$8000 = $8800, which is why the engine had to leave the cartridge.
@@ -158,20 +172,20 @@ entry:
 ; P0a -- prove the six zero-page scratch bytes. REGISTERS ONLY, no pointer.
 ; Zero page is visible in Ultimax, so this needs nothing but the CPU.
 ; ---------------------------------------------------------------------------
-        ldx #5
+        ldx #9                          ; $F5-$FE, ten bytes
 p0a_l:
         lda #$55
-        sta strp,x
-        cmp strp,x
+        sta mptr,x
+        cmp mptr,x
         bne p0a_dead
         lda #$aa
-        sta strp,x
-        cmp strp,x
+        sta mptr,x
+        cmp mptr,x
         bne p0a_dead
         txa                             ; address-dependent, so a byte that
-        eor #$5a                        ; aliases onto its neighbour fails too
-        sta strp,x
-        cmp strp,x
+        eor #SEED                       ; aliases onto its neighbour fails too
+        sta mptr,x
+        cmp mptr,x
         bne p0a_dead
         dex
         bpl p0a_l
@@ -287,91 +301,55 @@ no_switch:
 ; P0c -- prove $C000-$CFFF, the engine's new home. REGISTERS ONLY.
 ; ---------------------------------------------------------------------------
 p0c:
-        ldx #0
-p0c_1:  txa
-        eor #$5a
-        sta ENGINE,x
-        inx
-        bne p0c_1
-        ldx #0
-p0c_1v: txa
-        eor #$5a
-        cmp ENGINE,x
-        bne p0c_bad
-        inx
-        bne p0c_1v
-
-        ldx #0
-p0c_2:  txa
-        eor #$a5
-        sta ENGINE+$100,x
-        inx
-        bne p0c_2
-        ldx #0
-p0c_2v: txa
-        eor #$a5
-        cmp ENGINE+$100,x
-        bne p0c_bad
-        inx
-        bne p0c_2v
-        jmp p0c_cont
-
-; ⚠ A relative branch cannot reach p0c_dead from here -- the eight-page copy
-; loop sits between them. This trampoline sits mid-way so all four verify
-; loops can reach it, two forwards and two backwards.
-p0c_bad:
-        jmp p0c_dead
-
-p0c_cont:
-        ldx #0
-p0c_3:  txa
-        eor #$3c
-        sta ENGINE+$200,x
-        inx
-        bne p0c_3
-        ldx #0
-p0c_3v: txa
-        eor #$3c
-        cmp ENGINE+$200,x
-        bne p0c_bad
-        inx
-        bne p0c_3v
-
-        ldx #0
-p0c_4:  txa
-        eor #$c3
-        sta ENGINE+$300,x
-        inx
-        bne p0c_4
-        ldx #0
-p0c_4v: txa
-        eor #$c3
-        cmp ENGINE+$300,x
-        bne p0c_bad
-        inx
-        bne p0c_4v
+        ; ⚠ P0a has already proven the zero page scratch, so unlike P0a/P0b
+        ; this may use a pointer -- which is why it can cover all sixteen
+        ; pages in a fraction of the code the unrolled version needed.
+        lda #>ENGINE
+        sta mptr+1
+        lda #0
+        sta mptr
+p0c_pg:
+        ldy #0
+p0c_w:  tya
+        eor mptr+1
+        eor #SEED
+        sta (mptr),y
+        iny
+        bne p0c_w
+        ldy #0
+p0c_v:  tya
+        eor mptr+1
+        eor #SEED
+        cmp (mptr),y
+        bne p0c_dead
+        iny
+        bne p0c_v
+        inc mptr+1
+        lda mptr+1
+        cmp #$d0
+        bne p0c_pg
 
         ; --- copy the engine into proven RAM and go
-        ldx #0
-ecopy:
-        lda eng_src,x
-        sta ENGINE,x
-        lda eng_src+$100,x
-        sta ENGINE+$100,x
-        lda eng_src+$200,x
-        sta ENGINE+$200,x
-        lda eng_src+$300,x
-        sta ENGINE+$300,x
-        lda eng_src+$400,x
-        sta ENGINE+$400,x
-        lda eng_src+$500,x
-        sta ENGINE+$500,x
-        lda eng_src+$600,x
-        sta ENGINE+$600,x
-        lda eng_src+$700,x
-        sta ENGINE+$700,x
-        inx
-        bne ecopy
+        lda #<eng_src
+        sta sptr
+        lda #>eng_src
+        sta sptr+1
+        lda #0
+        sta cptr
+        lda #>ENGINE
+        sta cptr+1
+        ldx #ENG_PAGES
+ecopy_pg:
+        ldy #0
+ecopy_b:
+        lda (sptr),y
+        sta (cptr),y
+        iny
+        bne ecopy_b
+        inc sptr+1
+        inc cptr+1
+        dex
+        bne ecopy_pg
         jmp ENGINE
 
 p0c_dead:
@@ -557,6 +535,376 @@ p2_restore:
         ldx #PAN_COL+1
         jsr draw_lane
 
+
+; ---------------------------------------------------------------------------
+; P3 -- March B, 17n, with an ADDRESS-DEPENDENT pattern.
+;
+; van de Goor's March B, five elements, seventeen operations per cell:
+;
+;   M0  (w P)                                 direction irrelevant
+;   M1  ascending  (r P, w ~P, r ~P, w P, r P, w ~P)
+;   M2  ascending  (r ~P, w P, w ~P)
+;   M3  descending (r ~P, w P, w ~P, w P)
+;   M4  descending (r P, w ~P, w P)
+;
+; ⚠ P IS ADDRESS-DEPENDENT: lo EOR hi EOR SEED, not a fixed 0/1. March B needs
+; only two COMPLEMENTARY values, so the substitution preserves the algorithm
+; exactly while adding address-decoder coverage a fixed-pattern March B does
+; not have -- a read from the WRONG address returns the WRONG value. It is the
+; one original piece in this project, carried from the sibling board's own
+; diagnostic with its rationale intact. See PROVENANCE.md.
+;
+; ⚠ THREE REGIONS ARE NOT MARCHED, AND THE MAP LEAVES THEM AS DOTS:
+;     $0000-$01FF   zero page and the stack -- the engine uses both
+;     $0400-$07FF   the screen matrix and this test's own workspace
+;     $C000-$CBFF   the engine itself
+; 4,608 bytes of 65,536, so 60,928 are covered. Reaching the rest needs a
+; second pass with the engine and display relocated, which is a later
+; iteration. ⚠ CLAIMING 64 KB WHILE MARCHING 60,928 IS EXACTLY THE QUIET
+; OVER-CLAIM PROVENANCE.md EXISTS TO PREVENT, so the verdict prints the figure.
+;
+; ⚠ MARCHED PER CONTIGUOUS RUN, not per page, so coupling faults BETWEEN pages
+; within a run are covered. The runs are simply what the exclusions leave.
+;
+; ⚠ THE WHOLE MARCH RUNS WITH $01 = $30 -- all RAM, no ROMs, no I/O, no
+; cartridge. p3_fail does its own bank dance for the one thing that needs I/O.
+; ---------------------------------------------------------------------------
+p3:
+        lda #C_YELLOW
+        sta BORDER
+        lda #<s_p3
+        ldy #>s_p3
+        jsr phase
+        lda #0
+        sta w_bitmask
+        sta w_errlo
+        sta w_errhi
+        sta w_runidx
+        sta w_lastfp                    ; page $00 is never marched, so 0 = none
+
+p3_run:
+        ldx w_runidx
+        lda runtab,x
+        beq p3_done                     ; $00 terminates: no run starts there
+        sta w_startpg
+        lda runtab+1,x
+        sta w_endpg
+        jsr mark_run_testing
+
+        lda #BANK_RAM                   ; ⚠ I/O IS GONE FROM HERE
+        sta CPUPORT
+        jsr m0
+        jsr m1
+        jsr m2
+        jsr m3
+        jsr m4
+        lda #BANK_IO                    ; ⚠ I/O BACK BEFORE ANY DISPLAY WORK
+        sta CPUPORT
+
+        jsr mark_run_done
+        lda w_runidx
+        clc
+        adc #2
+        sta w_runidx
+        jmp p3_run
+
+p3_done:
+        jsr draw_errors
+        jmp verdict
+
+; --- run setup -------------------------------------------------------------
+set_asc:
+        lda w_startpg
+        sta mptr+1
+        lda #0
+        sta mptr
+        jmp calc_npg
+set_desc:
+        lda w_endpg
+        sta mptr+1
+        lda #0
+        sta mptr
+calc_npg:
+        lda w_endpg
+        sec
+        sbc w_startpg
+        clc
+        adc #1
+        sta w_npg                       ; ⚠ a 256-page run wraps this to 0,
+        rts                             ; which the dec-then-test loops below
+                                        ; correctly read as 256.
+nx_asc:
+        inc mptr+1
+        dec w_npg
+        rts                             ; Z set when the run is finished
+nx_desc:
+        dec mptr+1
+        dec w_npg
+        rts
+
+; --- M0  (w P) -------------------------------------------------------------
+m0:     jsr set_asc
+m0_pg:  ldy #0
+m0_c:   tya
+        eor mptr+1
+        eor #SEED
+        sta (mptr),y
+        iny
+        bne m0_c
+        jsr nx_asc
+        bne m0_pg
+        rts
+
+; --- M1  ascending (r P, w ~P, r ~P, w P, r P, w ~P) -----------------------
+m1:     jsr set_asc
+m1_pg:  ldy #0
+m1_c:   tya
+        eor mptr+1
+        eor #SEED
+        sta pval
+        eor #$ff
+        sta pinv
+        lda (mptr),y
+!ifdef INJECT_MEM {                     ; mutation: one stuck bit at $4037
+        cpy #$37
+        bne inj_m_out
+        pha
+        lda mptr+1
+        cmp #$40
+        bne inj_m_pop
+        pla
+        eor #$01
+        jmp inj_m_out
+inj_m_pop:
+        pla
+inj_m_out:
+}
+        cmp pval
+        bne m1_e1
+m1_k1:  lda pinv
+        sta (mptr),y
+        lda (mptr),y
+        cmp pinv
+        bne m1_e2
+m1_k2:  lda pval
+        sta (mptr),y
+        lda (mptr),y
+        cmp pval
+        bne m1_e3
+m1_k3:  lda pinv
+        sta (mptr),y
+        iny
+        bne m1_c
+        jsr nx_asc
+        bne m1_pg
+        rts
+m1_e1:  ldx pval
+        jsr p3_fail
+        jmp m1_k1
+m1_e2:  ldx pinv
+        jsr p3_fail
+        jmp m1_k2
+m1_e3:  ldx pval
+        jsr p3_fail
+        jmp m1_k3
+
+; --- M2  ascending (r ~P, w P, w ~P) ---------------------------------------
+m2:     jsr set_asc
+m2_pg:  ldy #0
+m2_c:   tya
+        eor mptr+1
+        eor #SEED
+        sta pval
+        eor #$ff
+        sta pinv
+        lda (mptr),y
+        cmp pinv
+        bne m2_e1
+m2_k1:  lda pval
+        sta (mptr),y
+        lda pinv
+        sta (mptr),y
+        iny
+        bne m2_c
+        jsr nx_asc
+        bne m2_pg
+        rts
+m2_e1:  ldx pinv
+        jsr p3_fail
+        jmp m2_k1
+
+; --- M3  descending (r ~P, w P, w ~P, w P) ---------------------------------
+m3:     jsr set_desc
+m3_pg:  ldy #$ff
+m3_c:   tya
+        eor mptr+1
+        eor #SEED
+        sta pval
+        eor #$ff
+        sta pinv
+        lda (mptr),y
+        cmp pinv
+        bne m3_e1
+m3_k1:  lda pval
+        sta (mptr),y
+        lda pinv
+        sta (mptr),y
+        lda pval
+        sta (mptr),y
+        dey
+        cpy #$ff                        ; dey from $00 wraps to $ff: 256 cells
+        bne m3_c
+        jsr nx_desc
+        bne m3_pg
+        rts
+m3_e1:  ldx pinv
+        jsr p3_fail
+        jmp m3_k1
+
+; --- M4  descending (r P, w ~P, w P) ---------------------------------------
+m4:     jsr set_desc
+m4_pg:  ldy #$ff
+m4_c:   tya
+        eor mptr+1
+        eor #SEED
+        sta pval
+        eor #$ff
+        sta pinv
+        lda (mptr),y
+        cmp pval
+        bne m4_e1
+m4_k1:  lda pinv
+        sta (mptr),y
+        lda pval
+        sta (mptr),y
+        dey
+        cpy #$ff
+        bne m4_c
+        jsr nx_desc
+        bne m4_pg
+        rts
+m4_e1:  ldx pval
+        jsr p3_fail
+        jmp m4_k1
+
+; ---------------------------------------------------------------------------
+; p3_fail -- X = expected, A = got.
+; ⚠ PRESERVES Y AND mptr, because it is called from the middle of a march
+; element that is still walking a page. mark_page clobbers Y, hence the save.
+; ⚠ Called from inside the banked window, so it banks I/O back in around the
+; one thing that needs it.
+; ---------------------------------------------------------------------------
+p3_fail:
+        sta w_tmp2                      ; got
+        stx w_tmp                       ; expected
+        tya
+        pha
+        lda w_tmp
+        eor w_tmp2                      ; WHICH BITS differ -- this is what
+        ora w_bitmask                   ; names the chip, later
+        sta w_bitmask
+        inc w_errlo
+        bne p3f_1
+        inc w_errhi
+p3f_1:
+        ; ⚠ Paint a page red only the FIRST time it fails. A page with 256 bad
+        ; bytes must not repaint its cell 256 times.
+        lda mptr+1
+        cmp w_lastfp
+        beq p3f_out
+        sta w_lastfp
+        lda #BANK_IO
+        sta CPUPORT
+        lda mptr+1
+        ldx #3                          ; fail
+        jsr mark_page
+        lda #BANK_RAM
+        sta CPUPORT
+p3f_out:
+        pla
+        tay
+        rts
+
+; --- map painting for a whole run ------------------------------------------
+mark_run_testing:
+        lda w_startpg
+        sta w_tmp
+mrt_l:  lda w_tmp
+        ldx #1                          ; testing
+        jsr mark_page
+        lda w_tmp
+        cmp w_endpg
+        beq mrt_x
+        inc w_tmp
+        jmp mrt_l
+mrt_x:  rts
+
+; ⚠ Green UNLESS the cell is already an X. A page that failed mid-run must not
+; be painted over by the tidy-up pass that follows it.
+mark_run_done:
+        lda w_startpg
+        sta w_tmp
+mrd_l:  lda w_tmp
+        jsr cell_pos
+        ldy #0
+        lda (sptr),y
+        cmp #CH_X
+        beq mrd_skip
+        lda w_tmp
+        ldx #2                          ; pass
+        jsr mark_page
+mrd_skip:
+        lda w_tmp
+        cmp w_endpg
+        beq mrd_x
+        inc w_tmp
+        jmp mrd_l
+mrd_x:  rts
+
+; --- error count ------------------------------------------------------------
+draw_errors:
+        lda #C_GREY
+        sta w_col2
+        lda #PH_ROW+2
+        sta w_row
+        lda #PAN_COL
+        sta w_col
+        lda #<s_errors
+        ldy #>s_errors
+        jsr prstr
+        lda #PH_ROW+3
+        ldx #PAN_COL+1
+        jsr setpos
+        ldy #0
+        lda w_errhi
+        jsr hexpair
+        lda w_errlo
+        jsr hexpair
+        rts
+
+; hexpair -- A = byte, Y = offset from sptr; writes two screen codes
+hexpair:
+        pha
+        lsr
+        lsr
+        lsr
+        lsr
+        tax
+        lda s_hex,x
+        sta (sptr),y
+        lda #C_LTGREY
+        sta (cptr),y
+        iny
+        pla
+        and #$0f
+        tax
+        lda s_hex,x
+        sta (sptr),y
+        lda #C_LTGREY
+        sta (cptr),y
+        iny
+        rts
+
 ; ---------------------------------------------------------------------------
 ; Verdict
 ; ---------------------------------------------------------------------------
@@ -569,6 +917,9 @@ verdict:
         lda w_ablo
         ora w_abhi
         bne v_addr
+        lda w_errlo
+        ora w_errhi
+        bne v_mem
         lda #C_GREEN
         sta BORDER
         lda #C_GREEN
@@ -578,6 +929,18 @@ verdict:
         jsr verdict_line
         lda #<s_ok2
         ldy #>s_ok2
+        jmp verdict_line2
+
+v_mem:
+        lda #C_LTRED
+        sta BORDER
+        lda #C_LTRED
+        sta w_col2
+        lda #<s_membad
+        ldy #>s_membad
+        jsr verdict_line
+        lda #<s_membad2
+        ldy #>s_membad2
         jmp verdict_line2
 
 v_data:
@@ -756,9 +1119,8 @@ dl_put:
         bne dl_loop
         rts
 
-; mark_page -- A = page number, X = state 0..3
-mark_page:
-        stx w_tmp2
+; cell_pos -- A = page number -> sptr/cptr point at that page's map cell
+cell_pos:
         pha
         lsr
         lsr
@@ -773,7 +1135,12 @@ mark_page:
         adc #MAP_COL
         tax
         lda w_row
-        jsr setpos
+        jmp setpos
+
+; mark_page -- A = page number, X = state 0..3
+mark_page:
+        stx w_tmp2
+        jsr cell_pos
         ldx w_tmp2
         lda st_char,x
         ldy #0
@@ -907,6 +1274,16 @@ dc_rows:
         lda #<s_phase
         ldy #>s_phase
         jsr prstr
+
+        lda #C_DKGREY                   ; legend -- the glyphs must not be a
+        sta w_col2                      ; private language
+        lda #V_ROW+2
+        sta w_row
+        lda #1
+        sta w_col
+        lda #<s_legend
+        ldy #>s_legend
+        jsr prstr
         rts
 
 ; map_init -- all 256 pages untested, then mark what P0 proved
@@ -920,20 +1297,20 @@ mi_l:   txa
         tax
         inx
         bne mi_l
-        ldx #$04                        ; P0b proved $0400-$07FF
+        ldx #$04                        ; P0b probed $0400-$07FF
 mi_p0:  txa
         pha
-        ldx #2
+        ldx #4                          ; probed, not marched
         jsr mark_page
         pla
         tax
         inx
         cpx #$08
         bne mi_p0
-        ldx #$c0                        ; P0c proved $C000-$CFFF
+        ldx #$c0                        ; P0c probed $C000-$CFFF
 mi_p0c: txa
         pha
-        ldx #2
+        ldx #4                          ; probed, not marched
         jsr mark_page
         pla
         tax
@@ -969,12 +1346,25 @@ mp_end: rts
 ; ---------------------------------------------------------------------------
 ; Data
 ; ---------------------------------------------------------------------------
-st_char: !byte CH_DOT,    CH_DASH,  CH_FULL, CH_X
-st_col:  !byte C_DKGREY,  C_YELLOW, C_GREEN, C_LTRED
+; ⚠ STATE 4 EXISTS SO THE MAP CANNOT OVER-CLAIM. P0b and P0c prove their
+; regions with a single address-dependent write/verify pass -- a real test,
+; but not 17n March B. Painting them the same solid green as a marched page
+; would tell the reader those bytes got the full algorithm when they did not.
+; '+' means probed; a solid cell means marched.
+st_char: !byte CH_DOT,    CH_DASH,  CH_FULL, CH_X,    CH_PLUS
+st_col:  !byte C_DKGREY,  C_YELLOW, C_GREEN, C_LTRED, C_CYAN
 bittab:  !byte 1,2,4,8,16,32,64,128
 
 ; Pages P2 writes to: ABASE, and ABASE + 2^n for n = 0..15.
 p2pages: !byte $08,$09,$0a,$0c,$10,$18,$28,$48,$88,$ff
+
+; ⚠ The contiguous runs P3 marches, as start/end page pairs, $00 terminating.
+; What is NOT here is the point: $00-$01 zero page and stack, $04-$07 screen
+; and workspace, $C0-$CB the engine. 238 pages, 60,928 bytes of 65,536.
+runtab:  !byte $02,$03
+         !byte $08,$bf
+         !byte $cc,$ff
+         !byte $00
 
 addrlo:  !for i, 0, 15 { !byte <(ABASE + (1 << i)) }
 addrhi:  !for i, 0, 15 { !byte >(ABASE + (1 << i)) }
@@ -983,7 +1373,7 @@ rowhi:   !for i, 0, 24 { !byte >(SCREEN + i*40) }
 
 ; ⚠ acme's !scr maps LOWERCASE source to uppercase screen codes, so every
 ; string here is written lower case on purpose.
-s_title:    !scr "dramscope 0.2", 0
+s_title:    !scr "dramscope 0.3", 0
 s_rule:     !scr "----------------------------------------", 0
 s_hex:      !scr "0123456789abcdef", 0
 s_data:     !scr "data bus", 0
@@ -995,13 +1385,18 @@ s_phase:    !scr "phase", 0
 s_blank:    !scr "                 ", 0
 s_p1:       !scr "p1 data bus", 0
 s_p2:       !scr "p2 addr bus", 0
+s_p3:       !scr "p3 march b", 0
+s_errors:   !scr "bad bytes", 0
+s_legend:   !scr "solid=marched  +=probed  .=untested", 0
 s_pdone:    !scr "done", 0
 s_ok:       !scr "bus integrity ok, all 16 lines.", 0
-s_ok2:      !scr "no march test run - see spec p3/p4.", 0
+s_ok2:      !scr "march b 17n over 60,928 of 65,536.", 0
 s_databad:  !scr "data bus fault - see the d lane.", 0
 s_databad2: !scr "a marked bit is stuck, shorted or open.", 0
 s_addrbad:  !scr "address line fault - see the a lanes.", 0
 s_addrbad2: !scr "both of a pair = mux u13/u25 or rp1/rp2.", 0
+s_membad:   !scr "memory fault - see the red cells.", 0
+s_membad2:  !scr "march b 17n, address-dependent pattern.", 0
 
 eng_end:
 }
@@ -1009,8 +1404,8 @@ eng_end:
 ; ⚠ The bootstrap copies exactly eight pages. If the engine outgrows them it
 ; would be copied half-way and jumped into, which is not a failure mode worth
 ; discovering on someone else's hardware.
-!if eng_end - eng_start > $800 {
-        !error "engine is too big for the eight-page copy loop"
+!if eng_end - eng_start > ENG_PAGES * $100 {
+        !error "engine does not fit in the pages the bootstrap copies"
 }
 
         !fill $a000 - *, $ff

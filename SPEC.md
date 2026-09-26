@@ -3,9 +3,10 @@
 ⚠ **The name is a placeholder.** It is used consistently so it can be changed with one
 `sed`, but it should be settled before anything is published.
 
-**Status:** iteration 2 implemented and verified — EasyFlash delivery (boots in Ultimax,
+**Status:** iteration 3 implemented and verified — EasyFlash delivery (boots in Ultimax,
 needs no working RAM), engine relocated to `$C000`, P0/P1/P2 with **all sixteen address
-lines**, and the display framework. P3 onwards not started.
+lines**, and **P3 March B, 17n, over 60,928 of 65,536 bytes**. Verified on an Ultimate II+
+as well as in VICE. P4 onwards not started.
 **Target:** Commodore 64, all assemblies. **Not specific to any one board or RAM replacement.**
 
 ---
@@ -191,7 +192,7 @@ so a failure that implicates both members of a pair points at the multiplexer or
 series pack rather than at a RAM chip. That distinction is worth a great deal to whoever is
 holding the soldering iron.
 
-### P3 — March B, address-dependent pattern · ~17 s
+### P3 — March B, address-dependent pattern · ✅ **implemented; measured 16.5–16.8 M cycles, ~17 s PAL**
 
 17n, five elements, as proven in the sibling project:
 
@@ -209,6 +210,23 @@ address-decoder coverage that a textbook fixed-pattern March B does not have. A 
 the wrong address returns the wrong value.
 
 Covers: SAF, TF, unlinked CFin/CFid/CFst, AF.
+
+⚠ **THREE REGIONS ARE NOT MARCHED, AND THE MAP DISTINGUISHES THEM RATHER THAN HIDING IT:**
+`$0000–$01FF` (zero page and stack, the engine uses both), `$0400–$07FF` (screen matrix and
+workspace) and `$C000–$CBFF` (the engine). That is 4,608 bytes, so **60,928 of 65,536 are
+marched** and the verdict line prints the figure. `$0400–$07FF` and `$C000–$CFFF` *are*
+probed by P0b/P0c with a single address-dependent write/verify pass — a real test, but not
+17n — so they paint as **`+` probed**, never as a solid marched cell. Reaching the rest needs
+a second pass with the engine and display relocated.
+
+⚠ **Marched per contiguous run, not per page**, so coupling faults *between* pages within a
+run are covered. The runs are simply what the exclusions leave: `$02–$03`, `$08–$BF`,
+`$CC–$FF`.
+
+**Measured runtime**, by bisecting `-limitcycles` until the border goes green: not yet done
+at 16.5 M cycles, done by 16.8 M. That is **271 cycles per byte, 15.9 per operation** — close
+to the sibling project's independently measured 15.03, which is a useful cross-check that
+nothing silly is happening in the inner loop.
 
 ### P4 — March LR, address-dependent pattern · ~14 s
 
@@ -430,7 +448,8 @@ Each step is intended to leave something that works.
 | 2 | **Resolve G1** on real KFF and U2+ hardware | ✅ U2+ yes, `$DE02=$02`; KFF still unrun |
 | 3 | Engine skeleton, P0/P1/P2, display framework, VICE harness | ✅ done — **already a useful tool**, bus faults named in under a second |
 | 3b | EasyFlash delivery, engine relocated, A15 closed | ✅ done — **no working RAM needed to start** |
-| 4 | P3 March B (port the proven engine) + classifier v1 + bit reporting | ⬜ parity with existing tools, plus shape |
+| 4 | P3 March B + bad-byte count + failing-bit mask | ✅ done — parity with existing tools, plus shape |
+| 4b | Classifier v1 + chip naming from the bit mask | ⬜ **next** |
 | 5 | Board profiles (G5) → chip naming | the headline feature |
 | 6 | P4 March LR (G3 first) | linked faults |
 | 7 | G2, then P5 topographical | physical coupling |

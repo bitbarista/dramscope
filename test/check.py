@@ -19,7 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 BUILD = ROOT / "build"
 
 GLYPH = {0x20: " ", 0x2E: ".", 0x2D: "-", 0x2F: "/", 0x2C: ",", 0x3D: "=",
-         0x18: "X", 0xA0: "#"}
+         0x18: "X", 0xA0: "#", 0x2B: "+"}
 
 
 def halt_address(stem: str, sym: str = "halt") -> str:
@@ -80,28 +80,50 @@ def text(scr: bytes, row: int, c0: int = 0, c1: int = 40) -> str:
 
 # Display geometry -- must track SPEC.md / dramscope.asm
 DB_ROW, AH_ROW, AL_ROW, V_ROW, PAN = 5, 9, 11, 21, 22
+MAP_ROW, MAP_COL = 3, 2
+
+
+def cell(scr: bytes, page: int) -> str:
+    """The map cell for one page: row = high nibble, column = low nibble."""
+    return text(scr, MAP_ROW + (page >> 4), MAP_COL + (page & 15),
+                MAP_COL + (page & 15) + 1)
+
+
+def maprow(scr: bytes, row: int) -> str:
+    return text(scr, MAP_ROW + row, MAP_COL, MAP_COL + 16)
 BORDER = {1: "WHITE", 2: "RED", 3: "CYAN", 4: "PURPLE", 5: "GREEN",
           6: "BLUE", 7: "YELLOW", 8: "ORANGE", 10: "LTRED"}
 
 # name, cartridge, halt symbol, border, data lane, addr-hi, addr-lo
 # Lanes None = the run never drew a screen, so only the border is meaningful.
+# ⚠ Row 0 is the one that proves the map cannot over-claim:
+#     $00-$01 untested, $02-$03 marched, $04-$07 PROBED ONLY, $08-$0F marched.
+# If probed regions ever paint the same as marched ones, this case fails.
 CASES = [
     ("clean -- every lane solid, all 16 address lines tested",
-     "dramscope.crt",      "halt",     "GREEN", "########", "########", "########"),
+     "dramscope.crt",      "halt",     "GREEN", "########", "########", "########",
+     {"row0": "..##++++########", "rowC": "++++++++++++####",
+      "page40": "#", "errors": " 0000"}),
     ("D3 stuck -- one X in the data lane, nothing else disturbed",
-     "dramscope_fdb.crt",  "halt",     "LTRED", "####X###", "########", "########"),
+     "dramscope_fdb.crt",  "halt",     "LTRED", "####X###", "########", "########", None),
     ("A5 faulty -- one X in the low address lane, data lane clean",
-     "dramscope_fab.crt",  "halt",     "LTRED", "########", "########", "##X#####"),
+     "dramscope_fab.crt",  "halt",     "LTRED", "########", "########", "##X#####", None),
+    # ⚠ P3 must be able to fail too. One stuck bit at $4037: page $40 red,
+    # exactly one bad byte, every other page still clean.
+    ("one stuck bit at $4037 -- page $40 red, count 1, nothing else",
+     "dramscope_fmem.crt", "halt",     "LTRED", "########", "########", "########",
+     {"row0": "..##++++########", "rowC": "++++++++++++####",
+      "page40": "X", "errors": " 0001"}),
     # ⚠ The one a real device might actually hit. A Kung Fu Flash that ignores
     # $DE02 must SAY SO, not hang in Ultimax pretending to test 64 KB.
     ("device ignores $DE02 -- must report ORANGE, not hang",
-     "dramscope_fef.crt",  "rom_halt", "ORANGE", None, None, None),
+     "dramscope_fef.crt",  "rom_halt", "ORANGE", None, None, None, None),
 ]
 
 
 def main() -> int:
     failures = 0
-    for name, cart, sym, want_border, want_db, want_ah, want_al in CASES:
+    for name, cart, sym, want_border, want_db, want_ah, want_al, extra in CASES:
         print(f"  {name}")
         stem = cart[:-4]
         scr, _col, border = run(BUILD / cart, halt_address(stem, sym))
@@ -112,6 +134,12 @@ def main() -> int:
             got["addr hi"] = text(scr, AH_ROW, PAN, PAN + 8)
             got["addr lo"] = text(scr, AL_ROW, PAN, PAN + 8)
             want.update({"data": want_db, "addr hi": want_ah, "addr lo": want_al})
+        if extra:
+            got["row0"] = maprow(scr, 0)
+            got["rowC"] = maprow(scr, 0xC)
+            got["page40"] = cell(scr, 0x40)
+            got["errors"] = text(scr, 17, PAN - 1, PAN + 5)
+            want.update(extra)
         for k in got:
             flag = "" if got[k] == want[k] else f"   <-- *** wanted {want[k]!r}"
             print(f"     {k:8s} {got[k]!r}{flag}")
