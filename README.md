@@ -1,11 +1,10 @@
 # DRAMscope
 
-A memory diagnostic cartridge for the Commodore 64 — for **any** C64, not for any particular
-RAM replacement board.
+A memory diagnostic cartridge for **any** Commodore 64.
 
 It boots from the cartridge in Ultimax mode with its own reset vector, so it needs **no
 working KERNAL and no working RAM to start** — verified on a machine with every DRAM pulled
-from its sockets. It tests all 65,534 bytes of RAM there are, names the failing data bit and,
+from its sockets. It tests every byte of RAM, names the failing data bit and,
 where it can do so safely, the chip that carries it.
 
 ## Running it
@@ -343,9 +342,13 @@ one is traced in [`PROVENANCE.md`](PROVENANCE.md).
 ⚠ The figure below was **silently lost for several revisions** and is now tied to the run
 table by an assembly-time `!error`, so the strings and the table cannot drift apart again.
 
-**65,534 of 65,536 — every byte of RAM there is**, and the verdict line prints the split
-rather than rounding it to a claim: `59,648 FULL + 5,886 LIGHTER = 65,534.` The map
-distinguishes depth rather than averaging it:
+**All 65,534 bytes of RAM.** A C64 has 65,536 *addresses*, but two of them are not memory:
+`$0000` and `$0001` are the CPU's data-direction register and banking latch. 65,534 is
+therefore the whole of the RAM, not a shortfall against it.
+
+The verdict line prints the split rather than rounding it to a claim —
+`59,648 FULL + 5,886 LIGHTER = 65,534` — and the map distinguishes depth rather than
+averaging it:
 
 | Mark | Meaning | Where |
 |---|---|---|
