@@ -131,14 +131,17 @@ one is traced in [`PROVENANCE.md`](PROVENANCE.md).
 
 **60,414 of 65,536 bytes.** The map distinguishes the depths rather than averaging them:
 
+**65,534 of 65,536 — every byte of RAM there is.** The map distinguishes depth rather than
+averaging it:
+
 | Mark | Meaning | Where |
 |---|---|---|
 | solid | March B 17n + March LR 14n + six topographical passes | 59,904 bytes |
-| `*` | 9n march, registers-only | zero page and the stack, 510 bytes |
-| `+` | one address-dependent write/verify pass | screen matrix and the engine's own 4 KB |
+| `*` | 9n march | zero page, stack, screen matrix, the engine's own 4 KB — 5,630 bytes |
+| `+` | probed but not yet marched | shown only *during* a run, before the handover |
 | `.` | nothing | `$0000`/`$0001` — ⚠ **not RAM**, they are the CPU's DDR and banking latch |
 
-⚠ **The two remaining `+` regions are a limitation, not a law.** The screen matrix can be
-tested by moving the VIC's matrix pointer to a second home in bank 2 and marching the
-vacated one; the engine's 4 KB by relocating the engine and marching behind it. Both are
-designed in `SPEC.md` and neither is written yet.
+The `*` regions get a shorter march because the test is standing on them: the engine's home
+is marched by a module copied to `$3000`, which then re-copies the engine from cartridge ROM
+and jumps back; the screen matrix is stashed, marched, and put back with the display
+blanked.

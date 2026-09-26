@@ -3,7 +3,7 @@
 ⚠ **The name is a placeholder.** It is used consistently so it can be changed with one
 `sed`, but it should be settled before anything is published.
 
-**Status:** iteration 4 implemented and verified — EasyFlash delivery (boots in Ultimax,
+**Status:** iteration 5 implemented and verified — EasyFlash delivery (boots in Ultimax,
 needs no working RAM), engine relocated to `$C000`, P0/P1/P2 with **all sixteen address
 lines**, **P3 March B 17n**, **P4 March LR 14n** and **P5 topographical patterns** over 59,904 of
 65,536 bytes, plus chip naming from the failing-bit mask. Verified on an Ultimate II+ and a

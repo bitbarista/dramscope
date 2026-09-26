@@ -58,7 +58,8 @@
 ; warning it is expected to ignore is where a real warning goes to hide.
 !ifndef INJECT_DB { !ifndef INJECT_AB { !ifndef INJECT_NOEF { !ifndef INJECT_MEM {
         !ifndef INJECT_ALL { !ifndef INJECT_LR { !ifndef INJECT_TOPO {
-        !ifndef INJECT_ZP { !to "build/dramscope_roml.bin", plain } } } } } } } }
+        !ifndef INJECT_ZP { !ifndef INJECT_HV {
+        !to "build/dramscope_roml.bin", plain } } } } } } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -168,10 +169,21 @@ w_p6start= WORK+28              ; first index P6 may touch in the current page
 w_p6seed = WORK+29              ; P for this page, and its complement
 w_p6inv  = WORK+30
 w_p6bad  = WORK+31
+w_hvscr  = WORK+32              ; handover: screen region failed
+w_hveng  = WORK+33              ; handover: engine region failed
 
 ; P2's base. ⚠ Every base+2^n must be RAM under BANK_RAM, including
 ; base+$8000 = $8800, which is why the engine had to leave the cartridge.
 ABASE    = $0800
+
+; ---------------------------------------------------- handover scratch
+; ⚠ All inside $08-$BF, which P3/P4/P5 have already marched by the time any of
+; it is used. The handover phase is the last thing to run for that reason.
+HV_SCR   = $2000                ; 1024 bytes, the screen matrix stashed
+HV_COL   = $2400                ; 1024 bytes, its colour
+HV_WRK   = $2800                ; 64 bytes, the workspace stashed
+HV_CODE  = $3000                ; the handover module itself
+HV_PAGES = 3
 
 ; ===========================================================================
 ; ROML -- mapped at $8000 in BOTH Ultimax and 8K mode, which is what makes it
@@ -1062,6 +1074,109 @@ tick_out:
         rts
 
 
+
+; ---------------------------------------------------------------------------
+; P6b -- THE HANDOVER. The two regions no march could reach, because the test
+; was standing on them.
+;
+; ⚠ Carl asked whether the coverage shortfall was a limitation. The 501 bytes
+; of zero page and stack were the urgent part and P6 closed them. These are
+; the rest: the screen matrix the display is using, and the 4 KB the engine
+; itself occupies. Both got P0b/P0c's single pass and showed '+'; neither had
+; been marched.
+;
+; The trick is the same for both -- move off the region, march it, move back --
+; but the two differ in what "move off" means:
+;
+;   SCREEN   $0400-$07FF   The display is blanked, the matrix and its colour
+;                          are stashed to already-marched RAM, the region is
+;                          marched, then both are put back. ⚠ Cheaper than
+;                          relocating the VIC, which would mean every display
+;                          write going through a base pointer instead of a
+;                          constant.
+;
+;   ENGINE   $C000-$CFFF   ⚠ The code performing the march CANNOT be in the
+;                          region being marched. A small module is copied to
+;                          $3000 and jumped to; it marches the engine's home
+;                          out from under the engine, re-copies the engine
+;                          from cartridge ROM -- which is still mapped at
+;                          $8000 -- and jumps back in at a resume point.
+;
+; ⚠ THE WORKSPACE LIVES AT $CF00, INSIDE THE SECOND REGION. Everything
+; accumulated so far -- the failing-bit mask, the error counts, the bus
+; results -- would be marched over. It is stashed to $2800 and restored, and
+; any faults the handover itself finds are accumulated in module-local bytes
+; until the workspace is back.
+;
+; 9n, as P6 is, so these regions paint '*' and not solid: they get a march,
+; but not the 31n plus six topographical passes the rest of memory gets.
+; ---------------------------------------------------------------------------
+phv:
+        lda #C_GREY
+        sta BORDER
+        sta w_phcol
+        lda #<s_phv
+        ldy #>s_phv
+        jsr phase
+        lda #0
+        sta w_hvscr
+        sta w_hveng
+
+        ldx #0                          ; copy the module to already-good RAM
+phv_cp: lda hv_src,x
+        sta HV_CODE,x
+        lda hv_src+$100,x
+        sta HV_CODE+$100,x
+        lda hv_src+$200,x
+        sta HV_CODE+$200,x
+        inx
+        bne phv_cp
+        jmp HV_CODE
+
+; ⚠ Where the handover module jumps back to, after the engine has been
+; re-copied from ROM. It must not re-run anything.
+eng_resume:
+        lda w_hvscr
+        beq phv_scr_ok
+        ldx #3
+        bne phv_scr_m
+phv_scr_ok:
+        ldx #5                          ; marched at 9n
+phv_scr_m:
+        stx w_tmp
+        ldx #$04
+phv_sl: txa
+        pha
+        ldx w_tmp
+        jsr mark_page
+        pla
+        tax
+        inx
+        cpx #$08
+        bne phv_sl
+
+        lda w_hveng
+        beq phv_eng_ok
+        ldx #3
+        bne phv_eng_m
+phv_eng_ok:
+        ldx #5
+phv_eng_m:
+        stx w_tmp
+        ldx #$c0
+phv_el: txa
+        pha
+        ldx w_tmp
+        jsr mark_page
+        pla
+        tax
+        inx
+        cpx #$d0
+        bne phv_el
+
+        jsr draw_errors
+        jmp verdict
+
 ; ---------------------------------------------------------------------------
 ; P6 -- ZERO PAGE AND THE STACK. The 501 bytes nothing else could reach.
 ;
@@ -1182,7 +1297,7 @@ p6_ok:
         jsr mark_page
 p6_end:
         jsr draw_errors
-        jmp verdict
+        jmp phv
 
 ; p6_patch -- A = page. Writes the high byte into every address operand below.
 ; ⚠ This is the self-modification the phase depends on. It is legal only
@@ -2257,7 +2372,7 @@ rowhi:   !for i, 0, 24 { !byte >(SCREEN + i*40) }
 
 ; ⚠ acme's !scr maps LOWERCASE source to uppercase screen codes, so every
 ; string here is written lower case on purpose.
-s_title:    !scr "dramscope 0.7", 0
+s_title:    !scr "dramscope 0.8", 0
 s_rule:     !scr "----------------------------------------", 0
 s_hex:      !scr "0123456789abcdef", 0
 s_data:     !scr "data bus", 0
@@ -2273,6 +2388,7 @@ s_p3:       !scr "p3 march b", 0
 s_p4:       !scr "p4 march lr", 0
 s_p5:       !scr "p5 topo", 0
 s_p6:       !scr "p6 zp+stack", 0
+s_phv:      !scr "p6b handover", 0
 s_errors:   !scr "bad bytes", 0
 s_legend:   !scr "solid=full *=9n +=probed .=none", 0
 
@@ -2282,7 +2398,7 @@ bitlbl:     !scr "d0  d1  d2  d3  d4  d5  d6  d7  "
 chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
 s_pdone:    !scr "done", 0
 s_ok:       !scr "bus integrity ok, all 16 lines.", 0
-s_ok2:      !scr "60,414 of 65,536 tested. see the map.", 0
+s_ok2:      !scr "65,534 of 65,536 - the 2 are cpu port.", 0
 s_databad:  !scr "data bus fault - see the d lane.", 0
 s_databad2: !scr "a marked bit is stuck, shorted or open.", 0
 s_addrbad:  !scr "address line fault - see the a lanes.", 0
@@ -2302,6 +2418,295 @@ eng_end:
 ; discovering on someone else's hardware.
 !if eng_end - eng_start > ENG_PAGES * $100 {
         !error "engine does not fit in the pages the bootstrap copies"
+}
+
+
+; ===========================================================================
+; The handover module. Assembled to run at $3000 and copied there by phv.
+; ⚠ SELF-CONTAINED ON PURPOSE: phase B marches the engine's home out from
+; under it, so this may not call a single thing that lives at $C000.
+; ===========================================================================
+hv_src:
+!pseudopc HV_CODE {
+hv_entry:
+        lda #0
+        sta hv_bit
+        sta hv_elo
+        sta hv_ehi
+        sta hv_bad
+
+; ---- A: the screen matrix -------------------------------------------------
+        lda #$0b                        ; blank: the matrix is about to become
+        sta VICCTL1                      ; march patterns
+        ldx #0
+hv_stash:
+        lda SCREEN,x
+        sta HV_SCR,x
+        lda SCREEN+$100,x
+        sta HV_SCR+$100,x
+        lda SCREEN+$200,x
+        sta HV_SCR+$200,x
+        lda SCREEN+$300,x
+        sta HV_SCR+$300,x
+        lda COLRAM,x
+        sta HV_COL,x
+        lda COLRAM+$100,x
+        sta HV_COL+$100,x
+        lda COLRAM+$200,x
+        sta HV_COL+$200,x
+        lda COLRAM+$300,x
+        sta HV_COL+$300,x
+        inx
+        bne hv_stash
+
+        lda #$04
+        sta hv_first
+        lda #$07
+        sta hv_last
+        jsr hv_march
+        lda hv_bad
+        sta hv_scrbad
+
+        ldx #0                          ; put the display back
+hv_rest:
+        lda HV_SCR,x
+        sta SCREEN,x
+        lda HV_SCR+$100,x
+        sta SCREEN+$100,x
+        lda HV_SCR+$200,x
+        sta SCREEN+$200,x
+        lda HV_SCR+$300,x
+        sta SCREEN+$300,x
+        lda HV_COL,x
+        sta COLRAM,x
+        lda HV_COL+$100,x
+        sta COLRAM+$100,x
+        lda HV_COL+$200,x
+        sta COLRAM+$200,x
+        lda HV_COL+$300,x
+        sta COLRAM+$300,x
+        inx
+        bne hv_rest
+        lda #$1b
+        sta VICCTL1
+
+; ---- B: the engine's own 4 KB ---------------------------------------------
+        ldx #0                          ; ⚠ stash the workspace FIRST: it is
+hv_wst: lda WORK,x                      ; at $CF00, inside what we march next
+        sta HV_WRK,x
+        inx
+        cpx #64
+        bne hv_wst
+
+        lda #0
+        sta hv_bad
+        lda #$c0
+        sta hv_first
+        lda #$cf
+        sta hv_last
+        jsr hv_march
+        lda hv_bad
+        sta hv_engbad
+
+        ; ⚠ Re-copy the engine from cartridge ROM. ROML is still mapped at
+        ; $8000 -- nothing here ever banked it out -- so the original is
+        ; simply still there to copy again.
+        lda #<eng_src
+        sta sptr
+        lda #>eng_src
+        sta sptr+1
+        lda #0
+        sta cptr
+        lda #>ENGINE
+        sta cptr+1
+        ldx #ENG_PAGES
+hv_ecp: ldy #0
+hv_ecb: lda (sptr),y
+        sta (cptr),y
+        iny
+        bne hv_ecb
+        inc sptr+1
+        inc cptr+1
+        dex
+        bne hv_ecp
+
+        ldx #0                          ; workspace back
+hv_wrs: lda HV_WRK,x
+        sta WORK,x
+        inx
+        cpx #64
+        bne hv_wrs
+
+        ; merge what the handover found into the restored counters
+        lda hv_bit
+        ora w_bitmask
+        sta w_bitmask
+        clc
+        lda hv_elo
+        adc w_errlo
+        sta w_errlo
+        lda hv_ehi
+        adc w_errhi
+        sta w_errhi
+        lda hv_scrbad
+        sta w_hvscr
+        lda hv_engbad
+        sta w_hveng
+        jmp eng_resume
+
+; ---------------------------------------------------------------------------
+; hv_march -- 9n over hv_first..hv_last, address-dependent pattern.
+; Uses the zero-page pointer, which P6 has just proven.
+; ---------------------------------------------------------------------------
+hv_march:
+        ; M0  (w P)
+        jsr hv_top
+hv_0:   ldy #0
+hv_0c:  tya
+        eor mptr+1
+        eor #SEED
+        sta (mptr),y
+        iny
+        bne hv_0c
+        jsr hv_nxt
+        bne hv_0
+
+        ; M1 up (r P, w ~P)
+        jsr hv_top
+hv_1:   ldy #0
+hv_1c:  jsr hv_pat
+        lda (mptr),y
+!ifdef INJECT_HV {                      ; mutation: one bad byte at $0555,
+        cpy #$55                        ; inside the screen matrix -- the
+        bne hv_inj_out                  ; region the display was standing on
+        ldx mptr+1
+        cpx #$05
+        bne hv_inj_out
+        eor #$10
+hv_inj_out:
+}
+        cmp pval
+        beq hv_1k
+        ldx pval
+        jsr hv_fail
+hv_1k:  lda pinv
+        sta (mptr),y
+        iny
+        bne hv_1c
+        jsr hv_nxt
+        bne hv_1
+
+        ; M2 up (r ~P, w P)
+        jsr hv_top
+hv_2:   ldy #0
+hv_2c:  jsr hv_pat
+        lda (mptr),y
+        cmp pinv
+        beq hv_2k
+        ldx pinv
+        jsr hv_fail
+hv_2k:  lda pval
+        sta (mptr),y
+        iny
+        bne hv_2c
+        jsr hv_nxt
+        bne hv_2
+
+        ; M3 down (r P, w ~P)
+        jsr hv_bot
+hv_3:   ldy #$ff
+hv_3c:  jsr hv_pat
+        lda (mptr),y
+        cmp pval
+        beq hv_3k
+        ldx pval
+        jsr hv_fail
+hv_3k:  lda pinv
+        sta (mptr),y
+        dey
+        cpy #$ff
+        bne hv_3c
+        jsr hv_prv
+        bne hv_3
+
+        ; M4 down (r ~P, w P)
+        jsr hv_bot
+hv_4:   ldy #$ff
+hv_4c:  jsr hv_pat
+        lda (mptr),y
+        cmp pinv
+        beq hv_4k
+        ldx pinv
+        jsr hv_fail
+hv_4k:  lda pval
+        sta (mptr),y
+        dey
+        cpy #$ff
+        bne hv_4c
+        jsr hv_prv
+        bne hv_4
+        rts
+
+hv_pat: tya
+        eor mptr+1
+        eor #SEED
+        sta pval
+        eor #$ff
+        sta pinv
+        rts
+
+hv_top: lda hv_first
+        sta mptr+1
+        lda #0
+        sta mptr
+        jmp hv_cnt
+hv_bot: lda hv_last
+        sta mptr+1
+        lda #0
+        sta mptr
+hv_cnt: lda hv_last
+        sec
+        sbc hv_first
+        clc
+        adc #1
+        sta hv_npg
+        rts
+hv_nxt: inc mptr+1
+        dec hv_npg
+        rts
+hv_prv: dec mptr+1
+        dec hv_npg
+        rts
+
+; hv_fail -- A = got, X = expected. ⚠ Accumulates LOCALLY: during phase B the
+; workspace is stashed and the real counters are not there to add to.
+hv_fail:
+        stx hv_tmp
+        eor hv_tmp
+        ora hv_bit
+        sta hv_bit
+        inc hv_elo
+        bne hv_f1
+        inc hv_ehi
+hv_f1:  lda #1
+        sta hv_bad
+        rts
+
+hv_first:  !byte 0
+hv_last:   !byte 0
+hv_npg:    !byte 0
+hv_bit:    !byte 0
+hv_elo:    !byte 0
+hv_ehi:    !byte 0
+hv_bad:    !byte 0
+hv_scrbad: !byte 0
+hv_engbad: !byte 0
+hv_tmp:    !byte 0
+hv_end:
+}
+
+!if hv_end - hv_entry > HV_PAGES * $100 {
+        !error "handover module does not fit in the pages phv copies"
 }
 
         !fill $a000 - *, $ff

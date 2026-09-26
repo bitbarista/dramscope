@@ -104,9 +104,9 @@ BORDER = {1: "WHITE", 2: "RED", 3: "CYAN", 4: "PURPLE", 5: "GREEN",
 CASES = [
     ("clean -- every lane solid, all 16 address lines tested",
      "dramscope.crt",      "halt",     "GREEN", "########", "########", "########",
-     {"row0": "**##++++########", "rowC": "++++++++++++++++",
+     {"row0": "**##****########", "rowC": "****************",
       "page40": "#", "errors": " 0000",
-      "bits": " 60,414 OF 65,536 TESTED. SEE THE MAP.", "chips": ""}),
+      "bits": " 65,534 OF 65,536 - THE 2 ARE CPU PORT.", "chips": ""}),
     # ⚠ The classifier makes a claim about someone else's hardware. D3 is U10
     # on a 250407 -- schematic 251138 via c64-ice40-ram README §2.2.
     ("D3 stuck -- data lane X, and the chip named from the bit",
@@ -119,7 +119,7 @@ CASES = [
     # exactly one bad byte, every other page still clean.
     ("one stuck bit at $4037 -- page $40 red, count 1, nothing else",
      "dramscope_fmem.crt", "halt",     "LTRED", "########", "########", "########",
-     {"row0": "**##++++########", "rowC": "++++++++++++++++", "page40": "X",
+     {"row0": "**##****########", "rowC": "****************", "page40": "X",
       "errors": " 0001",
       "bits":  " BITS                               D0",
       "chips": " 250407                             U21",
@@ -147,6 +147,13 @@ CASES = [
      {"errors": " 0001",
       "bits":  " BITS                       D2",
       "chips": " 250407                     U22"}),
+    # ⚠ The handover is a FIFTH engine, and the only one that marches the
+    # region the display is standing on. One bad byte at $0555.
+    ("handover catches a fault in the screen's own memory",
+     "dramscope_fhv.crt",  "halt",     "LTRED", "########", "########", "########",
+     {"errors": " 0001",
+      "bits":  " BITS               D4",
+      "chips": " 250407             U23"}),
     # ⚠ THE SAFETY RULE. All eight bits wrong must name NO chip at all.
     ("all 8 bits wrong -- must REFUSE to name a chip",
      "dramscope_fall.crt", "halt",     "LTRED", "########", "########", "########",
