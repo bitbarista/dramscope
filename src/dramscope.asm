@@ -204,6 +204,7 @@ w_phidx  = WORK+39              ; which phase is running
 w_snaplo = WORK+40              ; error count when it started
 w_snaphi = WORK+41
 w_phextra= WORK+42              ; a phase's own verdict, beyond the error count
+w_faddr  = WORK+45              ; ⚠ WHERE the first bad byte was
 w_phfail = WORK+43              ; ⚠ one bit per phase: has it EVER failed?
                                 ; (two bytes, nine phases)
 
@@ -1688,6 +1689,16 @@ m4_e1:  ldx pval
 march_fail:
         sta w_tmp2                      ; got
         stx w_tmp                       ; expected
+        ; ⚠ WHERE, recorded once. A repairer given a bit and a chip still has
+        ; to find the fault; an address is the difference between "somewhere
+        ; in 64K" and a place to put a probe.
+        lda w_errlo
+        ora w_errhi
+        bne mf_haveaddr
+        sty w_faddr
+        lda mptr+1
+        sta w_faddr+1
+mf_haveaddr:
         tya
         pha
         lda w_tmp
@@ -2082,7 +2093,7 @@ dph_d:  lda #CH_DOT
 ; draw_passes -- the burn-in counter
 draw_passes:
         lda #0
-        ldx #34
+        ldx #18
         jsr setpos
         ldy #0
         lda w_passhi
@@ -2093,7 +2104,7 @@ draw_passes:
 ; --- error count ------------------------------------------------------------
 draw_errors:
         lda #0
-        ldx #24
+        ldx #35
         jsr setpos
         ldy #0
         lda w_errhi
@@ -2128,15 +2139,22 @@ hexpair:
 ; ---------------------------------------------------------------------------
 ; Verdict
 ; ---------------------------------------------------------------------------
+; ⚠ Dispatched with jmp, not relative branches: the verdict bodies grew past
+; 128 bytes when the failing address was added, and a branch that cannot reach
+; is a build failure rather than something to rediscover.
 verdict:
         lda w_dbmask
-        bne v_data
-        lda w_ablo
+        beq vd_1
+        jmp v_data
+vd_1:   lda w_ablo
         ora w_abhi
-        bne v_addr
-        lda w_errlo
+        beq vd_2
+        jmp v_addr
+vd_2:   lda w_errlo
         ora w_errhi
-        bne v_mem
+        beq vd_3
+        jmp v_mem
+vd_3:
         ; ⚠ A colour-RAM fault must not be reported as "BUS INTEGRITY OK".
         ; The DRAMs genuinely are fine, and the red COL RAM label says so --
         ; but a reader who glances at the verdict line and walks away has been
@@ -2161,6 +2179,9 @@ v_col:
         lda #<s_colbad
         ldy #>s_colbad
         jsr verdict_line
+        lda #<s_colbad2
+        ldy #>s_colbad2
+        jsr verdict_line2_nohalt
         jmp pass_end
 
 v_mem:
@@ -2171,6 +2192,14 @@ v_mem:
         lda #<s_membad
         ldy #>s_membad
         jsr verdict_line
+        lda #V_ROW                      ; the address, right after the '$'
+        ldx #34
+        jsr setpos
+        ldy #0
+        lda w_faddr+1
+        jsr hexpair
+        lda w_faddr
+        jsr hexpair
         lda w_bitmask                   ; ⚠ no second verdict line here: the
         sta w_tmp                       ; bit and chip lines are rows 22 and 23
         jsr draw_diag                   ; and say more than a sentence would
@@ -2447,9 +2476,10 @@ draw_chrome:
         sta w_row
         lda #MAP_COL
         sta w_col
-        lda #<s_hex
-        ldy #>s_hex
-        jsr prstr
+        lda #<s_toprow                  ; ⚠ ONE string for the whole row: the
+        ldy #>s_toprow                  ; hex ruler and the panel heading are
+        jsr prstr                       ; the same screen row, and the engine
+                                        ; had 24 bytes free, not 50
 
         ldx #0
 dc_rows:
@@ -2502,14 +2532,14 @@ dc_rows:
         sta w_col2                      ; row where there was dead space
         lda #0
         sta w_row
-        lda #20
+        lda #24
         sta w_col
         lda #<s_errors
         ldy #>s_errors
         jsr prstr
         lda #0
         sta w_row
-        lda #29
+        lda #12
         sta w_col
         lda #<s_passes
         ldy #>s_passes
@@ -2520,12 +2550,26 @@ dc_rows:
 
         lda #C_DKGREY                   ; legend -- the glyphs must not be a
         sta w_col2                      ; private language
+        lda #V_ROW-2                    ; ⚠ under the MAP, not under the
+        sta w_row                       ; verdict: it explains the map, and
+        lda #1                          ; the short-board caveat used to
+        sta w_col                       ; overwrite it exactly when a fault
+        lda #<s_legend                  ; made the map worth reading
+        ldy #>s_legend
+        jsr prstr
+        lda #V_ROW-2                    ; ⚠ the version tucked in the corner:
+        sta w_row                       ; on the title row there was no space
+        lda #37                         ; left once the counters were named
+        sta w_col                       ; for what they actually count
+        lda #<s_ver
+        ldy #>s_ver
+        jsr prstr
         lda #V_ROW+3
         sta w_row
         lda #1
         sta w_col
-        lda #<s_legend
-        ldy #>s_legend
+        lda #<s_running
+        ldy #>s_running
         jsr prstr
         rts
 
@@ -2622,7 +2666,15 @@ mp_end: rts
 ; is no pointer to walk them with and no room to write the long version out
 ; twice. Painting them the same solid green would claim coverage they did not
 ; get, so they are '*': marched, but not to the same depth.
-st_char: !byte CH_DOT,    CH_DASH,  CH_FULL, CH_X,    CH_PLUS, CH_STAR
+; ⚠ STATE 4 NOW DRAWS '*' TOO, AND KEEPS ITS CYAN. It used to draw '+', a
+; sixth glyph that only ever appeared mid-run and that the legend had no room
+; to explain -- an unexplained mark on a diagnostic screen is worse than a
+; coarser one. "Lighter than full" is true of a probed page and of a 9n-marched
+; page alike, which is all '*' claims; the colour still separates them for
+; anyone who looks, and the real number is on the coverage line. CH_PLUS is
+; kept defined because the honesty it stood for is still the reason state 4
+; exists at all.
+st_char: !byte CH_DOT,    CH_DASH,  CH_FULL, CH_X,    CH_STAR, CH_STAR
 st_col:  !byte C_DKGREY,  C_YELLOW, C_GREEN, C_LTRED, C_CYAN,  C_GREEN
 bittab:  !byte 1,2,4,8,16,32,64,128
 
@@ -2632,7 +2684,15 @@ spinchr: !byte $40, $4e, $5d, $4d
 
 ; ⚠ The checklist. One row per phase, in the order they run, so the screen
 ; answers "what has been done to this machine" without anyone reading a manual.
-phrow:   !byte 3, 6, 11, 12, 13, 14, 15, 16, 17
+; ⚠ RETENTION AND COLOUR RAM ARE SWAPPED RELATIVE TO THEIR PHASE INDEX, ON
+; PURPOSE. The colour RAM is checked inside the handover module, which finishes
+; before the retention dwell begins, so in index order the list filled in out of
+; order: COLOUR RAM went OK while RETENTION above it still read '..'. A reader
+; watching a list fill downwards reads a gap as "that one was skipped". The rows
+; are ordered by when they COMPLETE, which is what the reader is tracking.
+; ⚠ The test harness reads the rows in this same order -- test/check.py PHROW --
+; so a position in the checklist string is still a phase index.
+phrow:   !byte 3, 6, 11, 12, 13, 14, 15, 17, 16
 phstrl:  !byte <s_p1, <s_p2, <s_p3, <s_p4, <s_p5, <s_p6, <s_phv, <s_p7, <s_p9
 phstrh:  !byte >s_p1, >s_p2, >s_p3, >s_p4, >s_p5, >s_p6, >s_phv, >s_p7, >s_p9
 
@@ -2698,43 +2758,71 @@ rowhi:   !for i, 0, 24 { !byte >(SCREEN + i*40) }
 ;
 ; ⚠ acme's !scr maps LOWERCASE source to uppercase screen codes, so every
 ; string here is written lower case on purpose.
-s_title:    !scr "dramscope 1.2", 0
-s_hex:      !scr "0123456789abcdef", 0
+s_title:    !scr "dramscope", 0
+; ⚠ TWO LABELS, ONE STRING, AND THAT IS DELIBERATE.
+; The panel had no heading: a reader had to work out for themselves that the
+; right-hand column was a list of tests and their outcomes, which was the
+; specific complaint. The heading lives on the same screen row as the map's hex
+; ruler, so printing it separately cost 24 bytes of setup in an engine that had
+; 24 bytes left. Printed from s_toprow it costs only its own characters.
+; ⚠ s_hex must stay the first 16 bytes: dc_rows indexes it for the map's row
+; labels. Do not insert anything between the label and the digits.
+s_toprow:
+s_hex:      !scr "0123456789abcdef tests and results", 0
 s_bitno:    !scr "76543210", 0
 s_ahno:     !scr "fedcba98", 0
 s_alno:     !scr "76543210", 0
-s_p1:       !scr "p1 data bus", 0
-s_p2:       !scr "p2 addr bus", 0
-s_p3:       !scr "p3 march b", 0
-s_p4:       !scr "p4 march lr", 0
-s_p5:       !scr "p5 topo", 0
-s_p6:       !scr "p6 zp+stack", 0
-s_phv:      !scr "p6b handover", 0
-s_p7:       !scr "p7 dwell", 0
-s_errors:   !scr "bad", 0
-s_passes:   !scr "pass", 0
-s_p9:       !scr "p9 col ram", 0
-s_colbad:   !scr "colour ram fault - a separate chip.", 0
-s_legend:   !scr "#=45/byte *=9/byte +=probed .=not ram", 0
+s_p1:       !scr "data lines", 0
+s_p2:       !scr "addr lines", 0
+s_p3:       !scr "march b", 0
+s_p4:       !scr "march lr", 0
+s_p5:       !scr "row/column", 0
+s_p6:       !scr "low memory", 0
+s_phv:      !scr "own memory", 0
+s_p7:       !scr "retention", 0
+s_errors:   !scr "bad bytes $", 0
+s_passes:   !scr "runs $", 0
+s_p9:       !scr "colour ram", 0
+s_colbad:   !scr "colour ram bad - a separate chip.", 0
+s_colbad2:  !scr "not a dram. causes wrong colours.", 0
+; ⚠ THE OLD LEGEND SAID ".=NOT RAM" AND THAT WAS SIMPLY FALSE. Every one of
+; the 256 pages is RAM and every one gets tested -- even $D000-$DFFF, which is
+; marched with I/O banked out. '.' is state 0, "not reached yet", and it is
+; dark grey on black precisely so it reads as absence; a mark nobody can see
+; does not need a legend entry, so it has none.
+; ⚠ ADDING 'x' IS THE POINT OF THE REWRITE. The legend explained the two
+; resting states and said nothing about the failure state, which had it exactly
+; backwards: a red x on a page is the single most important mark on the screen.
+; ⚠ '-' IS DELIBERATELY NOT LISTED. It is one yellow cell, moving, with a
+; spinner turning in the running phase's row at the same time -- it reads as
+; "here" with no help, and listing it pushed the line into the version number
+; in the corner. The budget is col 1 to col 35; the version owns 37-39.
+s_legend:   !scr "64k map: #=full *=lighter x=bad", 0
+s_ver:      !scr "1.4", 0   ; ⚠ 3 chars at col 37: the legend must end by 35
+; ⚠ Nothing told the user it never stops, or how to end it.
+s_running:  !scr "runs until you reset.", 0
 
 ; ⚠ Four bytes per entry, space padded, indexed by bit*4. The designators are
 ; Assy 250407 ONLY -- schematic 251138, via c64-ice40-ram README §2.2.
 ; The matching bit labels are generated in draw_diag, not stored.
 chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
-s_ok:       !scr "bus ok, all 16 lines.", 0
-s_ok2:      !scr "59,648 full + 5,886 lighter = 65,534.", 0
-s_databad:  !scr "data bus fault - see the d lane.", 0
-s_addrbad:  !scr "address line fault - see the a lanes.", 0
-s_addrbad2: !scr "both of a pair = mux u13/u25 or rp.", 0
+s_ok:       !scr "all tests passed.", 0
+s_ok2:      !scr "59,648 full + 5,886 lighter = 65,534", 0
+; ⚠ Headlines are short because the DETAIL is on the next two rows and the
+; lanes are on screen already. "see data lines" told a reader to look at
+; something they were already looking at.
+s_databad:  !scr "data line fault.", 0
+s_addrbad:  !scr "address line fault.", 0
+s_addrbad2: !scr "two of a pair? suspect u13/u25/rp1/rp2", 0
 ; ⚠ No second line for the memory or data-bus verdicts: draw_diag owns rows
 ; 22 and 23 and says more than a sentence would. The strings that used to
 ; live there were dead for several commits, still costing 63 bytes of an
 ; engine capped at 4 KB.
-s_membad:   !scr "memory fault - see the red cells.", 0
+s_membad:   !scr "memory fault, first bad byte at $", 0
 s_bits:     !scr "bits", 0
 s_assy:     !scr "250407", 0
-s_allbits:  !scr "all 8 bits - not one chip. see pla.", 0
-s_shortbd:  !scr "short board? 2x41464 names differ.", 0
+s_allbits:  !scr "all 8 bits bad - not one chip. see pla", 0
+s_shortbd:  !scr "short board? 2 chips, names differ.", 0
 
 eng_end:
 }
@@ -3000,6 +3088,14 @@ p6_exit:
 ; ⚠ Leaves through the same patched exit, for the same reason.
 p6_fail:
         sta w_tmp
+        lda w_errlo                     ; ⚠ P6 records it too: w_p6seed is
+        ora w_errhi                     ; page EOR SEED, so the page comes
+        bne p6f_haveaddr                ; straight back out of it
+        stx w_faddr
+        lda w_p6seed
+        eor #SEED
+        sta w_faddr+1
+p6f_haveaddr:
 p6f_rd: lda $0000,x
         eor w_tmp
         ora w_bitmask

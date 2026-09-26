@@ -1,25 +1,25 @@
- DRAMSCOPE 1.2      BAD 0000 PASS 0001
+ DRAMSCOPE  RUNS $0001  BAD BYTES $0000
 ----------------------------------------
-  0123456789ABCDEF
-0 **#*****######## P1 DATA BUS  OK
+  0123456789ABCDEF TESTS AND RESULTS
+0 **#*****######## DATA LINES   OK
 1 ################  76543210
 2 ################  ########
-3 ################ P2 ADDR BUS  OK
+3 ################ ADDR LINES   OK
 4 ################  FEDCBA98
 5 ################  ########
 6 ################  76543210
 7 ################  ########
-8 ################ P3 MARCH B   OK
-9 ################ P4 MARCH LR  OK
-A ################ P5 TOPO      OK
-B ################ P6 ZP+STACK  OK
-C **************** P6B HANDOVER OK
-D ################ P7 DWELL     OK
-E ################ P9 COL RAM   OK
+8 ################ MARCH B      OK
+9 ################ MARCH LR     OK
+A ################ ROW/COLUMN   OK
+B ################ LOW MEMORY   OK
+C **************** OWN MEMORY   OK
+D ################ COLOUR RAM   OK
+E ################ RETENTION    OK
 F ################
-
+ 64K MAP: #=FULL *=LIGHTER X=BAD     1.4
 ----------------------------------------
- BUS OK, ALL 16 LINES.
- 59,648 FULL + 5,886 LIGHTER = 65,534.
+ ALL TESTS PASSED.
+ 59,648 FULL + 5,886 LIGHTER = 65,534
 
- #=45/BYTE *=9/BYTE +=PROBED .=NOT RAM
+ RUNS UNTIL YOU RESET.

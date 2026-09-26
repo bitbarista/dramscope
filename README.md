@@ -36,7 +36,7 @@ that come next and are harder:
   PLA looks like bad memory and is not. The tool tells them apart.
 - **Why does it only fail when warm?** Marginal, leaky cells pass every fast march test and
   drop bits an hour into a session. P7 writes the whole map, waits 12 seconds, and reads it
-  back. ⚠ **Refresh cannot be suppressed from software on a C64** — the VIC refreshes
+  back (`RETENTION` on screen). ⚠ **Refresh cannot be suppressed from software on a C64** — the VIC refreshes
   unconditionally, and blanking the screen actually gives the *CPU* more cycles while
   refresh carries on unchanged. So this is retention *against a working refresh*: the cells
   it catches are the ones leaking faster than refresh at specification can sustain.
@@ -77,8 +77,8 @@ The two projects stay separate. This one has no dependency on that board and nev
 | Specification | ✅ [`SPEC.md`](SPEC.md) |
 | Provenance policy | ✅ [`PROVENANCE.md`](PROVENANCE.md) |
 | **P0** bring-up probe, no RAM assumed | ✅ |
-| **P1** data bus — walking ones/zeroes/rails | ✅ |
-| **P2** address bus — **all 16 lines, A0–A15** | ✅ |
+| **P1** `DATA LINES` — walking ones/zeroes/rails | ✅ |
+| **P2** `ADDR LINES` — **all 16 lines, A0–A15** | ✅ |
 | Display — 256-page map, bus lanes, verdict | ✅ |
 | Fault injection + headless VICE harness | ✅ 14 mutations, one shared hook |
 | Whole-screen golden comparison | ✅ [`test/golden/`](test/golden/) |
@@ -86,13 +86,13 @@ The two projects stay separate. This one has no dependency on that board and nev
 | Gate G1 — EasyFlash mode switching | ✅ **closed** — Ultimate II+ *and* Kung Fu Flash, `$DE02 = $02` |
 | EasyFlash delivery — boots in Ultimax, **needs no working RAM to start** | ✅ |
 | Engine relocated to `$C000`, banks out with `$01 = $30` | ✅ |
-| **P3** March B 17n, address-dependent pattern, 60,928 of 65,536 bytes | ✅ ~17 s |
-| **P4** March LR 14n, **fixed** patterns — linked faults | ✅ ~11 s |
-| **P5** topographical row/column patterns — physical adjacency | ✅ ~34 s |
-| **P6** zero page and the stack — 9n, registers-only | ✅ |
-| **P7** retention — write, dwell 12 s, verify | ✅ |
-| **Burn-in** — cycles continuously, counts passes, accumulates faults | ✅ |
-| **P9** colour RAM — the separate 1K × 4 chip | ✅ |
+| **P3** `MARCH B` — 17n, address-dependent pattern, 60,928 of 65,536 bytes | ✅ ~17 s |
+| **P4** `MARCH LR` — 14n, **fixed** patterns — linked faults | ✅ ~11 s |
+| **P5** `ROW/COLUMN` — topographical patterns — physical adjacency | ✅ ~34 s |
+| **P6** `LOW MEMORY` / `OWN MEMORY` — zero page, stack and the engine's home — 9n, registers-only | ✅ |
+| **P7** `RETENTION` — write, dwell 12 s, verify | ✅ |
+| **Burn-in** — cycles continuously, counts runs, accumulates faults | ✅ |
+| **P9** `COLOUR RAM` — the separate 1K × 4 chip | ✅ |
 | ~~P8 disturb~~ | ⚠ **declined** — a 6502 reaches ~400 row activations per refresh interval against the 10⁴–10⁵ rowhammer needs. See `SPEC.md` |
 | **Chip naming** from the failing-bit mask, Assy 250407 | ✅ |
 | Classification rules beyond chip naming (stride, region, mux pairing) | ⬜ |
@@ -135,25 +135,46 @@ It is an **EasyFlash cartridge** and boots in Ultimax, so it takes the reset vec
 from the cartridge and runs with no KERNAL, no stack and no zero page required. A machine
 whose low memory is dead can still be tested — which is the machine most in need of it.
 
-**The panel is a checklist.** Every phase has a named row and a status cell — `..` not
-started, a turning marker while it runs, `OK` or `X` when it finishes — so the screen answers
-"what has been done to this machine, and did it pass" without anyone reading a manual:
+**The panel is a checklist**, headed `TESTS AND RESULTS`. Every test has a named row and a
+status cell — `..` not started, a turning marker while it runs, `OK` or `X` when it finishes —
+so the screen answers "what has been done to this machine, and did it pass" without anyone
+reading a manual:
 
 ```
- DRAMSCOPE 1.2      BAD 0000 PASS 0001
-   0123456789ABCDEF P1 DATA BUS  OK
- 0 **#*****########  76543210
- 1 ################  ########
- 2 ################ P2 ADDR BUS  OK
+ DRAMSCOPE  RUNS $0001  BAD BYTES $0000
+ ----------------------------------------
+   0123456789ABCDEF TESTS AND RESULTS
+ 0 **#*****######## DATA LINES   OK
+ 1 ################  76543210
+ 2 ################  ########
+ 3 ################ ADDR LINES   OK
  …                   FEDCBA98
- 8 ################ P3 MARCH B   OK
- 9 ################ P4 MARCH LR  OK
- A ################ P5 TOPO      OK
- B ################ P6 ZP+STACK  OK
- C **************** P6B HANDOVER OK
- D ################ P7 DWELL     OK
- E ################ P9 COL RAM   OK
+ 8 ################ MARCH B      OK
+ 9 ################ MARCH LR     OK
+ A ################ ROW/COLUMN   OK
+ B ################ LOW MEMORY   OK
+ C **************** OWN MEMORY   OK
+ D ################ COLOUR RAM   OK
+ E ################ RETENTION    OK
+ F ################
+ 64K MAP: #=FULL *=LIGHTER X=BAD     1.4
+ ----------------------------------------
+ ALL TESTS PASSED.
+ 59,648 FULL + 5,886 LIGHTER = 65,534
+
+ RUNS UNTIL YOU RESET.
 ```
+
+⚠ **The phase numbers used throughout this README and in `SPEC.md` are not on the screen.**
+They are the specification's identifiers; the screen names what each test *does*, because
+"P5" tells a user nothing and the gap where the declined P8 would sit invited the question
+"where is P8?". The mapping is in the table above.
+
+⚠ **`RETENTION` sits below `COLOUR RAM` although it is P7 and the colour RAM is P9.** The
+rows are ordered by when a test *completes*: the colour RAM is checked inside the handover
+module, which finishes before the retention wait begins. A reader watching a list fill
+downwards reads a gap as "that one was skipped", so the order that matters is the visible
+one.
 
 **It runs as a burn-in.** One pass takes about 80 seconds; when it finishes it counts the
 pass and starts again, and keeps going until the machine is reset. Faults are **cumulative**
@@ -172,8 +193,8 @@ faster but is a single character cell, 0.1 % of the display.
 
 **It is visibly alive while it works.** A full run is about a minute, so a spinner turns
 beside the phase name and the border pulses between the phase colour and dark grey, a
-couple of times a second. ⚠ **A static border from P1 onwards means hung** — that is now
-the fault report, not an ambiguity.
+couple of times a second. ⚠ **A static border once testing has begun means hung** — that is
+now the fault report, not an ambiguity.
 
 Border colours report even when the display cannot: white = has control, red = zero-page
 scratch dead, purple = screen page dead, **orange = this device ignores `$DE02` and cannot
@@ -193,7 +214,8 @@ one is traced in [`PROVENANCE.md`](PROVENANCE.md).
 
 ## Coverage — what is tested, and how deeply
 
-**60,414 of 65,536 bytes.** The map distinguishes the depths rather than averaging them:
+⚠ The figure below was **silently lost for several revisions** and is now tied to the run
+table by an assembly-time `!error`, so the strings and the table cannot drift apart again.
 
 **65,534 of 65,536 — every byte of RAM there is**, and the verdict line prints the split
 rather than rounding it to a claim: `59,648 FULL + 5,886 LIGHTER = 65,534.` The map
@@ -203,8 +225,21 @@ distinguishes depth rather than averaging it:
 |---|---|---|
 | solid | **45** operations per byte — March B 17n, March LR 14n, topographical 12n, dwell 2n | 59,648 bytes |
 | `*` | **9** operations per byte | zero page, stack, screen matrix, the engine's own 4 KB — 5,630 bytes |
-| `+` | probed but not yet marched | shown only *during* a run, before the handover |
-| `.` | nothing | `$0000`/`$0001` — ⚠ **not RAM**, they are the CPU's DDR and banking latch |
+| `X` | a bad byte somewhere in that page | wherever a fault was found |
+| `-` | yellow, moving — the page under test right now | one cell, transient |
+| `.` | dark grey — not reached yet | none on a finished run |
+
+⚠ **`+` has been retired.** It marked "probed but not yet marched" and appeared only
+mid-run, in a legend line with no room to explain it. An unexplained glyph on a diagnostic
+screen is worse than a coarser one, so those pages now draw `*` — still true, since "lighter
+than full" covers both — and keep their cyan to distinguish them for anyone who looks. The
+internal state is unchanged, because it is the reason the map cannot over-claim.
+
+⚠ **The legend used to say `.=NOT RAM`, and that was simply false.** Every one of the 256
+pages is RAM and every one is tested, `$D000–$DFFF` included — marched with the I/O chips
+banked out. `.` means *not reached yet*, and it is dark grey on black so that it reads as
+absence. The two bytes that genuinely are not RAM are `$0000` and `$0001`, the CPU's
+data-direction register and banking latch, which is why the total is 65,534 and not 65,536.
 
 The `*` regions get a shorter march because the test is standing on them: the engine's home
 is marched by a module copied to `$3000`, which then re-copies the engine from cartridge ROM

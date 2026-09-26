@@ -19,7 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 BUILD = ROOT / "build"
 
 GLYPH = {0x20: " ", 0x2E: ".", 0x2D: "-", 0x2F: "/", 0x2C: ",", 0x3D: "=",
-         0x18: "X", 0xA0: "#", 0x2B: "+", 0x2A: "*", 0x23: "#"}
+         0x18: "X", 0xA0: "#", 0x2B: "+", 0x2A: "*", 0x23: "#", 0x24: "$", 0x3A: ":"}
 
 
 def halt_address(stem: str, sym: str = "pass_obs") -> str:
@@ -117,7 +117,7 @@ def plausible(scr, wrk, want_errs) -> int:
     if errs != want_errs:
         print(f"     errors    {errs} in memory, case claims {want_errs}   <-- ***")
         bad += 1
-    shown = text(scr, 0, 23, 28).strip()
+    shown = errors_field(scr).strip()
     if shown != f"{wrk[15]:02X}{wrk[14]:02X}":
         print(f"     errors    screen {shown} vs memory "
               f"{wrk[15]:02X}{wrk[14]:02X}   <-- ***")
@@ -148,7 +148,25 @@ def text(scr: bytes, row: int, c0: int = 0, c1: int = 40) -> str:
 
 # Display geometry -- must track SPEC.md / dramscope.asm
 DB_ROW, AH_ROW, AL_ROW, V_ROW, PAN = 5, 8, 10, 21, 20
+# ⚠ The checklist rows, in the SAME order as the cartridge's phrow table --
+# ordered by when a phase completes, not by its index, because retention
+# finishes after the colour-RAM check. Position in the string is still the
+# phase index, which is what cl() depends on.
+PHROW = (3, 6, 11, 12, 13, 14, 15, 17, 16)
 STAT = 32   # the checklist status column
+# ⚠ ONE definition of where the title-row counters are, because there are three
+# readers and last time the layout moved only two of them were updated -- which
+# is a harness that lies about the thing it exists to check.
+PASS_C0, PASS_C1 = 18, 22   # "RUNS $dddd"      -- digits only, not the '$'
+ERR_C0,  ERR_C1  = 35, 39   # "BAD BYTES $dddd" -- digits only, not the '$'
+
+
+def passes_field(scr):
+    return text(scr, 0, PASS_C0, PASS_C1)
+
+
+def errors_field(scr):
+    return text(scr, 0, ERR_C0, ERR_C1)
 
 
 def cl(*bad):
@@ -181,8 +199,8 @@ CASES = [
      {"redpages": 0,
       "errcount": 0,
       "row0": "**#*****########", "rowC": "****************",
-      "page40": "#", "errors": " 0000",
-      "bits": " 59,648 FULL + 5,886 LIGHTER = 65,534.", "chips": "",
+      "page40": "#", "errors": "0000",
+      "bits": " 59,648 FULL + 5,886 LIGHTER = 65,534", "chips": "",
       "colram": "OK"}),
     # ⚠ The classifier makes a claim about someone else's hardware. D3 is U10
     # on a 250407 -- schematic 251138 via c64-ice40-ram README §2.2.
@@ -206,10 +224,10 @@ CASES = [
       "errcount": 1,
       "checklist": cl(2),
       "row0": "**#*****########", "rowC": "****************", "page40": "X",
-      "errors": " 0001",
+      "errors": "0001",
       "bits":  " BITS                               D0",
       "chips": " 250407                             U21",
-      "caveat": " SHORT BOARD? 2X41464 NAMES DIFFER."}),
+      "caveat": " SHORT BOARD? 2 CHIPS, NAMES DIFFER."}),
     # ⚠ The one a real device might actually hit. A Kung Fu Flash that ignores
     # $DE02 must SAY SO, not hang in Ultimax pretending to test 64 KB.
     # ⚠ P4 is a SEPARATE engine with its own read paths, so it needs its own
@@ -219,7 +237,7 @@ CASES = [
      {"redpages": 1,
       "errcount": 1,
       "checklist": cl(3),
-      "errors": " 0001",
+      "errors": "0001",
       "bits":  " BITS   D7",
       "chips": " 250407 U12"}),
     # ⚠ P5 is a third engine again -- its own pattern generator and read path.
@@ -229,7 +247,7 @@ CASES = [
      {"redpages": 1,
       "errcount": 6,
       "checklist": cl(4),
-      "errors": " 0006",
+      "errors": "0006",
       "bits":  " BITS       D6",
       "chips": " 250407     U24"}),
     # ⚠ P6 is a fourth engine again -- registers-only, self-modifying, and the
@@ -239,7 +257,7 @@ CASES = [
      {"redpages": 2,
       "errcount": 1,
       "checklist": cl(5),
-      "errors": " 0001",
+      "errors": "0001",
       "bits":  " BITS                       D2",
       "chips": " 250407                     U22"}),
     # ⚠ The handover is a FIFTH engine, and the only one that marches the
@@ -251,7 +269,7 @@ CASES = [
      {"redpages": 4,
       "errcount": 1,
       "checklist": cl(6),
-      "errors": " 0001",
+      "errors": "0001",
       "bits":  " BITS               D4",
       "chips": " 250407             U23"}),
     # ⚠ P7 is the only phase where the fault appears AFTER a wait rather than
@@ -261,7 +279,7 @@ CASES = [
      {"redpages": 1,
       "errcount": 1,
       "checklist": cl(7),
-      "errors": " 0001",
+      "errors": "0001",
       "bits":  " BITS           D5",
       "chips": " 250407         U11"}),
     # ⚠ Colour RAM is a DIFFERENT CHIP. Its verdict is its own, its label goes
@@ -271,9 +289,9 @@ CASES = [
      {"redpages": 0,
       "errcount": 0,
       "checklist": cl(8),
-      "errors": " 0000",
+      "errors": "0000",
       "colram": "X",
-      "vline":  " COLOUR RAM FAULT - A SEPARATE CHIP."}),
+      "vline":  " COLOUR RAM BAD - A SEPARATE CHIP."}),
     # ⚠ THE SAFETY RULE. All eight bits wrong must name NO chip at all.
     ("all 8 bits wrong -- must REFUSE to name a chip",
      "dramscope_fall.crt", "pass_obs",     "LTRED", "########", "########", "########",
@@ -281,8 +299,8 @@ CASES = [
       "errcount": 1,
       "checklist": cl(2),
       "bits":  " BITS   D7  D6  D5  D4  D3  D2  D1  D0",
-      "chips": " ALL 8 BITS - NOT ONE CHIP. SEE PLA.",
-      "caveat": " #=45/BYTE *=9/BYTE +=PROBED .=NOT RAM"}),
+      "chips": " ALL 8 BITS BAD - NOT ONE CHIP. SEE PLA",
+      "caveat": " RUNS UNTIL YOU RESET."}),
     ("device ignores $DE02 -- must report ORANGE, not hang",
      "dramscope_fef.crt",  "rom_halt", "ORANGE", None, None, None, None),
 ]
@@ -302,14 +320,14 @@ def main() -> int:
         # completed; anything higher means the breakpoint is in the wrong place
         # and the harness is reading a later pass than it thinks.
         if want_db is not None:
-            got["passes"] = text(scr, 0, 33, 38)
-            want["passes"] = " 0001"
+            got["passes"] = passes_field(scr)
+            want["passes"] = "0001"
             # ⚠ THE CHECKLIST IS THE ANSWER TO "what ran and did it pass".
             # Asserting the whole column means a phase that silently stops
             # being run, or stops reporting, fails the build.
             got["checklist"] = "".join(
                 text(scr, r, STAT, STAT + 2).strip() or ".."
-                for r in (3, 6, 11, 12, 13, 14, 15, 16, 17))
+                for r in PHROW)
             want["checklist"] = want.get("checklist", "OK" * 9)
         # ⚠ LIVENESS GUARD. w_tick counts pages processed and drives both the
         # spinner and the border pulse. The final phase text blanks the spinner
@@ -331,17 +349,18 @@ def main() -> int:
             "row0":    lambda: maprow(scr, 0),
             "rowC":    lambda: maprow(scr, 0xC),
             "page40":  lambda: cell(scr, 0x40),
-            "errors":  lambda: text(scr, 0, 23, 28),
+            "errors":  lambda: errors_field(scr),
             "bits":    lambda: text(scr, V_ROW + 1),
             "chips":   lambda: text(scr, V_ROW + 2),
             "caveat":  lambda: text(scr, V_ROW + 3),
             "vline":   lambda: text(scr, V_ROW),
             # the COL RAM label's colour IS the verdict for that chip
             # ⚠ the colour RAM verdict is now a checklist row like any other
-            "colram":  lambda: text(scr, 17, STAT, STAT + 2),
+            # ⚠ PHROW[8], not a literal row: the colour-RAM row moved once already.
+            "colram":  lambda: text(scr, PHROW[8], STAT, STAT + 2),
             "checklist": lambda: "".join(
                 text(scr, r, STAT, STAT + 2).strip() or ".."
-                for r in (3, 6, 11, 12, 13, 14, 15, 16, 17)),
+                for r in PHROW),
         }
         if extra:
             for k in extra:
@@ -390,7 +409,7 @@ def main() -> int:
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
     scr = (BUILD / "screen.bin").read_bytes()[2:]
     mid = "".join(text(scr, r, STAT, STAT + 2).strip() or ".."
-                  for r in (3, 6, 11, 12, 13, 14, 15, 16, 17))
+                  for r in PHROW)
     want_mid = "OK" * 3 + ".." * 6
     ok = mid == want_mid
     print(f"     at P4          checklist={mid}"
@@ -421,9 +440,9 @@ def main() -> int:
             cwd=ROOT, timeout=400,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
         scr = (BUILD / "screen.bin").read_bytes()[2:]
-        got_p = text(scr, 0, 33, 38).strip()
+        got_p = passes_field(scr).strip()
         got_c = "".join(text(scr, r, STAT, STAT + 2).strip() or ".."
-                        for r in (3, 6, 11, 12, 13, 14, 15, 16, 17))
+                        for r in PHROW)
         ok = got_p == want_pass and got_c == want_cl
         print(f"     {label:14s} pass={got_p} checklist={got_c}"
               f"{'' if ok else f'   <-- *** wanted {want_pass} / {want_cl}'}")

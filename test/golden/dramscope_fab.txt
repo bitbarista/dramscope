@@ -1,25 +1,25 @@
- DRAMSCOPE 1.2      BAD 0000 PASS 0001
+ DRAMSCOPE  RUNS $0001  BAD BYTES $0000
 ----------------------------------------
-  0123456789ABCDEF
-0 **#*****XXX#X### P1 DATA BUS  OK
+  0123456789ABCDEF TESTS AND RESULTS
+0 **#*****XXX#X### DATA LINES   OK
 1 X#######X#######  76543210
 2 ########X#######  ########
-3 ################ P2 ADDR BUS  X
+3 ################ ADDR LINES   X
 4 ########X#######  FEDCBA98
 5 ################  ########
 6 ################  76543210
 7 ################  ##X#####
-8 ########X####### P3 MARCH B   OK
-9 ################ P4 MARCH LR  OK
-A ################ P5 TOPO      OK
-B ################ P6 ZP+STACK  OK
-C **************** P6B HANDOVER OK
-D ################ P7 DWELL     OK
-E ################ P9 COL RAM   OK
+8 ########X####### MARCH B      OK
+9 ################ MARCH LR     OK
+A ################ ROW/COLUMN   OK
+B ################ LOW MEMORY   OK
+C **************** OWN MEMORY   OK
+D ################ COLOUR RAM   OK
+E ################ RETENTION    OK
 F ################
-
+ 64K MAP: #=FULL *=LIGHTER X=BAD     1.4
 ----------------------------------------
- ADDRESS LINE FAULT - SEE THE A LANES.
- BOTH OF A PAIR = MUX U13/U25 OR RP.
+ ADDRESS LINE FAULT.
+ TWO OF A PAIR? SUSPECT U13/U25/RP1/RP2
 
- #=45/BYTE *=9/BYTE +=PROBED .=NOT RAM
+ RUNS UNTIL YOU RESET.

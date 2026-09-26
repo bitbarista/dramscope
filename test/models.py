@@ -44,7 +44,12 @@ STOCK_KERNAL = pathlib.Path.home() / ".local/share/vice/C64/kernal-901227-03.bin
 
 BORDER = {1: "WHITE", 2: "RED", 3: "CYAN", 4: "PURPLE", 5: "GREEN",
           6: "BLUE", 7: "YELLOW", 8: "ORANGE", 10: "LTRED", 12: "GREY"}
-GLYPH = {0x20: " ", 0x2E: ".", 0x2A: "*", 0xA0: "#", 0x18: "X", 0x2B: "+"}
+# ⚠ The checklist rows, in the SAME order as the cartridge's phrow table --
+# ordered by when a phase completes, not by its index, because retention
+# finishes after the colour-RAM check. Position in the string is still the
+# phase index, which is what cl() depends on.
+PHROW = (3, 6, 11, 12, 13, 14, 15, 17, 16)
+GLYPH = {0x20: " ", 0x2E: ".", 0x2A: "*", 0xA0: "#", 0x18: "X", 0x2B: "+", 0x24: "$", 0x3A: ":"}
 
 
 def sym(stem: str, name: str) -> str:
@@ -119,10 +124,10 @@ def check_clean(label, args):
     border, scr, wrk = got
     errs = wrk[14] + 256 * wrk[15]
     row0 = text(scr, 3, 2, 18)
-    passes = text(scr, 0, 33, 38)
+    passes = text(scr, 0, 18, 22)
     # ⚠ the checklist is the point: every phase must have run AND passed
     checks = "".join(text(scr, r, 32, 34).strip() or ".."
-                     for r in (3, 6, 11, 12, 13, 14, 15, 16, 17))
+                     for r in PHROW)
     ok = (BORDER.get(border) == "GREEN" and errs == 0 and checks == "OK" * 9
           and row0 == CLEAN_ROW0 and passes.strip() == "0001")
     print(f"  {label:32s} {BORDER.get(border, border):6s} err={errs:<4d} "

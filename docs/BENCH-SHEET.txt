@@ -1,4 +1,4 @@
-DRAMSCOPE 1.2  --  C64 memory diagnostic          updated 2026-09-26
+DRAMSCOPE 1.4  --  C64 memory diagnostic          updated 2026-09-26
 ====================================================================
 
 DRAMSCOPE.CRT is the test. G1PROBE.CRT is a one-question hardware probe
@@ -16,24 +16,25 @@ so it needs NO WORKING RAM to start -- not even the stack page. A machine
 too broken to reach BASIC can still be tested, which is the machine most
 worth testing.
 
-IT DOES NOT STOP. One pass takes about 80 seconds, including a 12-second
-wait in P7; then it counts the pass and starts over, and keeps going until
-you reset the machine. Leave it running.
+IT DOES NOT STOP. One run takes about 80 seconds, including a 12-second
+wait in RETENTION; then it counts the run and starts over, and keeps going
+until you reset the machine. Leave it running. The bottom line of the screen
+says so too: RUNS UNTIL YOU RESET.
 
 Everything accumulates. A cell that has failed stays red even if later
-passes pass. BAD BYTES only ever grows. And once anything has failed the
+runs are clean. BAD BYTES only ever grows. And once anything has failed the
 border pulses RED instead of grey for the rest of the run, so you can walk
 past an hour later and know.
 
-That is what the burn-in is for: a chip that fails once an hour looks
-perfect on a single pass, and it is the one worth finding.
+That is what leaving it running is for: a chip that fails once an hour
+looks perfect on a single run, and it is the one worth finding.
 
 
 IS IT STILL ALIVE?
 ------------------
 
-A spinner turns beside the phase name and the border pulses a couple of
-times a second, all the way through.
+A spinner turns beside the name of the test that is running, and the border
+pulses a couple of times a second, all the way through.
 
   ** A BORDER THAT HAS STOPPED PULSING MEANS IT HAS HUNG. **
 
@@ -43,8 +44,8 @@ cannot speed up during a faster phase. That is about a third of the rate
 considered a photosensitivity risk (three flashes per second). The spinner
 moves faster but is a single character.
 
-That is the report, not an ambiguity. Tell me the phase name and the colour
-it froze on.
+That is the report, not an ambiguity. Tell me which test it was on and the
+colour it froze on.
 
 
 BORDER COLOURS
@@ -59,11 +60,14 @@ Before the test proper, the border reports faults the display cannot:
   blue     FATAL: $C000-$CFFF is unusable
   black    the cartridge never got control at all
 
-During the test the colour tells you the phase, and pulses:
+During the test the colour says which test is running, and pulses:
 
-  yellow P1 data bus      cyan P2 address bus    green  P3 March B
-  cyan   P4 March LR      purple P5 topographic  grey   P6b handover
-  orange P6 zero page + stack                    blue   P7 retention
+  yellow DATA LINES       cyan   ADDR LINES      green  MARCH B
+  cyan   MARCH LR         purple ROW/COLUMN      orange LOW MEMORY
+  grey   OWN MEMORY       blue   RETENTION
+
+COLOUR RAM has no colour of its own: it is checked inside OWN MEMORY, so the
+border is grey for it.
 
 At the end: GREEN clean, LIGHT RED fault found.
 
@@ -71,57 +75,70 @@ At the end: GREEN clean, LIGHT RED fault found.
 THE MAP
 -------
 
-The 16x16 grid IS the address space. Row is the high nibble of the page,
-column the low nibble -- so top left is $0000 and bottom right is $FF00.
+The 16x16 grid IS the address space, one cell per 256-byte page. Row is the
+high digit of the address, column the next one -- so top left is $0000 and
+bottom right is $FF00. The digits are printed along the top and down the
+left, so a cell's address can be read straight off the grid.
+
 The SHAPE of a fault usually says more than its address: a stripe, a
 quadrant, a scatter each mean something different.
+
+Under the grid is its key:
+
+  64K MAP: #=FULL *=LIGHTER X=BAD
+
+X is the one to look for. FULL and LIGHTER are explained below.
 
 THE CHECKLIST
 -------------
 
-The right-hand panel lists every test, in the order it runs, with its
-status. You can see at a glance what has been done to the machine:
+The right-hand panel is headed TESTS AND RESULTS. It lists every test in
+the order it finishes, with its result, so you can see at a glance what has
+been done to the machine:
 
-  P1 DATA BUS    OK      ..   not started
-  P2 ADDR BUS    OK      /    running -- the marker turns
-  P3 MARCH B     OK      OK   passed
-  P4 MARCH LR    OK      X    FAILED, and STAYS failed
-  P5 TOPO        OK
-  P6 ZP+STACK    OK    P7's marker counts the dwell down in seconds
-  P6B HANDOVER   OK    while it waits, so that row stays alive too.
-  P7 DWELL       OK
-  P9 COL RAM     OK
+  DATA LINES   OK        ..   not started yet
+  ADDR LINES   OK        /    running -- the marker turns
+  MARCH B      OK        OK   passed
+  MARCH LR     OK        X    FAILED, and STAYS failed
+  ROW/COLUMN   OK
+  LOW MEMORY   OK      RETENTION's marker counts its 12-second wait down
+  OWN MEMORY   OK      in seconds, so that row stays alive too.
+  COLOUR RAM   OK
+  RETENTION    OK
 
-Under P1 and P2 are their bus lanes, bit by bit.
+Under DATA LINES and ADDR LINES are their individual lines, bit by bit, so
+a single bad line is named rather than inferred.
 
-Each new pass puts the passed phases back to '..' and fills the column in
-again, so you can always see how far through the CURRENT pass it is.
+Each new run puts the passed tests back to '..' and fills the column in
+again, so you can always see how far through the CURRENT run it is.
 
-⚠ A phase that has failed ONCE keeps its X for the rest of the run, even
-if every later pass is clean. It is the one thing that does not reset. That is the whole point of leaving it going:
-the fault that happens once an hour is the one worth finding, and a
-display that forgot it would be worse than none.
+⚠ A test that has failed ONCE keeps its X for the rest of the run, even if
+every later run is clean. It is the one thing that does not reset. That is
+the whole point of leaving it going: the fault that happens once an hour is
+the one worth finding, and a display that forgot it would be worse than none.
 
-BAD and PASS are on the title line: bytes failed so far, and completed
-passes. Both are cumulative for the whole run.
+RUNS and BAD BYTES are on the title line: completed runs, and bytes failed
+so far. Both count the whole session, and both are shown in hex -- that is
+what the $ in front of them means.
 
-⚠ P9 COL RAM is the colour RAM -- a SEPARATE 1K x 4 chip, not part of the
-64 KB. When it fails you get wrong colours rather than a crash, so it gets
-blamed on the VIC. It is never counted against the DRAMs and never names
-a 4164.
+⚠ COLOUR RAM is a SEPARATE 1K x 4 chip and not part of the 64 KB. When it
+fails you get wrong colours rather than a crash, so it gets blamed on the
+VIC. It is never counted against the DRAMs and never names a 4164.
 
 The marks say how HARD each region was tested, in reads and writes per
 byte -- not whether it was reached. Everything except two bytes is reached.
 
-  #       45 reads and writes of every byte: March B, March LR, six
-          topographical patterns and the retention dwell
-  *       9 per byte -- a shorter march. These are the regions the test
-          itself has to stand on: zero page, the stack, its workspace,
-          the screen, and its own 4 KB. Fully covered, less hammered
-  +       probed only. Seen WHILE running, before the handover upgrades it
-  X       FAILED
-  .       not tested. Only $0000 and $0001, which are not RAM -- they are
-          the CPU's data-direction register and banking latch
+  #       FULL: 45 reads and writes of every byte -- March B, March LR,
+          six row/column patterns and the retention wait
+  *       LIGHTER: about 9 per byte, a shorter march. These are the regions
+          the test itself has to stand on: zero page, the stack, its
+          workspace, the screen, and its own 4 KB. Every byte is still
+          tested -- just not hammered as hard
+  X       a BAD BYTE somewhere in that page
+  -       yellow, and moving: this is the page being tested right now
+  .       dark, nearly invisible: not reached yet. On a finished run there
+          are none -- every page of the 64 KB is tested, including
+          $D000-$DFFF, which is marched with the I/O chips banked out
 
 Everything else is covered, and the verdict line says so in numbers
 rather than in words:
@@ -137,10 +154,16 @@ IF IT FINDS A FAULT
 
 It prints the failing DATA BIT, and under it the chip that carries that bit:
 
-   MEMORY FAULT - SEE THE RED CELLS.
+   MEMORY FAULT, FIRST BAD BYTE AT $4037
    BITS                               D0
    250407                             U21
-   SHORT BOARD? 2X41464 - NAMES DIFFER.
+   SHORT BOARD? 2 CHIPS, NAMES DIFFER.
+
+The address is where the FIRST bad byte was found, so there is something
+concrete to probe. The map shows every page that has one.
+
+250407 is the board assembly number the chip names assume -- it is printed
+as the row label so you can check it against your own board.
 
   ** THE BIT NUMBER IS TRUE ON EVERY C64. THE CHIP NAME IS NOT. **
 
@@ -158,13 +181,13 @@ WHAT IT CANNOT DO
 
 Refresh cannot be switched off from software on a C64 -- the VIC refreshes
 regardless, and blanking the screen actually gives the CPU more cycles
-while refresh carries on unchanged. So P7 tests retention against a
+while refresh carries on unchanged. So RETENTION tests against a
 WORKING refresh. It catches cells leaking faster than refresh can sustain.
 
 Temperature is the other lever and it is not a software one:
 
   ** RUN IT AGAIN ON A MACHINE THAT HAS BEEN ON FOR AN HOUR. **
 
-The topographical patterns use row and column adjacency as the C64
-ADDRESSES them, which is correct. They do not model the physical layout
+ROW/COLUMN uses row and column adjacency as the C64 ADDRESSES them, which
+is correct. They do not model the physical layout
 inside any particular manufacturer's die, and do not claim to.

@@ -1,25 +1,25 @@
- DRAMSCOPE 1.2      BAD 0001 PASS 0001
+ DRAMSCOPE  RUNS $0001  BAD BYTES $0001
 ----------------------------------------
-  0123456789ABCDEF
-0 **#*****######## P1 DATA BUS  OK
+  0123456789ABCDEF TESTS AND RESULTS
+0 **#*****######## DATA LINES   OK
 1 ################  76543210
 2 ################  ########
-3 ################ P2 ADDR BUS  OK
+3 ################ ADDR LINES   OK
 4 X###############  FEDCBA98
 5 ################  ########
 6 ################  76543210
 7 ################  ########
-8 ################ P3 MARCH B   X
-9 ################ P4 MARCH LR  OK
-A ################ P5 TOPO      OK
-B ################ P6 ZP+STACK  OK
-C **************** P6B HANDOVER OK
-D ################ P7 DWELL     OK
-E ################ P9 COL RAM   OK
+8 ################ MARCH B      X
+9 ################ MARCH LR     OK
+A ################ ROW/COLUMN   OK
+B ################ LOW MEMORY   OK
+C **************** OWN MEMORY   OK
+D ################ COLOUR RAM   OK
+E ################ RETENTION    OK
 F ################
-
+ 64K MAP: #=FULL *=LIGHTER X=BAD     1.4
 ----------------------------------------
- MEMORY FAULT - SEE THE RED CELLS.
+ MEMORY FAULT, FIRST BAD BYTE AT $4037
  BITS                               D0
  250407                             U21
- SHORT BOARD? 2X41464 NAMES DIFFER.
+ SHORT BOARD? 2 CHIPS, NAMES DIFFER.
