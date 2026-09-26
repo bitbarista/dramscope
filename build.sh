@@ -25,3 +25,15 @@ mk() {   # $1 = -D flag or empty, $2 = output stem, $3 = cart name
 mk ""              dramscope       "DRAMSCOPE"
 mk "-DINJECT_DB=1" dramscope_fdb   "DS FAULT DB"
 mk "-DINJECT_AB=1" dramscope_fab   "DS FAULT AB"
+
+# --- gate G1 probe: EasyFlash $DE02 mode switching on real hardware ---------
+# ⚠ An EasyFlash image is 1 MB, 64 banks of ROML(8K)+ROMH(8K). cartconv
+# rejects anything shorter, so bank 0 is ours and the remaining 63 are $FF.
+acme -l build/g1.labels src/g1probe_roml.asm
+acme src/g1probe_romh.asm
+python3 -c "
+roml = open('build/g1probe_roml.bin','rb').read()
+romh = open('build/g1probe_romh.bin','rb').read()
+open('build/g1probe.bin','wb').write(roml + romh + b'\xff' * (1024*1024 - 16384))"
+cartconv -t easy -i build/g1probe.bin -o build/g1probe.crt -n "G1 EASYFLASH PROBE" >/dev/null
+printf "  %-22s %6s bytes  (gate G1)\n" "g1probe.crt" "$(stat -c%s build/g1probe.crt)"
