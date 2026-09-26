@@ -1,0 +1,111 @@
+DRAMSCOPE 0.9  --  C64 memory diagnostic          updated 2026-09-26
+====================================================================
+
+DRAMSCOPE.CRT is the test. G1PROBE.CRT is a one-question hardware probe
+that has already been answered on both your devices; it is kept only as a
+record and does not need running again.
+
+
+RUNNING IT
+----------
+
+It is an EasyFlash cartridge. Load it on the Ultimate II+ or Kung Fu Flash.
+
+It boots in Ultimax and takes its reset vector straight from the cartridge,
+so it needs NO WORKING RAM to start -- not even the stack page. A machine
+too broken to reach BASIC can still be tested, which is the machine most
+worth testing.
+
+A full run takes about 75 seconds, including a 12-second wait in P7.
+
+
+IS IT STILL ALIVE?
+------------------
+
+A spinner turns beside the phase name and the border pulses a couple of
+times a second, all the way through.
+
+  ** A BORDER THAT HAS STOPPED PULSING MEANS IT HAS HUNG. **
+
+That is the report, not an ambiguity. Tell me the phase name and the colour
+it froze on.
+
+
+BORDER COLOURS
+--------------
+
+Before the test proper, the border reports faults the display cannot:
+
+  white    the cartridge has control
+  red      FATAL: zero-page scratch unusable
+  purple   FATAL: the screen page is unusable
+  orange   FATAL: this device ignores $DE02 and cannot leave Ultimax
+  blue     FATAL: $C000-$CFFF is unusable
+  black    the cartridge never got control at all
+
+During the test the colour tells you the phase, and pulses:
+
+  yellow P1 data bus      cyan P2 address bus    green  P3 March B
+  cyan   P4 March LR      purple P5 topographic  grey   P6b handover
+  orange P6 zero page + stack                    blue   P7 retention
+
+At the end: GREEN clean, LIGHT RED fault found.
+
+
+THE MAP
+-------
+
+The 16x16 grid IS the address space. Row is the high nibble of the page,
+column the low nibble -- so top left is $0000 and bottom right is $FF00.
+The SHAPE of a fault usually says more than its address: a stripe, a
+quadrant, a scatter each mean something different.
+
+  solid   fully tested: March B 17n, March LR 14n, six topographical
+          passes, and the retention dwell
+  *       tested with a shorter 9n march. These are the regions the test
+          itself has to stand on -- zero page, the stack, its workspace,
+          the screen, and its own 4 KB
+  +       probed only. Seen WHILE running, before the handover upgrades it
+  X       FAILED
+  .       not tested. Only $0000 and $0001, which are not RAM -- they are
+          the CPU's data-direction register and banking latch
+
+Everything else is covered: 65,534 of 65,536 bytes.
+
+
+IF IT FINDS A FAULT
+-------------------
+
+It prints the failing DATA BIT, and under it the chip that carries that bit:
+
+   MEMORY FAULT - SEE THE RED CELLS.
+   BITS                               D0
+   250407                             U21
+   SHORT BOARD? 2X41464 - NAMES DIFFER.
+
+  ** THE BIT NUMBER IS TRUE ON EVERY C64. THE CHIP NAME IS NOT. **
+
+The designators are for Assy 250407. A short board carries two 41464s --
+four bits each -- so those names are simply wrong there, which is what the
+last line is warning about. The tool cannot tell which board it is in.
+
+If EVERY bit fails it names no chip at all and points at the PLA instead.
+Eight dead DRAMs is not the likely reading, and sending you to desolder
+eight chips would be worse than sending you nowhere.
+
+
+WHAT IT CANNOT DO
+-----------------
+
+Refresh cannot be switched off from software on a C64 -- the VIC refreshes
+regardless, and blanking the screen actually gives the CPU more cycles
+while refresh carries on unchanged. So P7 tests retention against a
+WORKING refresh. It catches cells leaking faster than refresh can sustain.
+
+Temperature is the other lever and it is not a software one:
+
+  ** RUN IT AGAIN ON A MACHINE THAT HAS BEEN ON FOR AN HOUR. **
+
+The topographical patterns use row and column adjacency as the C64
+ADDRESSES them, which is correct. They do not model the physical layout
+inside any particular manufacturer's die, and do not claim to.
