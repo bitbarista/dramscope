@@ -110,6 +110,8 @@ AH_ROW   = 9                    ; address lane A15..A8
 AL_ROW   = 11                   ; address lane A7..A0
 PH_ROW   = 14
 V_ROW    = 21
+SPINPOS  = SCREEN + PH_ROW*40 + 32      ; ⚠ screen MATRIX, deliberately: it is
+SPINCOL  = COLRAM + PH_ROW*40 + 32      ; RAM, so the spinner needs no I/O
 
 ; ---------------------------------------------------- zero-page scratch
 ; ⚠ SIX BYTES, PROVEN BEFORE ANYTHING USES THEM (P0a). An engine that needs a
@@ -159,6 +161,8 @@ w_pflags = WORK+22              ; bit0 use lo, bit1 use hi, bit2 invert
 w_lomask = WORK+23
 w_hpar   = WORK+24              ; the pattern's per-page constant half
 w_pmode  = WORK+25              ; 0 = write pass, 1 = verify pass
+w_tick   = WORK+26              ; liveness counter, one per page processed
+w_phcol  = WORK+27              ; this phase's border colour, for the pulse
 
 ; P2's base. ⚠ Every base+2^n must be RAM under BANK_RAM, including
 ; base+$8000 = $8800, which is why the engine had to leave the cartridge.
@@ -402,6 +406,7 @@ eng_start:
 p1:
         lda #C_YELLOW
         sta BORDER
+        sta w_phcol
         lda #<s_p1
         ldy #>s_p1
         jsr phase
@@ -472,6 +477,7 @@ p1_zero:
 p2:
         lda #C_CYAN
         sta BORDER
+        sta w_phcol
         lda #<s_p2
         ldy #>s_p2
         jsr phase
@@ -585,8 +591,9 @@ p2_restore:
 ; cartridge. march_fail does its own bank dance for the one thing that needs I/O.
 ; ---------------------------------------------------------------------------
 p3:
-        lda #C_YELLOW
+        lda #C_GREEN
         sta BORDER
+        sta w_phcol
         lda #<s_p3
         ldy #>s_p3
         jsr phase
@@ -663,8 +670,9 @@ p3_done:
 ; shared with P3, so a fault found by either phase names the same chip.
 ; ---------------------------------------------------------------------------
 p4:
-        lda #C_YELLOW
+        lda #C_CYAN
         sta BORDER
+        sta w_phcol
         lda #<s_p4
         ldy #>s_p4
         jsr phase
@@ -731,8 +739,9 @@ p4_done:
 ; scrambler here and no claim of one.
 ; ---------------------------------------------------------------------------
 p5:
-        lda #C_YELLOW
+        lda #C_PURPLE
         sta BORDER
+        sta w_phcol
         lda #<s_p5
         ldy #>s_p5
         jsr phase
@@ -777,6 +786,7 @@ p5p_go:
         lda #BANK_RAM                   ; ⚠ I/O IS GONE FROM HERE
         sta CPUPORT
 p5p_pg:
+        jsr tick
         ; ⚠ The column half of the pattern is constant across a page, because
         ; the column IS the page. Compute it once per page, not per cell.
         lda #$00
@@ -851,7 +861,9 @@ p5p_runend:
 
 ; --- M0  (w 0) -------------------------------------------------------------
 lr0:    jsr set_asc
-lr0_pg: ldy #0
+lr0_pg:
+        jsr tick
+        ldy #0
         lda #$00
 lr0_c:  sta (mptr),y
         iny
@@ -864,7 +876,9 @@ lr0_c:  sta (mptr),y
 ; ⚠ This descending element, immediately after M0, is what makes LR an LR:
 ; it breaks the single address order that lets one fault mask another.
 lr1:    jsr set_desc
-lr1_pg: ldy #$ff
+lr1_pg:
+        jsr tick
+        ldy #$ff
 lr1_c:  lda (mptr),y
         bne lr1_e1
 lr1_k1: lda #$ff
@@ -881,7 +895,9 @@ lr1_e1: ldx #$00
 
 ; --- M2  ascending (r 1, w 0, r 0, w 1) ------------------------------------
 lr2:    jsr set_asc
-lr2_pg: ldy #0
+lr2_pg:
+        jsr tick
+        ldy #0
 lr2_c:  lda (mptr),y
         cmp #$ff
         bne lr2_e1
@@ -905,7 +921,9 @@ lr2_e2: ldx #$00
 
 ; --- M3  ascending (r 1, w 0) ----------------------------------------------
 lr3:    jsr set_asc
-lr3_pg: ldy #0
+lr3_pg:
+        jsr tick
+        ldy #0
 lr3_c:  lda (mptr),y
         cmp #$ff
         bne lr3_e1
@@ -922,7 +940,9 @@ lr3_e1: ldx #$ff
 
 ; --- M4  ascending (r 0, w 1, r 1, w 0) ------------------------------------
 lr4:    jsr set_asc
-lr4_pg: ldy #0
+lr4_pg:
+        jsr tick
+        ldy #0
 lr4_c:  lda (mptr),y
         bne lr4_e1
 lr4_k1: lda #$ff
@@ -946,7 +966,9 @@ lr4_e2: ldx #$ff
 
 ; --- M5  ascending (r 0) ---------------------------------------------------
 lr5:    jsr set_asc
-lr5_pg: ldy #0
+lr5_pg:
+        jsr tick
+        ldy #0
 lr5_c:  lda (mptr),y
 !ifdef INJECT_LR {                      ; mutation: P4 must be able to fail too
         cpy #$12
@@ -971,6 +993,68 @@ lr5_k1: iny
 lr5_e1: ldx #$00
         jsr march_fail
         jmp lr5_k1
+
+
+; ---------------------------------------------------------------------------
+; tick -- one page processed. THE PROGRAM MUST LOOK ALIVE.
+;
+; ⚠ Carl, 2026-09-26: "whilst the crt is running it is impossible to know
+; whether it is proceeding or crashed." A full run is about a minute and the
+; marches spend ~20 s stretches with nothing on screen changing, so a frozen
+; picture and a working picture looked identical -- unacceptable in a tool
+; whose whole job is to be believed.
+;
+; Two indicators, because they fail differently:
+;
+;   * A SPINNER beside the phase name. ⚠ This needs NO bank switching, and
+;     that is the point: the screen MATRIX is RAM and stays visible under
+;     $01 = $30. Only its colour cell needed I/O, and that is set once.
+;   * A BORDER PULSE between the phase colour and dark grey, visible across a
+;     room. This one does need I/O, so it pays for a bank dance -- once every
+;     32 pages, a couple of times a second.
+;
+; ⚠ A STOPPED BORDER NOW MEANS HUNG. The documented border codes still hold
+; for the fatal cases, which all happen before any march; from P1 onwards a
+; static border is itself the fault report.
+;
+; ⚠ MAY ONLY BE CALLED FROM INSIDE THE BANKED WINDOW -- it restores BANK_RAM
+; unconditionally. Preserves A and Y; clobbers X, which no caller has live at
+; a page boundary.
+; ---------------------------------------------------------------------------
+tick:
+        pha
+        tya
+        pha
+        inc w_tick
+        lda w_tick
+        lsr
+        lsr
+        lsr
+        and #$03
+        tax
+        lda spinchr,x
+        sta SPINPOS                     ; no I/O needed -- this is RAM
+        lda w_tick
+        and #$1f
+        bne tick_out
+        lda #BANK_IO
+        sta CPUPORT
+        lda w_tick
+        and #$20
+        beq tick_on
+        lda #C_DKGREY
+        bne tick_set                    ; always: 11 is not zero
+tick_on:
+        lda w_phcol
+tick_set:
+        sta BORDER
+        lda #BANK_RAM                   ; ⚠ BACK OUT, unconditionally
+        sta CPUPORT
+tick_out:
+        pla
+        tay
+        pla
+        rts
 
 ; --- run setup -------------------------------------------------------------
 set_asc:
@@ -1004,7 +1088,9 @@ nx_desc:
 
 ; --- M0  (w P) -------------------------------------------------------------
 m0:     jsr set_asc
-m0_pg:  ldy #0
+m0_pg:
+        jsr tick
+        ldy #0
 m0_c:   tya
         eor mptr+1
         eor #SEED
@@ -1017,7 +1103,9 @@ m0_c:   tya
 
 ; --- M1  ascending (r P, w ~P, r ~P, w P, r P, w ~P) -----------------------
 m1:     jsr set_asc
-m1_pg:  ldy #0
+m1_pg:
+        jsr tick
+        ldy #0
 m1_c:   tya
         eor mptr+1
         eor #SEED
@@ -1084,7 +1172,9 @@ m1_e3:  ldx pval
 
 ; --- M2  ascending (r ~P, w P, w ~P) ---------------------------------------
 m2:     jsr set_asc
-m2_pg:  ldy #0
+m2_pg:
+        jsr tick
+        ldy #0
 m2_c:   tya
         eor mptr+1
         eor #SEED
@@ -1109,7 +1199,9 @@ m2_e1:  ldx pinv
 
 ; --- M3  descending (r ~P, w P, w ~P, w P) ---------------------------------
 m3:     jsr set_desc
-m3_pg:  ldy #$ff
+m3_pg:
+        jsr tick
+        ldy #$ff
 m3_c:   tya
         eor mptr+1
         eor #SEED
@@ -1137,7 +1229,9 @@ m3_e1:  ldx pinv
 
 ; --- M4  descending (r P, w ~P, w P) ---------------------------------------
 m4:     jsr set_desc
-m4_pg:  ldy #$ff
+m4_pg:
+        jsr tick
+        ldy #$ff
 m4_c:   tya
         eor mptr+1
         eor #SEED
@@ -1613,7 +1707,13 @@ phase:
         ldx #PAN_COL
         jsr setpos
         ldx #C_LTGREY
-        jmp putstr
+        jsr putstr
+        ; ⚠ The blanking pass above clears this line in BLACK, which includes
+        ; the spinner's colour cell -- so the glyph was being drawn correctly
+        ; and rendered black on black. Restore it every time the phase changes.
+        lda #C_WHITE
+        sta SPINCOL
+        rts
 
 ; draw_lane -- eight cells, MSB first.
 ;   w_tmp  = fault mask (bit 7 is the leftmost cell), w_tmp2 = untested mask
@@ -1801,6 +1901,10 @@ dc_rows:
         lda #<s_phase
         ldy #>s_phase
         jsr prstr
+        lda #C_WHITE                    ; the spinner's colour, set once here
+        sta SPINCOL                     ; so tick never needs I/O for it
+        lda #0
+        sta w_tick
 
         lda #C_DKGREY                   ; legend -- the glyphs must not be a
         sta w_col2                      ; private language
@@ -1882,6 +1986,10 @@ st_char: !byte CH_DOT,    CH_DASH,  CH_FULL, CH_X,    CH_PLUS
 st_col:  !byte C_DKGREY,  C_YELLOW, C_GREEN, C_LTRED, C_CYAN
 bittab:  !byte 1,2,4,8,16,32,64,128
 
+; ⚠ Raw screen codes, not !scr: these are the C64's own line graphics, and the
+; rotation only reads as rotation with these four in this order.
+spinchr: !byte $40, $4e, $5d, $4d
+
 ; P5 patterns: bit0 = row half (low byte) contributes, bit1 = column half
 ; (page number) contributes, bit2 = invert. Row stripes, column stripes,
 ; checkerboard, and each inverted.
@@ -1905,7 +2013,7 @@ rowhi:   !for i, 0, 24 { !byte >(SCREEN + i*40) }
 
 ; ⚠ acme's !scr maps LOWERCASE source to uppercase screen codes, so every
 ; string here is written lower case on purpose.
-s_title:    !scr "dramscope 0.5", 0
+s_title:    !scr "dramscope 0.6", 0
 s_rule:     !scr "----------------------------------------", 0
 s_hex:      !scr "0123456789abcdef", 0
 s_data:     !scr "data bus", 0

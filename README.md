@@ -105,6 +105,11 @@ It is an **EasyFlash cartridge** and boots in Ultimax, so it takes the reset vec
 from the cartridge and runs with no KERNAL, no stack and no zero page required. A machine
 whose low memory is dead can still be tested — which is the machine most in need of it.
 
+**It is visibly alive while it works.** A full run is about a minute, so a spinner turns
+beside the phase name and the border pulses between the phase colour and dark grey, a
+couple of times a second. ⚠ **A static border from P1 onwards means hung** — that is now
+the fault report, not an ambiguity.
+
 Border colours report even when the display cannot: white = has control, red = zero-page
 scratch dead, purple = screen page dead, **orange = this device ignores `$DE02` and cannot
 leave Ultimax**, blue = `$C000` dead, green = clean, light red = fault found. A black border

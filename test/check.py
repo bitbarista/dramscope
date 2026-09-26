@@ -46,6 +46,7 @@ def run(crt: pathlib.Path, halt: str) -> tuple[bytes, bytes, int]:
     (BUILD / "mon.txt").write_text(
         'bank ram\n'
         'save "build/screen.bin" 0 0400 07ff\n'
+        'save "build/work.bin" 0 ce00 ce20\n'
         'bank io\n'
         'save "build/colour.bin" 0 d800 dbff\n'
         'save "build/vic.bin" 0 d020 d02f\n'
@@ -61,9 +62,10 @@ def run(crt: pathlib.Path, halt: str) -> tuple[bytes, bytes, int]:
         scr = (BUILD / "screen.bin").read_bytes()[2:]
         col = (BUILD / "colour.bin").read_bytes()[2:]
         vic = (BUILD / "vic.bin").read_bytes()[2:]
+        wrk = (BUILD / "work.bin").read_bytes()[2:]
     except FileNotFoundError:
         sys.exit(f"{crt.name}: VICE produced no dump -- it never reached halt")
-    return scr, col, vic[0] & 0x0F
+    return scr, col, vic[0] & 0x0F, wrk
 
 
 def text(scr: bytes, row: int, c0: int = 0, c1: int = 40) -> str:
@@ -154,9 +156,17 @@ def main() -> int:
     for name, cart, sym, want_border, want_db, want_ah, want_al, extra in CASES:
         print(f"  {name}")
         stem = cart[:-4]
-        scr, _col, border = run(BUILD / cart, halt_address(stem, sym))
+        scr, _col, border, wrk = run(BUILD / cart, halt_address(stem, sym))
         got = {"border": BORDER.get(border, f"colour {border}")}
         want = {"border": want_border}
+        # ⚠ LIVENESS GUARD. w_tick counts pages processed and drives both the
+        # spinner and the border pulse. The final phase text blanks the spinner
+        # cell, so the screen cannot prove it ran -- but a zero tick count
+        # means the indicator was never called and the cartridge would look
+        # identical to a hang for a minute. That is the thing being prevented.
+        if want_db is not None:
+            got["ticked"] = "yes" if wrk[26] != 0 else "NO - liveness dead"
+            want["ticked"] = "yes"
         if want_db is not None:
             got["data"] = text(scr, DB_ROW, PAN, PAN + 8)
             got["addr hi"] = text(scr, AH_ROW, PAN, PAN + 8)

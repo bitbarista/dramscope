@@ -66,6 +66,13 @@ does — the documentation says so in the same place it makes the claim.
 **P5. Degrade visibly, not silently.** If the display cannot be trusted because its own
 memory is faulty, the tool must say so rather than show a plausible-looking screen.
 
+**P6. A working run must not look like a hung one.** ⚠ Carl, 2026-09-26: *"whilst the crt
+is running it is impossible to know whether it is proceeding or crashed."* A run takes about
+a minute and the marches spend ~20 s stretches with nothing on screen changing. Every long
+phase therefore drives a spinner and a border pulse, and a **static border from P1 onwards
+is itself the fault report**. The harness asserts the tick counter is non-zero, because the
+final phase text blanks the spinner cell and the screen alone cannot prove it ever ran.
+
 ---
 
 ## 2. The two problems that shape the architecture
