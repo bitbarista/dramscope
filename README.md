@@ -30,7 +30,13 @@ that come next and are harder:
 - **Is it actually the RAM?** A fault in the address multiplexers, their series packs, or the
   PLA looks like bad memory and is not. The tool tells them apart.
 - **Why does it only fail when warm?** Marginal, leaky cells pass every fast march test and
-  drop bits an hour into a session. A dwell phase catches them.
+  drop bits an hour into a session. P7 writes the whole map, waits 12 seconds, and reads it
+  back. ⚠ **Refresh cannot be suppressed from software on a C64** — the VIC refreshes
+  unconditionally, and blanking the screen actually gives the *CPU* more cycles while
+  refresh carries on unchanged. So this is retention *against a working refresh*: the cells
+  it catches are the ones leaking faster than refresh at specification can sustain.
+  **Temperature is the other lever and it is not a software one — run it again on a warm
+  machine.**
 
 And it shows the whole 64 KB as a live map while it works, because the *shape* of a fault —
 a stripe, a quadrant, a scatter — usually says more than its address.
@@ -69,7 +75,7 @@ The two projects stay separate. This one has no dependency on that board and nev
 | **P1** data bus — walking ones/zeroes/rails | ✅ |
 | **P2** address bus — **all 16 lines, A0–A15** | ✅ |
 | Display — 256-page map, bus lanes, verdict | ✅ |
-| Fault injection + headless VICE harness | ✅ 9/9 |
+| Fault injection + headless VICE harness | ✅ 11/11 |
 | Gate G1 — EasyFlash mode switching | ✅ **closed** — Ultimate II+ *and* Kung Fu Flash, `$DE02 = $02` |
 | EasyFlash delivery — boots in Ultimax, **needs no working RAM to start** | ✅ |
 | Engine relocated to `$C000`, banks out with `$01 = $30` | ✅ |
@@ -77,7 +83,8 @@ The two projects stay separate. This one has no dependency on that board and nev
 | **P4** March LR 14n, **fixed** patterns — linked faults | ✅ ~11 s |
 | **P5** topographical row/column patterns — physical adjacency | ✅ ~34 s |
 | **P6** zero page and the stack — 9n, registers-only | ✅ |
-| **P7–P9** dwell, disturb, colour RAM | ⬜ |
+| **P7** retention — write, dwell 12 s, verify | ✅ |
+| **P8–P9** disturb, colour RAM | ⬜ |
 | **Chip naming** from the failing-bit mask, Assy 250407 | ✅ |
 | Classification rules beyond chip naming (stride, region, mux pairing) | ⬜ |
 | Board profiles for 250425 and the short boards | ⬜ |

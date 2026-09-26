@@ -58,8 +58,8 @@
 ; warning it is expected to ignore is where a real warning goes to hide.
 !ifndef INJECT_DB { !ifndef INJECT_AB { !ifndef INJECT_NOEF { !ifndef INJECT_MEM {
         !ifndef INJECT_ALL { !ifndef INJECT_LR { !ifndef INJECT_TOPO {
-        !ifndef INJECT_ZP { !ifndef INJECT_HV {
-        !to "build/dramscope_roml.bin", plain } } } } } } } } }
+        !ifndef INJECT_ZP { !ifndef INJECT_HV { !ifndef INJECT_RET {
+        !to "build/dramscope_roml.bin", plain } } } } } } } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -77,7 +77,7 @@ BANK_RAM = $30                  ; ⚠ ALL RAM: no ROMs, no I/O, no cartridge
 SCREEN   = $0400
 COLRAM   = $d800
 ENGINE   = $c000
-ENG_PAGES = 15                  ; ⚠ pages copied; the march must skip them
+ENG_PAGES = 16                  ; ⚠ the engine now fills $C000-$CFFF exactly                  ; ⚠ pages copied; the march must skip them
 
 ; ------------------------------------------------------------------ colours
 C_BLACK  = 0
@@ -125,6 +125,10 @@ strp     = $f9
 sptr     = $fb
 cptr     = $fd
 SEED     = $5a
+RASTER   = $d012
+DWELL    = 10                   ; units of 60 frames -- see P7
+FRAMES   = 60                   ; ⚠ 60, not 50, so "at least N seconds" is
+                                ; true on PAL (1.2 s/unit) and NTSC (1.0)
 
 ; ---------------------------------------------------- workspace RAM
 ; ⚠⚠ MOVED OUT OF THE SCREEN PAGE, AND THE MOVE IS LOAD-BEARING.
@@ -136,7 +140,15 @@ SEED     = $5a
 ; It now sits just above the engine, inside the region P0c proves and every
 ; march already excludes: still verified before use, still never marched, and
 ; no longer able to run out of room silently.
-WORK     = $cf00
+; ⚠⚠ THE WORKSPACE MUST BE RAM IN *EVERY* BANKING MODE, and that rules out
+; most of memory. The engine outgrew fifteen pages when P7 landed and now
+; fills $C000-$CFFF exactly, so $CF00 was no longer free. The obvious next
+; choice, $BF00, IS BASIC ROM whenever I/O is banked in -- writes went to the
+; RAM underneath and every read came back out of BASIC, so the dwell counter
+; never decremented and the cartridge hung. $0300 is plain RAM under $37, $30
+; and Ultimax alike. It is excluded from the run table and marched by the
+; handover, like every other region the test has to stand on.
+WORK     = $0300
 w_dbmask = WORK+0               ; data bus    -- 1 = that bit misbehaved
 w_ablo   = WORK+1               ; A7..A0      -- 1 = that line faulty
 w_abhi   = WORK+2               ; A15..A8     -- 1 = that line faulty
@@ -171,6 +183,8 @@ w_p6inv  = WORK+30
 w_p6bad  = WORK+31
 w_hvscr  = WORK+32              ; handover: screen region failed
 w_hveng  = WORK+33              ; handover: engine region failed
+w_dwell  = WORK+34              ; P7 countdown, in units
+w_frames = WORK+35
 
 ; P2's base. ⚠ Every base+2^n must be RAM under BANK_RAM, including
 ; base+$8000 = $8800, which is why the engine had to leave the cartridge.
@@ -340,8 +354,28 @@ p0c:
         ; ⚠ P0a has already proven the zero page scratch, so unlike P0a/P0b
         ; this may use a pointer -- which is why it can cover all sixteen
         ; pages in a fraction of the code the unrolled version needed.
+        ; ⚠ Two ranges: the workspace page, which is relied on the moment the
+        ; engine starts, and the engine's own home. They are not adjacent.
+        ; ⚠⚠ THE STOP PAGE GOES IN ZERO PAGE, NOT INTO THE INSTRUCTION.
+        ; This routine runs from CARTRIDGE ROM, where a store to its own
+        ; operand does nothing at all -- the first version did exactly that,
+        ; so the comparison kept its assembled value of $00 and the probe ran
+        ; from $03 all the way round through the I/O page to $00, writing
+        ; test patterns over the entire machine. P0a has already proven the
+        ; zero page scratch, so pval is available and costs nothing.
+        lda #>WORK
+        sta mptr+1
+        lda #(>WORK)+1
+        sta pval
+        jsr p0c_range
         lda #>ENGINE
         sta mptr+1
+        lda #$d0
+        sta pval
+        jsr p0c_range
+        jmp p0c_copy
+
+p0c_range:
         lda #0
         sta mptr
 p0c_pg:
@@ -362,8 +396,11 @@ p0c_v:  tya
         bne p0c_v
         inc mptr+1
         lda mptr+1
-        cmp #$d0
+        cmp pval
         bne p0c_pg
+        rts
+
+p0c_copy:
 
         ; --- copy the engine into proven RAM and go
         lda #<eng_src
@@ -1075,6 +1112,160 @@ tick_out:
 
 
 
+
+; ---------------------------------------------------------------------------
+; P7 -- RETENTION. The marginal chip that passes every fast test.
+;
+; Write the address-dependent pattern everywhere, let real time pass, read it
+; back. A cell that leaks faster than refresh can sustain drops a bit; a cell
+; that is merely slow passes every march ever written and fails an hour into
+; a game.
+;
+; ⚠⚠ REFRESH CANNOT BE SUPPRESSED FROM SOFTWARE ON A C64, AND ANY DESIGN THAT
+; ASSUMES OTHERWISE IS WRONG. The VIC performs five refresh cycles per raster
+; line unconditionally -- 78,000/s PAL -- computed from raster geometry with no
+; display-state term. Blanking the screen suppresses badline character fetches
+; and sprite fetches; refresh is not a badline activity. The irony is that
+; blanking does the OPPOSITE of what a refresh-starvation design wants: losing
+; badlines gives the CPU MORE cycles, so a delay loop runs faster while refresh
+; carries on unchanged.
+;
+; So this tests retention AGAINST A WORKING REFRESH. That is a weaker stress
+; than starving it would be, and it is the only one actually available -- but
+; it is exactly the marginal cell that nothing else catches, and the reading is
+; honest. ⚠ Temperature is the other lever and it is not a software one: the
+; documentation tells the user to run it again on a warm machine.
+;
+; ⚠ COVERS THE RUN TABLE ONLY -- 59,904 bytes. Zero page, the stack, the
+; screen and the engine cannot hold a test pattern for ten seconds while the
+; engine is running out of them, and no amount of relocation changes that.
+; ---------------------------------------------------------------------------
+p7:
+        lda #C_BLUE
+        sta BORDER
+        sta w_phcol
+        lda #<s_p7
+        ldy #>s_p7
+        jsr phase
+
+        lda #0                          ; ---- fill
+        sta w_runidx
+p7_wrun:
+        ldx w_runidx
+        lda runtab,x
+        bne p7_wgo
+        jmp p7_dwell
+p7_wgo:
+        sta w_startpg
+        lda runtab+1,x
+        sta w_endpg
+        jsr set_asc
+        lda #BANK_RAM
+        sta CPUPORT
+p7_wpg: jsr tick
+        ldy #0
+p7_wc:  tya
+        eor mptr+1
+        eor #SEED
+        sta (mptr),y
+        iny
+        bne p7_wc
+        jsr nx_asc
+        bne p7_wpg
+        lda #BANK_IO
+        sta CPUPORT
+        lda w_runidx
+        clc
+        adc #2
+        sta w_runidx
+        jmp p7_wrun
+
+; ---- the wait. ⚠ Nothing may write to the covered regions here.
+p7_dwell:
+        lda #DWELL
+        sta w_dwell
+p7_dl:  jsr p7_show
+        lda #FRAMES
+        sta w_frames
+p7_fr:  lda RASTER                      ; one pass of raster line $80 is one
+        cmp #$80                        ; frame, and needs no interrupt
+        bne p7_fr
+p7_fr2: lda RASTER
+        cmp #$80
+        beq p7_fr2
+        dec w_frames
+        bne p7_fr
+        dec w_dwell
+        bne p7_dl
+        jsr p7_show
+
+        lda #0                          ; ---- verify
+        sta w_runidx
+p7_vrun:
+        ldx w_runidx
+        lda runtab,x
+        bne p7_vgo
+        jmp p7_done
+p7_vgo:
+        sta w_startpg
+        lda runtab+1,x
+        sta w_endpg
+        jsr set_asc
+        lda #BANK_RAM
+        sta CPUPORT
+p7_vpg: jsr tick
+        ldy #0
+p7_vc:  tya
+        eor mptr+1
+        eor #SEED
+        sta pval
+        lda (mptr),y
+!ifdef INJECT_RET {                     ; mutation: one cell forgets a bit
+        cpy #$23
+        bne inj_r_out
+        ldx mptr+1
+        cpx #$70
+        bne inj_r_out
+        eor #$20
+inj_r_out:
+}
+        cmp pval
+        beq p7_vk
+        ldx pval
+        jsr march_fail
+p7_vk:  iny
+        bne p7_vc
+        jsr nx_asc
+        bne p7_vpg
+        lda #BANK_IO
+        sta CPUPORT
+        lda w_runidx
+        clc
+        adc #2
+        sta w_runidx
+        jmp p7_vrun
+
+p7_done:
+        jsr draw_errors
+        jmp verdict
+
+; p7_show -- the countdown, which doubles as liveness through the wait
+p7_show:
+        lda #PH_ROW
+        ldx #PAN_COL+12
+        jsr setpos
+        ldy #0
+        lda w_dwell
+        jsr hexpair
+        lda w_dwell                     ; pulse the border while waiting
+        and #$01
+        beq p7_s1
+        lda #C_DKGREY
+        bne p7_s2
+p7_s1:  lda w_phcol
+p7_s2:  sta BORDER
+        rts
+
 ; ---------------------------------------------------------------------------
 ; P6b -- THE HANDOVER. The two regions no march could reach, because the test
 ; was standing on them.
@@ -1163,6 +1354,9 @@ phv_eng_ok:
         ldx #5
 phv_eng_m:
         stx w_tmp
+        lda #>WORK                      ; the workspace page shares the verdict
+        ldx w_tmp
+        jsr mark_page
         ldx #$c0
 phv_el: txa
         pha
@@ -1175,7 +1369,7 @@ phv_el: txa
         bne phv_el
 
         jsr draw_errors
-        jmp verdict
+        jmp p7
 
 ; ---------------------------------------------------------------------------
 ; P6 -- ZERO PAGE AND THE STACK. The 501 bytes nothing else could reach.
@@ -2360,10 +2554,23 @@ p2pages: !byte $08,$09,$0a,$0c,$10,$18,$28,$48,$88,$ff
 ; ⚠ The contiguous runs P3 marches, as start/end page pairs, $00 terminating.
 ; What is NOT here is the point: $00-$01 zero page and stack, $04-$07 screen
 ; and workspace, $C0-$CB the engine. 238 pages, 60,928 bytes of 65,536.
-runtab:  !byte $02,$03
+runtab:  !byte $02,$02         ; ⚠ $03 is the workspace -- see WORK
          !byte $08,$bf
          !byte $d0,$ff
          !byte $00
+
+; ⚠⚠ ASSEMBLY-TIME GUARDS, BECAUSE THIS WENT WRONG TWICE.
+; The workspace has moved three times as the engine grew, and both times it
+; landed inside a marched run the symptom was the same and took a bisect to
+; find: the march quietly overwrote the run loop's own counters and the phase
+; never terminated. A run table and a workspace address that disagree is now a
+; BUILD failure, not a hang on someone's C64.
+!if (>WORK) >= $02 { !if (>WORK) <= $02 { !error "WORK page is inside run 1" } }
+!if (>WORK) >= $08 { !if (>WORK) <= $bf { !error "WORK page is inside run 2" } }
+!if (>WORK) >= $d0 { !if (>WORK) <= $ff { !error "WORK page is inside run 3" } }
+!if (>ENGINE) >= $08 { !if ((>ENGINE)+ENG_PAGES-1) <= $bf { !error "ENGINE is inside run 2" } }
+!if (>SCREEN) >= $02 { !if (>SCREEN) <= $02 { !error "SCREEN is inside run 1" } }
+!if (>SCREEN) >= $08 { !if (>SCREEN) <= $bf { !error "SCREEN is inside run 2" } }
 
 addrlo:  !for i, 0, 15 { !byte <(ABASE + (1 << i)) }
 addrhi:  !for i, 0, 15 { !byte >(ABASE + (1 << i)) }
@@ -2372,7 +2579,7 @@ rowhi:   !for i, 0, 24 { !byte >(SCREEN + i*40) }
 
 ; ⚠ acme's !scr maps LOWERCASE source to uppercase screen codes, so every
 ; string here is written lower case on purpose.
-s_title:    !scr "dramscope 0.8", 0
+s_title:    !scr "dramscope 0.9", 0
 s_rule:     !scr "----------------------------------------", 0
 s_hex:      !scr "0123456789abcdef", 0
 s_data:     !scr "data bus", 0
@@ -2389,6 +2596,7 @@ s_p4:       !scr "p4 march lr", 0
 s_p5:       !scr "p5 topo", 0
 s_p6:       !scr "p6 zp+stack", 0
 s_phv:      !scr "p6b handover", 0
+s_p7:       !scr "p7 dwell", 0
 s_errors:   !scr "bad bytes", 0
 s_legend:   !scr "solid=full *=9n +=probed .=none", 0
 
@@ -2398,7 +2606,7 @@ bitlbl:     !scr "d0  d1  d2  d3  d4  d5  d6  d7  "
 chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
 s_pdone:    !scr "done", 0
 s_ok:       !scr "bus integrity ok, all 16 lines.", 0
-s_ok2:      !scr "65,534 of 65,536 - the 2 are cpu port.", 0
+s_ok2:      !scr "all ram tested, incl. 12s retention.", 0
 s_databad:  !scr "data bus fault - see the d lane.", 0
 s_databad2: !scr "a marked bit is stuck, shorted or open.", 0
 s_addrbad:  !scr "address line fault - see the a lanes.", 0
@@ -2498,6 +2706,31 @@ hv_wst: lda WORK,x                      ; at $CF00, inside what we march next
         cpx #64
         bne hv_wst
 
+        ; ⚠ The workspace page first, while the engine is still intact: stash,
+        ; march $0300-$03FF, restore. It is separate from the engine's block
+        ; because $0300 and $C000 are nowhere near each other.
+        lda #0
+        sta hv_bad
+        lda #>WORK
+        sta hv_first
+        sta hv_last
+        jsr hv_march
+        ldx #0
+hv_wr2: lda HV_WRK,x
+        sta WORK,x
+        inx
+        cpx #64
+        bne hv_wr2
+        lda hv_bad
+        sta hv_wrkbad
+
+        ldx #0                          ; stash again for the engine's block
+hv_wst2:lda WORK,x
+        sta HV_WRK,x
+        inx
+        cpx #64
+        bne hv_wst2
+
         lda #0
         sta hv_bad
         lda #$c0
@@ -2551,6 +2784,7 @@ hv_wrs: lda HV_WRK,x
         lda hv_scrbad
         sta w_hvscr
         lda hv_engbad
+        ora hv_wrkbad
         sta w_hveng
         jmp eng_resume
 
@@ -2701,6 +2935,7 @@ hv_ehi:    !byte 0
 hv_bad:    !byte 0
 hv_scrbad: !byte 0
 hv_engbad: !byte 0
+hv_wrkbad: !byte 0
 hv_tmp:    !byte 0
 hv_end:
 }
