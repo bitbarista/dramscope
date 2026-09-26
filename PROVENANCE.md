@@ -89,9 +89,10 @@ demultiplexing. It is carried here with its rationale intact.
 | Needed for | Question | Tag |
 |---|---|---|
 | Topographical patterns (P5) | Which multiplexer half is the **row** address and which the **column**? `c64-ice40-ram` §5.3 deliberately never determined it, because that design has no refresh or page-mode dependency. This project does. | [A] |
-| ~~Delivery vehicle (P0)~~ | ✅ **ANSWERED on Ultimate II+ hardware, 2026-09-26: `$DE02 = $02` leaves Ultimax and the cartridge stays mapped at `$8000`.** Measured by `src/g1probe_roml.asm`, which sweeps all eight values rather than assuming one. VICE agrees, but VICE was not the evidence. ⬜ Kung Fu Flash still unrun. | [M] |
+| ~~Delivery vehicle (P0)~~ | ✅ **ANSWERED ON BOTH DEVICES, 2026-09-26: `$DE02 = $02` leaves Ultimax and the cartridge stays mapped at `$8000`.** Ultimate II+ and Kung Fu Flash report identically. Measured by `src/g1probe_roml.asm`, which sweeps all eight values rather than assuming one. VICE agrees, but VICE was not the evidence. | [M] |
 | Screen placement | In Ultimax mode the VIC's fetches in `$3000–$3FFF` of its bank are said to come from cartridge ROMH. Verify before choosing a screen home. | [A] |
-| Chip naming | Bit-to-designator tables per motherboard assembly, from Commodore schematics. | [A] |
+| ~~Chip naming, Assy 250407~~ | ✅ **HELD.** `D0=U21, D1=U9, D2=U22, D3=U10, D4=U23, D5=U11, D6=U24, D7=U12` — confirmed from schematic 251138 in `c64-ice40-ram` README §2.2, where the drawing places the RAMs in bus order U12, U24, U11, U23, U10, U22, U9, U21 against D7…D0. | [D] |
+| Chip naming, other assemblies | 250425 and the short boards have different designators. ⚠ **Until each is verified from its own schematic the tool must not name a chip for it** — it names the BIT, and says which assembly the designators assume. | [A] |
 
 ---
 

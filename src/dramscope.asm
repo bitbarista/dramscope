@@ -57,7 +57,7 @@
 ; file name already chosen" on every one of them. A build that prints a
 ; warning it is expected to ignore is where a real warning goes to hide.
 !ifndef INJECT_DB { !ifndef INJECT_AB { !ifndef INJECT_NOEF { !ifndef INJECT_MEM {
-        !to "build/dramscope_roml.bin", plain } } } }
+        !ifndef INJECT_ALL { !to "build/dramscope_roml.bin", plain } } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -144,6 +144,9 @@ w_errlo  = WORK+14
 w_errhi  = WORK+15
 w_npg    = WORK+16
 w_lastfp = WORK+17              ; last page already painted red
+w_tidx   = WORK+18              ; table offset while naming chips
+w_slot   = WORK+19
+w_chipok = WORK+20              ; 0 = show the bits but name no chip
 
 ; P2's base. ⚠ Every base+2^n must be RAM under BANK_RAM, including
 ; base+$8000 = $8800, which is why the engine had to leave the cartridge.
@@ -679,6 +682,20 @@ inj_m_pop:
         pla
 inj_m_out:
 }
+!ifdef INJECT_ALL {                     ; mutation: ALL EIGHT bits wrong.
+        cpy #$37                        ; ⚠ This must make the tool REFUSE to
+        bne inj_a_out                   ; name a chip. Eight simultaneously
+        pha                             ; dead DRAMs is not the likely reading,
+        lda mptr+1                      ; and pointing at eight chips is worse
+        cmp #$40                        ; than pointing at none.
+        bne inj_a_pop
+        pla
+        eor #$ff
+        jmp inj_a_out
+inj_a_pop:
+        pla
+inj_a_out:
+}
         cmp pval
         bne m1_e1
 m1_k1:  lda pinv
@@ -861,6 +878,120 @@ mrd_skip:
         jmp mrd_l
 mrd_x:  rts
 
+
+; ---------------------------------------------------------------------------
+; draw_diag -- name the failing bits, and the chips that carry them.
+; Caller puts the failing-bit mask in w_tmp.
+;
+; ⚠ THIS IS THE ONE OUTPUT THAT IS A CLAIM ABOUT SOMEONE ELSE'S HARDWARE.
+; "Replace U10" costs them a chip, an hour, and their trust in every other
+; line on the screen if it is wrong. So:
+;
+;   * the designators are printed UNDER a heading that names the assembly
+;     they belong to, because 250425 and the short boards differ and this
+;     tool cannot tell which board it is plugged into;
+;   * the BIT number is always shown, and is true on every C64;
+;   * ⚠ if EVERY bit failed, no chip is named at all -- eight simultaneous
+;     dead DRAMs is not the likely reading, and pointing at eight chips
+;     would be worse than pointing at none. See rule 4 in SPEC.md §5.
+;
+; Source for the mapping: Commodore schematic 251138, via c64-ice40-ram
+; README §2.2, which places the RAMs in bus order U12, U24, U11, U23, U10,
+; U22, U9, U21 against D7..D0. Recorded in PROVENANCE.md.
+; ---------------------------------------------------------------------------
+draw_diag:
+        lda #C_LTRED
+        sta w_col2
+        lda #V_ROW+1
+        sta w_row
+        lda #1
+        sta w_col
+        lda #<s_bits
+        ldy #>s_bits
+        jsr prstr
+
+        lda #C_YELLOW
+        sta w_col2
+        lda #V_ROW+2
+        sta w_row
+        lda #1
+        sta w_col
+        lda w_tmp
+        cmp #$ff                        ; ⚠ every bit -- name no chip
+        beq dg_allbits
+        lda #1
+        sta w_chipok
+        lda #<s_assy
+        ldy #>s_assy
+        jsr prstr
+        jmp dg_slots
+
+dg_allbits:
+        ; ⚠ The BIT list is still drawn -- it is true on every C64 and it is
+        ; what the reader needs. Only the designators are withheld.
+        lda #0
+        sta w_chipok
+        lda #<s_allbits
+        ldy #>s_allbits
+        jsr prstr
+
+dg_slots:
+        lda #0
+        sta w_slot
+dg_slot:
+        asl w_tmp                       ; MSB first, so slot 0 is D7
+        bcc dg_next
+
+        lda #7                          ; bit number = 7 - slot
+        sec
+        sbc w_slot
+        asl
+        asl                             ; x4, four bytes per table entry
+        sta w_tidx
+        lda w_slot                      ; column = 8 + slot*4
+        asl
+        asl
+        clc
+        adc #8
+        sta w_col
+
+        lda #V_ROW+1
+        ldx w_col
+        jsr setpos
+        ldx w_tidx
+        ldy #0
+dg_c1:  lda bitlbl,x
+        sta (sptr),y
+        lda #C_LTRED
+        sta (cptr),y
+        inx
+        iny
+        cpy #4
+        bne dg_c1
+
+        lda w_chipok
+        beq dg_next
+        lda #V_ROW+2
+        ldx w_col
+        jsr setpos
+        ldx w_tidx
+        ldy #0
+dg_c2:  lda chips407,x
+        sta (sptr),y
+        lda #C_YELLOW
+        sta (cptr),y
+        inx
+        iny
+        cpy #4
+        bne dg_c2
+
+dg_next:
+        inc w_slot
+        lda w_slot
+        cmp #8
+        bne dg_slot
+        rts
+
 ; --- error count ------------------------------------------------------------
 draw_errors:
         lda #C_GREY
@@ -939,9 +1070,10 @@ v_mem:
         lda #<s_membad
         ldy #>s_membad
         jsr verdict_line
-        lda #<s_membad2
-        ldy #>s_membad2
-        jmp verdict_line2
+        lda w_bitmask                   ; ⚠ no second verdict line here: the
+        sta w_tmp                       ; bit and chip lines are rows 22 and 23
+        jsr draw_diag                   ; and say more than a sentence would
+        jmp halt
 
 v_data:
         lda #C_LTRED
@@ -951,9 +1083,10 @@ v_data:
         lda #<s_databad
         ldy #>s_databad
         jsr verdict_line
-        lda #<s_databad2
-        ldy #>s_databad2
-        jmp verdict_line2
+        lda w_dbmask
+        sta w_tmp
+        jsr draw_diag
+        jmp halt
 
 v_addr:
         lda #C_LTRED
@@ -979,14 +1112,16 @@ verdict_line:
         ldx w_col2
         jmp putstr
 verdict_line2:
+        jsr verdict_line2_nohalt
+        jmp halt
+verdict_line2_nohalt:
         sta strp
         sty strp+1
         lda #V_ROW+1
         ldx #1
         jsr setpos
         ldx w_col2
-        jsr putstr
-        jmp halt
+        jmp putstr
 
 ; ---------------------------------------------------------------------------
 ; addr_for_line -- X = line index 0..15, sets sptr = ABASE + (1 << X)
@@ -1277,7 +1412,7 @@ dc_rows:
 
         lda #C_DKGREY                   ; legend -- the glyphs must not be a
         sta w_col2                      ; private language
-        lda #V_ROW+2
+        lda #V_ROW+3
         sta w_row
         lda #1
         sta w_col
@@ -1388,6 +1523,11 @@ s_p2:       !scr "p2 addr bus", 0
 s_p3:       !scr "p3 march b", 0
 s_errors:   !scr "bad bytes", 0
 s_legend:   !scr "solid=marched  +=probed  .=untested", 0
+
+; ⚠ Four bytes per entry, space padded, indexed by bit*4. The designators are
+; Assy 250407 ONLY -- schematic 251138, via c64-ice40-ram README §2.2.
+bitlbl:     !scr "d0  d1  d2  d3  d4  d5  d6  d7  "
+chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
 s_pdone:    !scr "done", 0
 s_ok:       !scr "bus integrity ok, all 16 lines.", 0
 s_ok2:      !scr "march b 17n over 60,928 of 65,536.", 0
@@ -1397,6 +1537,9 @@ s_addrbad:  !scr "address line fault - see the a lanes.", 0
 s_addrbad2: !scr "both of a pair = mux u13/u25 or rp1/rp2.", 0
 s_membad:   !scr "memory fault - see the red cells.", 0
 s_membad2:  !scr "march b 17n, address-dependent pattern.", 0
+s_bits:     !scr "bits", 0
+s_assy:     !scr "250407", 0
+s_allbits:  !scr "all 8 bits - not one chip. check pla.", 0
 
 eng_end:
 }

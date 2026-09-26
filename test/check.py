@@ -103,19 +103,31 @@ CASES = [
     ("clean -- every lane solid, all 16 address lines tested",
      "dramscope.crt",      "halt",     "GREEN", "########", "########", "########",
      {"row0": "..##++++########", "rowC": "++++++++++++####",
-      "page40": "#", "errors": " 0000"}),
-    ("D3 stuck -- one X in the data lane, nothing else disturbed",
-     "dramscope_fdb.crt",  "halt",     "LTRED", "####X###", "########", "########", None),
+      "page40": "#", "errors": " 0000",
+      "bits": " MARCH B 17N OVER 60,928 OF 65,536.", "chips": ""}),
+    # ⚠ The classifier makes a claim about someone else's hardware. D3 is U10
+    # on a 250407 -- schematic 251138 via c64-ice40-ram README §2.2.
+    ("D3 stuck -- data lane X, and the chip named from the bit",
+     "dramscope_fdb.crt",  "halt",     "LTRED", "####X###", "########", "########",
+     {"bits":  " BITS                   D3",
+      "chips": " 250407                 U10"}),
     ("A5 faulty -- one X in the low address lane, data lane clean",
      "dramscope_fab.crt",  "halt",     "LTRED", "########", "########", "##X#####", None),
     # ⚠ P3 must be able to fail too. One stuck bit at $4037: page $40 red,
     # exactly one bad byte, every other page still clean.
     ("one stuck bit at $4037 -- page $40 red, count 1, nothing else",
      "dramscope_fmem.crt", "halt",     "LTRED", "########", "########", "########",
-     {"row0": "..##++++########", "rowC": "++++++++++++####",
-      "page40": "X", "errors": " 0001"}),
+     {"row0": "..##++++########", "rowC": "++++++++++++####", "page40": "X",
+      "errors": " 0001",
+      "bits":  " BITS                               D0",
+      "chips": " 250407                             U21"}),
     # ⚠ The one a real device might actually hit. A Kung Fu Flash that ignores
     # $DE02 must SAY SO, not hang in Ultimax pretending to test 64 KB.
+    # ⚠ THE SAFETY RULE. All eight bits wrong must name NO chip at all.
+    ("all 8 bits wrong -- must REFUSE to name a chip",
+     "dramscope_fall.crt", "halt",     "LTRED", "########", "########", "########",
+     {"bits":  " BITS   D7  D6  D5  D4  D3  D2  D1  D0",
+      "chips": " ALL 8 BITS - NOT ONE CHIP. CHECK PLA."}),
     ("device ignores $DE02 -- must report ORANGE, not hang",
      "dramscope_fef.crt",  "rom_halt", "ORANGE", None, None, None, None),
 ]
@@ -135,10 +147,13 @@ def main() -> int:
             got["addr lo"] = text(scr, AL_ROW, PAN, PAN + 8)
             want.update({"data": want_db, "addr hi": want_ah, "addr lo": want_al})
         if extra:
-            got["row0"] = maprow(scr, 0)
-            got["rowC"] = maprow(scr, 0xC)
-            got["page40"] = cell(scr, 0x40)
-            got["errors"] = text(scr, 17, PAN - 1, PAN + 5)
+            if "row0" in extra:
+                got["row0"] = maprow(scr, 0)
+                got["rowC"] = maprow(scr, 0xC)
+                got["page40"] = cell(scr, 0x40)
+                got["errors"] = text(scr, 17, PAN - 1, PAN + 5)
+            got["bits"] = text(scr, V_ROW + 1)
+            got["chips"] = text(scr, V_ROW + 2)
             want.update(extra)
         for k in got:
             flag = "" if got[k] == want[k] else f"   <-- *** wanted {want[k]!r}"

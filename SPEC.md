@@ -128,9 +128,13 @@ RAM at all**, proves low memory unaided, then switches and reaches the other 60 
 hardware people already own. Measured with `src/g1probe_roml.asm`, which sweeps all eight
 register values rather than assuming one, so the result carries no assumption.
 
-⬜ **Kung Fu Flash is still unrun.** The EasyFlash build must therefore keep a visible
-failure path — if `$DE02` does nothing, the cartridge says so (orange border) rather than
-hanging, and the normal-cartridge build remains the fallback.
+✅ **Kung Fu Flash reports identically** (2026-09-26). Two independent devices agree, so the
+delivery vehicle is settled.
+
+⚠ **The visible failure path stays anyway.** Two devices are not every device, and a future
+cartridge that ignores `$DE02` must say so with an orange border rather than hang. The
+`INJECT_NOEF` mutation keeps that path honest — it is now the only one of the five that
+tests something no device in hand does.
 
 ---
 
@@ -336,7 +340,11 @@ data table, not code, so profiles can be added without touching the engine.
 | 250425 | 8 × 4164, different bank geometry |
 | 250469 | short board, 2 × 41464 |
 
-⚠ **Gate G5 (§9): these tables must come from Commodore schematics, verified**, not from
+✅ **250407 is verified and implemented** — `D0=U21, D1=U9, D2=U22, D3=U10, D4=U23, D5=U11,
+D6=U24, D7=U12`, from schematic 251138 via `c64-ice40-ram` README §2.2. The other two
+profiles are not, and until they are the tool must not name a chip for them.
+
+⚠ **These tables must come from Commodore schematics, verified**, not from
 recollection. A wrong table prints a confident instruction to replace the wrong chip, which
 is the worst output this tool could produce. Until a profile is verified, report the **bit**
 and say the profile is unavailable.
@@ -428,7 +436,8 @@ synthetic failure set that triggers it and a neighbouring set that does not.
 
 | Gate | Question | Blocks | Tag |
 |---|---|---|---|
-| ~~**G1**~~ | ✅ **Ultimate II+: yes, `$DE02 = $02`** (2026-09-26, measured). ⬜ KFF unrun. | — | [M] |
+| ~~**G1**~~ | ✅ **CLOSED. Ultimate II+ and Kung Fu Flash both: `$DE02 = $02`** (2026-09-26, measured on both). | — | [M] |
+| ~~**G5**~~ | ✅ **CLOSED for Assy 250407** — the bit→designator table is confirmed from schematic 251138. Other assemblies remain [A]. | — | [D] |
 | **G2** | Which multiplexer half carries the row address and which the column? | P5 topographical | [A] |
 | **G3** | Does the address-dependent P/~P substitution preserve March LR's linked-fault coverage? | P4 claims | [A] |
 | **G4** | In Ultimax, do VIC fetches in `$3000–$3FFF` come from cartridge ROMH? | Screen home selection | [A] |
@@ -445,11 +454,12 @@ Each step is intended to leave something that works.
 | # | Step | Leaves |
 |---|---|---|
 | 1 | Project skeleton, this spec, `PROVENANCE.md` | ✅ done |
-| 2 | **Resolve G1** on real KFF and U2+ hardware | ✅ U2+ yes, `$DE02=$02`; KFF still unrun |
+| 2 | **Resolve G1** on real KFF and U2+ hardware | ✅ closed — both devices, `$DE02=$02` |
 | 3 | Engine skeleton, P0/P1/P2, display framework, VICE harness | ✅ done — **already a useful tool**, bus faults named in under a second |
 | 3b | EasyFlash delivery, engine relocated, A15 closed | ✅ done — **no working RAM needed to start** |
 | 4 | P3 March B + bad-byte count + failing-bit mask | ✅ done — parity with existing tools, plus shape |
-| 4b | Classifier v1 + chip naming from the bit mask | ⬜ **next** |
+| 4b | Chip naming from the bit mask, Assy 250407 | ✅ done — and it refuses to name when all 8 bits fail |
+| 4c | The remaining classifier rules in §5 (stride, region, mux pairing) | ⬜ **next** |
 | 5 | Board profiles (G5) → chip naming | the headline feature |
 | 6 | P4 March LR (G3 first) | linked faults |
 | 7 | G2, then P5 topographical | physical coupling |
