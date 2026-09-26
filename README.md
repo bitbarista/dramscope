@@ -318,6 +318,7 @@ type. The old on-screen caveat `SHORT BOARD? 2 CHIPS` was wrong on that point an
 | File | Who it is for |
 |---|---|
 | [`docs/BENCH-SHEET.txt`](docs/BENCH-SHEET.txt) | **Read this one.** Every colour, every mark on the map, and the chip chart for all five board assemblies. It ships alongside the `.crt`. |
+| [`docs/CHIP-CHART.txt`](docs/CHIP-CHART.txt) | **Print this one.** The bit→chip table on its own, one page, for the bench wall. |
 | [`docs/VARIANT-MATRIX.txt`](docs/VARIANT-MATRIX.txt) | Generated proof that a clean run looks identical on every C64 model VICE emulates. |
 | [`SPEC.md`](SPEC.md) | *Background.* Why each algorithm was chosen, what was tried and rejected, and what is still open. |
 | [`PROVENANCE.md`](PROVENANCE.md) | *Background.* Where every algorithm and hardware fact came from, with the rule about not reading other RAM tests' code. |

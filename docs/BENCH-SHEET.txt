@@ -213,6 +213,9 @@ chart below.
 THE CHART -- WHICH CHIP CARRIES WHICH BIT
 -----------------------------------------
 
+⚠ THIS TABLE IS ALSO A SEPARATE ONE-PAGE FILE, CHIP-CHART.TXT, MEANT TO BE
+PRINTED AND KEPT BY THE BENCH. It carries the same table plus worked examples.
+
 Find your assembly number: it is printed on the board itself, usually near
 the front edge, as "ASSY 250469" or similar.
 

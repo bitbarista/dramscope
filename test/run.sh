@@ -13,6 +13,10 @@
 # vehicle's honest limit (SPEC.md §2.2) and a stub KERNAL cannot exercise it.
 set -e
 cd "$(dirname "$0")/.."
+# ⚠ The chip chart first, because it takes a second and it is the check whose
+# failure mode is someone desoldering the wrong part. No emulator needed.
+python3 test/chart.py
+echo
 echo "  rebuilding first (a stale binary would give a false PASS)"
 bash build.sh >/dev/null
 # ⚠ "$@" so `bash test/run.sh --bless` reaches the checker. Without it the

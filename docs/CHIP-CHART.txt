@@ -1,0 +1,80 @@
+DRAMSCOPE -- WHICH CHIP CARRIES WHICH BIT                 print me, keep me
+===========================================================================
+
+DRAMscope names the failing DATA BIT, D0 to D7. That bit number is true on
+EVERY C64 ever made. This chart turns it into a chip, which is not.
+
+
+STEP 1 -- FIND YOUR ASSEMBLY NUMBER
+-----------------------------------
+
+It is printed on the board itself, usually along the front edge near the
+keyboard connector, as "ASSY 250469" or similar. Do not guess from the case
+or the badge: the same case was used for several boards.
+
+
+STEP 2 -- READ ACROSS
+---------------------
+
+  ASSY     BOARD   RAM          D0    D1    D2    D3    D4    D5    D6    D7
+  -------------------------------------------------------------------------
+  326298   long    8 x 4164     U21   U9    U22   U10   U23   U11   U24   U12
+  250407   long    8 x 4164     U21   U9    U22   U10   U23   U11   U24   U12
+  250425   long    8 x 4164     U21   U9    U22   U10   U23   U11   U24   U12
+  250466   long    2 x 41464    <------ U10 ------>    <------ U9 ------->
+  250469   short   2 x 41464    <------ U10 ------>    <------ U11 ------>
+
+  Example: DRAMscope says D5 on a 250425  ->  replace U11.
+           DRAMscope says D5 on a 250469  ->  replace U11 (it carries D4-D7).
+
+
+WHAT THE SCREEN SHOWS
+---------------------
+
+   MEMORY FAULT, FIRST BAD BYTE AT $4037
+   BITS                               D0
+   4164                               U21
+   41464? D0-D3 IS ONE CHIP - SEE SHEET.
+
+The row labelled 4164 is filled in for you, because all three 8 x 4164 boards
+are wired identically. If your board has only TWO RAM chips, ignore that row
+and use this chart -- the tool cannot tell which board it is plugged into.
+
+
+*** THE TWO 41464 BOARDS ARE THE OPPOSITE WAY ROUND FROM EACH OTHER ***
+
+  250469   the LOWER number carries the LOWER bits   (U10 = D0-D3)
+  250466   the LOWER number carries the UPPER bits   (U10 = D0-D3, U9 = D4-D7)
+
+There is no rule to work this out from. Check the assembly number.
+
+
+*** COUNTING THE CHIPS DOES NOT TELL YOU THE BOARD TYPE ***
+
+250466 is a LONG board with two RAM chips. "Two chips means short board" is
+wrong, and so is "long board means eight chips".
+
+
+IF EVERY BIT FAILS
+------------------
+
+DRAMscope names no chip at all and says SEE PLA. Eight dead RAM chips is not
+the likely reading -- suspect the PLA, the address multiplexers at U13/U25,
+or their series resistor packs RP1/RP2. Sending you to desolder eight chips
+would be worse than sending you nowhere.
+
+
+COLOUR RAM IS NOT A DRAM
+------------------------
+
+If the screen says COLOUR RAM, that is a separate 1K x 4 static chip and none
+of the above applies. It causes wrong colours rather than a crash, which is
+why it gets blamed on the VIC. It is never counted against the DRAMs.
+
+
+---------------------------------------------------------------------------
+Sources: schematic 251138 for 250407, cross-checked against the opencbm
+Hardware Reference and Repair Guide, which reproduces it on all eight bits and
+supplies 326298, 250425 and 250469. The 250466 row comes from myoldcomputer.nl
+-- the opencbm page for that board lists a single data bit for a four-bit-wide
+part and is wrong. Full evidence in PROVENANCE.md.
