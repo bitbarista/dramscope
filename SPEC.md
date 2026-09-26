@@ -7,7 +7,7 @@
 it starts with no working RAM and no
 working KERNAL — ⚠ **measured on a machine with the DRAMs removed**, and the launcher
 qualification is in G6), engine relocated to `$C000`, P0/P1/P2 with **all sixteen address
-lines**, **P3 March B 17n**, **P4 March LR 14n** and **P5 topographical patterns** over 59,904 of
+lines**, **P3 March B 17n**, **P4 March LR 14n** and **P5 topographical patterns** over 59,648 of
 65,536 bytes, plus chip naming from the failing-bit mask. Verified on an Ultimate II+ and a
 Kung Fu Flash as well as in VICE. Measured end to end: 58–61 M cycles, **about 62 s on
 PAL**. P6 onwards not started.
@@ -416,16 +416,29 @@ M4  ⇓(r P, w ~P, w P)
 ```
 
 ⚠ **`P` is address-dependent**: `lo XOR hi XOR seed`, not a fixed 0/1. March B requires only
-two *complementary* values, so the substitution preserves the algorithm exactly while adding
-address-decoder coverage that a textbook fixed-pattern March B does not have. A read from
-the wrong address returns the wrong value.
+two *complementary* values, and it adds address-decoder coverage that a textbook
+fixed-pattern March B does not have: a read from the wrong address returns the wrong value.
 
-Covers: SAF, TF, unlinked CFin/CFid/CFst, AF.
+⚠⚠ **THIS SECTION USED TO SAY THE SUBSTITUTION "PRESERVES THE ALGORITHM EXACTLY". IT DOES
+NOT, AND G3 IN `PROVENANCE.md` SAYS SO** — that is the very sentence G3 examined and rejected,
+including for March B, where it is "weaker than it looks". The correction was written into
+`PROVENANCE.md` and never carried back here, leaving the spec contradicting its own gate.
+
+**Covers: SAF, TF, AF** — and AF *more strongly* than a fixed-pattern March B, which is the
+whole reason the substitution exists.
+
+⚠ **Coupling coverage is NOT claimed for P3.** A CFid is sensitised only when the aggressor
+transitions while the victim holds a particular value; a fixed-pattern march guarantees that
+coincidence by construction because every cell is in the same state at the same point, and
+with `P = lo ⊕ hi ⊕ seed` they are not. G3 works through March B's M1 and concludes coverage
+*probably* survives across elements with opposite resting states — **probably is not a proof.**
+The provable unlinked-coupling and linked-fault coverage comes from **P4**, which is why it
+uses fixed `$00`/`$FF`.
 
 ⚠ **THREE REGIONS ARE NOT MARCHED, AND THE MAP DISTINGUISHES THEM RATHER THAN HIDING IT:**
 `$0000–$01FF` (zero page and stack, the engine uses both), `$0400–$07FF` (screen matrix and
-workspace) and `$C000–$CBFF` (the engine). That is 4,608 bytes, so **60,928 of 65,536 are
-marched** and the verdict line prints the figure. `$0400–$07FF` and `$C000–$CFFF` *are*
+workspace), `$0300` (the workspace page) and `$C000–$CFFF` (the engine). That is 23 pages,
+5,888 bytes, so **59,648 of 65,536 are marched** and the verdict line prints the figure. `$0400–$07FF` and `$C000–$CFFF` *are*
 probed by P0b/P0c with a single address-dependent write/verify pass — a real test, but not
 17n — so they paint as **`+` probed**, never as a solid marched cell. Reaching the rest needs
 a second pass with the engine and display relocated.
@@ -455,6 +468,70 @@ march guarantees by construction and an address-dependent one does not. So **Mar
 with fixed `$00`/`$FF`**, where the published linked-fault proof holds exactly as written,
 and March B keeps the address-dependent pattern for the decoder coverage it was introduced
 for. Full reasoning in `PROVENANCE.md`.
+
+### ⚠ Review against the memory-test literature, 2026-09-27
+
+A first-principles audit of the implementation against the published fault taxonomy and march
+definitions. **No other tool's code, binary or disassembly was consulted** — `PROVENANCE.md`'s
+status line still holds.
+
+**✅ Both element sequences match the published definitions exactly.** March B is 1+6+3+4+3 =
+17n with M3/M4 descending; March LR is 1+2+4+2+4+1 = 14n with **M1 descending** — that single
+reversed element is the whole of LR's linked-fault property, and it is present. Nothing to fix.
+
+**⚠ FINDING 1 — `P = lo ⊕ hi ⊕ seed` IS INVARIANT UNDER TRANSPOSING THE ADDRESS BYTES, AND
+THAT IS A REAL FAULT ON THIS HARDWARE.** `P` is symmetric in `lo` and `hi`, so
+`P(hi,lo) = P(lo,hi)`. A fault that swaps which address byte becomes the DRAM **row** and which
+becomes the **column** maps every address `(hi,lo)` to the cell `(lo,hi)` previously used. That
+is a **bijection** — memory still stores and returns data consistently, so *no* march test
+detects it, fixed-pattern or address-dependent, and our decoder-catching pattern is blind to it
+too because `P` is unchanged.
+
+⚠ **The physical cause is specific to the C64**: `A0–A7`/`A8–A15` are multiplexed through
+U13/U25 (two 74LS257) on a **shared select line**. Invert or mis-drive that select and row and
+column swap wholesale.
+
+✅ **It is caught — by P7 RETENTION, and only by P7.** The VIC's refresh counter drives 8 bits
+to generate 256 **row** addresses (G2, Bauer §3.13). Swap row and column and the counter now
+sweeps physical *columns*, so each physical row is refreshed once per 256 refresh cycles instead
+of every cycle — retention collapses from the ~2 ms budget to hundreds of ms, which the 12-second
+dwell finds instantly. ⚠ **This is written down because it is the ONLY coverage of that fault.**
+Shorten or remove the dwell and it disappears silently, and nothing else in the design would
+notice.
+
+**⚠ FINDING 2 — STUCK-OPEN FAULTS (SOF) ARE NOT COVERED, AND NEITHER MARCH IS AN SOF TEST.**
+Detecting an open access transistor requires the bit line to be holding the *complement* of the
+expected value at the moment the cell is read; a read immediately following a write to the
+**same** cell leaves the bit line holding what was just written, so the open cell returns the
+expected value and passes. This is a known limitation of march tests in general, not a defect in
+our implementation of them. **Not claimed anywhere**, so it is a gap rather than an over-claim —
+recorded so it stays a deliberate omission.
+
+**⚠ FINDING 3 — THE MARCHES RUN PER CONTIGUOUS RUN, SO THE COUPLING GUARANTEE IS PER RUN, NOT
+GLOBAL** — and the source only ever asserted the within-run half. The across-run case is benign,
+for a reason worth stating rather than assuming:
+
+- **Row-direction adjacency** (adjacent offsets, `ROW = A0–A7`) is always *within one page*, so
+  always within a run. Never affected.
+- **Column-direction adjacency** (same offset, adjacent pages) crosses a run boundary only where
+  an **excluded** page sits between the two — `$03`, `$04–$07`, `$C0–$CF`. Those pages are the
+  ones the handover marches at 9n, so the lost adjacencies are exactly the excluded pages' own
+  neighbours, which are covered less deeply rather than not at all.
+
+**✅ A POSITIVE FINDING, recorded so nobody "optimises" it away.** Because `ROW = A0–A7`,
+ascending address order walks all 256 **rows of one column** before moving to the next column.
+That is precisely the long same-column read run that DRAM sense-amplifier recovery and bit-line
+imbalance tests are built to produce — the marches get it for free from the C64's own address
+mapping, and the address-dependent `P` alternates the data *within* a column as a bonus.
+⚠ **Any change to the address traversal order would forfeit this**, silently.
+
+**⚠ NPSF is not claimed anywhere and is not covered.** Full active/passive/static neighbourhood
+pattern-sensitive testing needs specific neighbourhood configurations at a large constant factor
+per cell. P5's six patterns are a *sample* of neighbourhood conditions, and §2's table claims
+"physical row/column coupling", not NPSF. That distinction is correct as written — this note
+exists to keep it that way.
+
+---
 
 ### P5 — Topographical patterns · ✅ **implemented; ~34 s**
 

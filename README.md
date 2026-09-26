@@ -88,7 +88,7 @@ The two projects stay separate. This one has no dependency on that board and nev
 | Gate G1 — EasyFlash mode switching | ✅ **closed** — Ultimate II+ *and* Kung Fu Flash, `$DE02 = $02` |
 | EasyFlash delivery — boots in Ultimax, **needs no working RAM or KERNAL to start** | ✅ measured with the DRAMs out; ⚠ the launcher must map the cartridge without a menu |
 | Engine relocated to `$C000`, banks out with `$01 = $30` | ✅ |
-| **P3** `MARCH B` — 17n, address-dependent pattern, 60,928 of 65,536 bytes | ✅ ~17 s |
+| **P3** `MARCH B` — 17n, address-dependent pattern, 59,648 of 65,536 bytes | ✅ ~17 s |
 | **P4** `MARCH LR` — 14n, **fixed** patterns — linked faults | ✅ ~11 s |
 | **P5** `ROW/COLUMN` — topographical patterns — physical adjacency | ✅ ~34 s |
 | **P6** `LOW MEMORY` / `OWN MEMORY` — zero page, stack and the engine's home — 9n, registers-only | ✅ |

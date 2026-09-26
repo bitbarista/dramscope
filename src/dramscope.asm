@@ -810,9 +810,13 @@ p2_restore:
 ;     $0000-$01FF   zero page and the stack -- the engine uses both
 ;     $0400-$07FF   the screen matrix and this test's own workspace
 ;     $C000-$CFFF   the engine, and the workspace just above it
-; 5,632 bytes of 65,536, so 59,904 are covered. Reaching the rest needs a
+; ⚠ 23 pages = 5,888 bytes are excluded, so 233 pages = 59,648 bytes are
+; marched here. THESE FIGURES ARE ENFORCED at assembly time against runtab --
+; see the !error guards by s_ok2. Three different wrong numbers (59,904, 60,928,
+; 5,632) were in the comments and docs at once, all of them predating the
+; engine growing from 12 pages to 16. Reaching the rest needs a
 ; second pass with the engine and display relocated, which is a later
-; iteration. ⚠ CLAIMING 64 KB WHILE MARCHING 60,928 IS EXACTLY THE QUIET
+; iteration. ⚠ CLAIMING 64 KB WHILE MARCHING 59,648 IS EXACTLY THE QUIET
 ; OVER-CLAIM PROVENANCE.md EXISTS TO PREVENT, so the verdict prints the figure.
 ;
 ; ⚠ MARCHED PER CONTIGUOUS RUN, not per page, so coupling faults BETWEEN pages
@@ -1302,7 +1306,7 @@ tick_set:
 ; honest. ⚠ Temperature is the other lever and it is not a software one: the
 ; documentation tells the user to run it again on a warm machine.
 ;
-; ⚠ COVERS THE RUN TABLE ONLY -- 59,904 bytes. Zero page, the stack, the
+; ⚠ COVERS THE RUN TABLE ONLY -- 59,648 bytes. Zero page, the stack, the
 ; screen and the engine cannot hold a test pattern for ten seconds while the
 ; engine is running out of them, and no amount of relocation changes that.
 ; ---------------------------------------------------------------------------
@@ -2826,7 +2830,9 @@ p2pages: !byte $08,$09,$0a,$0c,$10,$18,$28,$48,$88,$ff
 
 ; ⚠ The contiguous runs P3 marches, as start/end page pairs, $00 terminating.
 ; What is NOT here is the point: $00-$01 zero page and stack, $04-$07 screen
-; and workspace, $C0-$CB the engine. 238 pages, 60,928 bytes of 65,536.
+; and workspace, $C0-$CF the engine. 233 pages, 59,648 bytes of 65,536.
+; ⚠ $C0-$CF, SIXTEEN PAGES, NOT $C0-$CB: ENG_PAGES went from 12 to 16 and this
+; comment did not follow. The !error guards by s_ok2 are the authority.
 runtab:  !byte $02,$02         ; ⚠ $03 is the workspace -- see WORK
          !byte $08,$bf
          !byte $d0,$ff
