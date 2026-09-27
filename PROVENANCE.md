@@ -83,6 +83,8 @@ demultiplexing. It is carried here with its rationale intact.
 | 4164 is 65,536 × 1 bit, organised 256 rows × 256 columns | 4164 datasheets | [D] |
 | On a stock C64 each 4164 supplies one bit across the entire address space | `c64-ice40-ram/diag/README.md` | [C] |
 | 4164 hold times: tRAH = 20 ns, tCAH = 25 ns | 4164 datasheets, via `c64-ice40-ram` §3.3 | [D] |
+| ⚠ **Other chips that can look like bad RAM.** `U14` 74LS258 and `U26` 74LS373 join `U13`/`U25` in switching the address lines between VIC and CPU; `U14` couples the CIA bank bits into the VIC address bus or bypasses them during refresh, `U26` allows the VIC to address char ROM and colour RAM | opencbm Hardware Reference component table for 250407, plus C64-Wiki *Hardware internals of the C64*. ⚠ **Carl raised this** — the guidance named only the RAM, its joints and the PLA | [C] |
+| ⚠ **A shared-path fault cannot produce a single bad bit** | Derived: the address multiplexers, their series packs, the PLA's CASRAM and the VIC's RAS/CAS are common to all eight DRAMs, so a failure there takes more than one bit. ⚠ **This also means naming the PLA as a suspect for a ONE-BIT fault was wrong**, which the bench documents did until 2026-09-27 | [M] |
 
 ### ⚠ Facts still needed, and not yet held
 

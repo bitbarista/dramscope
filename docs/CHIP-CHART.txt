@@ -33,27 +33,30 @@ STEP 2 -- READ ACROSS
 
 *** BEFORE YOU DESOLDER ANYTHING ***
 
-THE BIT NUMBER IS MEASURED. THE CHIP NAME IS A SUGGESTION.
+THE BIT IS MEASURED. THE CHIP IS A SUGGESTION -- which is why the screen says
+LIKELY. What else could be at fault depends on HOW MANY BITS FAILED, and the
+BITS row tells you that.
 
-DRAMscope proves that data bit D0 (or whichever) did not hold what was
-written to it. That is a measurement and it is reliable. Turning that bit
-into a chip is a LOOKUP, and a lookup rests on two things the tool cannot
-check for you:
+ONE BIT
+  The fault is on that data line. The RAM is the likeliest part on it, but a
+  dry or cracked joint, a corroded or spread socket contact, or a broken track
+  to the CPU are INDISTINGUISHABLE to any software test.
+  ⚠ The address and control logic CANNOT do this -- it is shared by all eight
+  chips, so a fault there takes more than one bit with it.
 
-  1. THAT YOU HAVE THE BOARD IT ASSUMES. It cannot see which board it is
-     plugged into. Check the assembly number yourself.
+FOUR BITS IN ONE NIBBLE, ON A TWO-CHIP BOARD
+  Still one chip: a 41464 is four bits wide.
 
-  2. THAT THE FAULT IS IN THE CHIP AT ALL. A failing bit means the fault is
-     somewhere ON THAT DATA LINE. The RAM chip is the likeliest part on it,
-     but these look IDENTICAL to any software test:
+SEVERAL BITS, OR ALL EIGHT -- PROBABLY NOT A RAM CHIP AT ALL
+  These are shared by the whole array, so one failure takes many bits at once:
 
-       - a dry or cracked solder joint on that pin
-       - a corroded, bent or spread socket contact
-       - a broken track between the RAM and the CPU
-       - the PLA, or whatever gates /CAS to the RAM
-       - the CPU or VIC end of the same line
+    U13, U25    74LS257 address multiplexers
+    U14, U26    74LS258 and 74LS373 -- VIC/CPU address switching
+    RP1, RP2    330 ohm series packs on those lines
+    U17         the PLA, which gates /CAS to the RAM
+    VIC-II      generates RAS/CAS and the refresh
 
-So work in this order, cheapest and most reversible first:
+Work in this order, cheapest and most reversible first:
 
   1. Reseat the chip. Socketed RAM that has sat for forty years is a common
      fault all by itself.

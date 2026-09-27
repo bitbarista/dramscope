@@ -33,7 +33,7 @@ CSS = """
 html, body { margin: 0; padding: 0; }
 body {
   font-family: "DejaVu Sans", Arial, Helvetica, sans-serif;
-  font-size: 9.2pt; line-height: 1.34; color: #000; background: #fff;
+  font-size: 9.1pt; line-height: 1.27; color: #000; background: #fff;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 h1 { font-size: 17pt; margin: 0; letter-spacing: -0.2pt; }
@@ -43,14 +43,14 @@ h1 { font-size: 17pt; margin: 0; letter-spacing: -0.2pt; }
 .ver { font-family: "DejaVu Sans Mono", monospace; font-size: 8pt; color: #444;
        white-space: nowrap; text-align: right; }
 h2 { font-size: 9.4pt; text-transform: uppercase; letter-spacing: 0.7pt;
-     margin: 3.1mm 0 1.4mm 0; padding-bottom: 0.8mm; border-bottom: 0.6pt solid #999; }
-p { margin: 0 0 1.6mm 0; }
+     margin: 2.6mm 0 1.2mm 0; padding-bottom: 0.7mm; border-bottom: 0.6pt solid #999; }
+p { margin: 0 0 1.3mm 0; }
 .lead { font-size: 9.6pt; }
 b, strong { font-weight: 700; }
 
 table.chips { width: 100%; border-collapse: collapse; margin-top: 1mm;
               font-family: "DejaVu Sans Mono", monospace; }
-table.chips th, table.chips td { border: 0.6pt solid #666; padding: 1.45mm 0.6mm;
+table.chips th, table.chips td { border: 0.6pt solid #666; padding: 1.2mm 0.6mm;
                                  text-align: center; font-size: 9.6pt; }
 table.chips thead th { background: #000; color: #fff; font-size: 8.4pt;
                        letter-spacing: 0.4pt; padding: 1.7mm 0.6mm; }
@@ -68,7 +68,7 @@ table.chips tbody tr:nth-child(4) td { border-top: 1.6pt solid #000; }
 .cols { display: flex; gap: 5mm; }
 .cols > div { flex: 1; }
 ol { margin: 1mm 0 0 4.6mm; padding: 0; }
-ol li { margin-bottom: 0.9mm; }
+ol li { margin-bottom: 0.6mm; }
 code, .mono { font-family: "DejaVu Sans Mono", monospace; }
 pre.screen { font-family: "DejaVu Sans Mono", monospace; font-size: 8.4pt;
              background: #000; color: #fff; padding: 2.2mm 2.6mm; margin: 1.4mm 0 0 0;
@@ -147,38 +147,42 @@ the badge: the same case was used for several boards.</p>
 
 <h2>3 &nbsp; Before you desolder anything</h2>
 <div class="box">
-  <p><b>The bit is measured. The chip is a suggestion</b> &mdash; which is why the screen says
-  <span class="mono">LIKELY</span> rather than naming the part as a fact. A failing bit means
-  the fault is somewhere <b>on that data line</b>. The RAM is the likeliest part on it, but a
-  dry or cracked joint, a corroded or spread socket contact, a broken track, the PLA, or the
-  CPU end of the same line are <b>indistinguishable to any software test</b>.</p>
-  <ol>
-    <li><b>Reseat the chip.</b> Socketed RAM that has sat for forty years is a common fault by
-        itself.</li>
-    <li><b>Inspect and reflow</b> the joints on that chip and its socket.</li>
-    <li><b>Check continuity</b> along the data line, RAM pin to CPU pin.</li>
-    <li><b>Only then swap the chip</b> &mdash; and keep the old one until the repair is
-        confirmed, because it may well be good.</li>
-  </ol>
-  <p style="margin-top:1.6mm">If you replace a chip and the same bit still fails, the chip was
-  never the fault. That is information, not a wasted part: it points at the line.</p>
+ <div class="cols">
+  <div>
+   <p><b>The bit is measured. The chip is a suggestion</b> &mdash; which is why the screen says
+   <span class="mono">LIKELY</span>. <b>What else could be at fault depends on how many bits
+   failed</b>, and the <span class="mono">BITS</span> row tells you that.</p>
+   <p><b>One bit.</b> The fault is on that data line; the RAM is the likeliest part on it, but a
+   dry or cracked joint, a corroded or spread socket contact, or a broken track to the CPU are
+   <b>indistinguishable to any software test</b>. ⚠ The address and control logic <i>cannot</i>
+   do this &mdash; it is shared by all eight chips, so a fault there takes more than one bit.</p>
+   <p><b>Four bits in one nibble, two-chip board.</b> Still one chip: a 41464 is four bits wide.</p>
+  </div>
+  <div>
+   <p><b>Several bits, or all eight &mdash; probably not a RAM chip at all.</b> These are shared
+   by the whole array, so one failure takes many bits at once:</p>
+   <p style="margin-left:2mm"><b>U13</b>, <b>U25</b> &mdash; 74LS257 address multiplexers<br>
+   <b>U14</b> (74LS258), <b>U26</b> (74LS373) &mdash; VIC/CPU address switching<br>
+   <b>RP1</b>, <b>RP2</b> &mdash; 330&nbsp;&#937; series packs on those lines<br>
+   <b>U17</b> &mdash; the PLA, which gates <span class="mono">/CAS</span> to the RAM<br>
+   <b>VIC-II</b> &mdash; generates RAS/CAS and the refresh</p>
+   <ol style="margin-top:1.4mm">
+    <li><b>Reseat the chip</b> &mdash; forty-year-old socketed RAM is a fault by itself.</li>
+    <li><b>Inspect and reflow</b> its joints and socket.</li>
+    <li><b>Check continuity</b>, RAM pin to CPU pin.</li>
+    <li><b>Only then swap it</b>, keeping the old chip until the repair is confirmed.</li>
+   </ol>
+   <p style="margin-top:1.3mm">If the same bit still fails with a new chip, the chip was never
+   the fault &mdash; that is information, not a wasted part.</p>
+  </div>
+ </div>
 </div>
 
-<div class="cols">
-  <div>
-    <h2>What the screen shows</h2>
-    <pre class="screen">{screen}</pre>
-  </div>
-  <div>
-    <h2>Two it will not name</h2>
-    <p><b>Every bit failing</b> &mdash; it names no chip and says <span class="mono">SEE
-    PLA</span>. Eight dead RAMs is not the likely reading: suspect the PLA, the address
-    multiplexers at U13/U25, or their resistor packs RP1/RP2.</p>
-    <p><b>Colour RAM</b> &mdash; a separate 1K&nbsp;&times;&nbsp;4 static chip. It causes wrong
-    colours rather than a crash, which is why it gets blamed on the VIC. It is never counted
-    against the DRAMs.</p>
-  </div>
-</div>
+<h2>Colour RAM is not a DRAM</h2>
+<p>A separate 1K&nbsp;&times;&nbsp;4 static chip. It causes wrong colours rather than a crash,
+which is why it gets blamed on the VIC. DRAMscope gives it its own verdict and <b>never counts
+it against the DRAMs</b>. And when <b>every</b> bit fails it names no chip at all, saying
+<span class="mono">SEE PLA</span> &mdash; eight dead RAMs is not the likely reading.</p>
 
 <div class="foot">
   <div><b>Sources:</b> schematic 251138, cross-checked against the opencbm Hardware Reference
