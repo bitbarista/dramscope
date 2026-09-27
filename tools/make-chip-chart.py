@@ -25,7 +25,7 @@ from chart import CHART, BOARDS          # noqa: E402  -- the single source
 
 OUT_HTML = ROOT / "build" / "chip-chart.html"
 OUT_PDF = ROOT / "build" / "CHIP-CHART.pdf"
-VERSION = "1.4"
+VERSION = "1.5"
 PAGES = 2          # ⚠ 1 = the chart, 2 = the advisory. Overflow must fail, not slide.
 
 CSS = """

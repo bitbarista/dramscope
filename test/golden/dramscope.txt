@@ -17,7 +17,7 @@ C **************** OWN MEMORY   OK
 D ################ COLOUR RAM   OK
 E ################ RETENTION    OK
 F ################
- 64K MAP: #=FULL *=LIGHTER X=BAD     1.4
+ 64K MAP: #=FULL *=LIGHTER X=BAD   1.5
 ----------------------------------------
  ALL TESTS PASSED.
  59,648 FULL + 5,886 LIGHTER = 65,534

@@ -7,7 +7,7 @@ A memory diagnostic cartridge for **any** Commodore 64.
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Platform](https://img.shields.io/badge/platform-Commodore%2064-4a3aff)
 ![Cartridge](https://img.shields.io/badge/cartridge-EasyFlash-8b5cf6)
-![Version](https://img.shields.io/badge/version-1.4-0369a1)
+![Version](https://img.shields.io/badge/version-1.5-0369a1)
 <a href="https://ko-fi.com/bitbarista" target="_blank"><img src="https://img.shields.io/badge/Ko--fi-Support%20the%20Project-FF5E5B?logo=ko-fi&logoColor=white" alt="Support on Ko-fi"></a>
 
 </div>
@@ -125,7 +125,7 @@ A healthy machine finishes a run in about 80 seconds and looks like this:
    0123456789ABCDEF TESTS AND RESULTS
  0 **#*****######## DATA LINES   OK
  …
- 64K MAP: #=FULL *=LIGHTER X=BAD     1.4
+ 64K MAP: #=FULL *=LIGHTER X=BAD   1.5
  ----------------------------------------
  ALL TESTS PASSED.
  59,648 FULL + 5,886 LIGHTER = 65,534
@@ -316,7 +316,7 @@ reading a manual:
  D ################ COLOUR RAM   OK
  E ################ RETENTION    OK
  F ################
- 64K MAP: #=FULL *=LIGHTER X=BAD     1.4
+ 64K MAP: #=FULL *=LIGHTER X=BAD   1.5
  ----------------------------------------
  ALL TESTS PASSED.
  59,648 FULL + 5,886 LIGHTER = 65,534

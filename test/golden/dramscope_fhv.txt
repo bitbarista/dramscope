@@ -17,7 +17,7 @@ C **************** OWN MEMORY   X
 D ################ COLOUR RAM   OK
 E ################ RETENTION    OK
 F ################
- 64K MAP: #=FULL *=LIGHTER X=BAD     1.4
+ 64K MAP: #=FULL *=LIGHTER X=BAD   1.5
 ----------------------------------------
  MEMORY FAULT, FIRST BAD BYTE AT $7774
  BITS               D4

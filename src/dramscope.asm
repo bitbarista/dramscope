@@ -80,6 +80,7 @@
 BORDER   = $d020
 BGCOL    = $d021
 VICCTL1  = $d011
+VICCTL2  = $d016                ; ⚠ CSEL lives here -- see the init
 VICMEM   = $d018
 CIA2PRA  = $dd00
 CIA2DDRA = $dd02
@@ -635,6 +636,19 @@ eng_start:
         sta CIA2PRA
         lda #$14                        ; matrix $0400, char ROM $1000
         sta VICMEM
+        ; ⚠⚠ $D016 MUST BE SET, AND IT WAS NOT. Carl saw the version number in
+        ; the bottom-right corner cut off mid-character -- "1." with the last
+        ; digit missing. Not overscan: CSEL, bit 3 of $D016, selects 40-column
+        ; or 38-column display, and in 38-column mode THE VIC ITSELF BLANKS
+        ; COLUMN 0 AND COLUMN 39.
+        ; ⚠ On an ordinary boot the KERNAL writes $C8 here. THIS CARTRIDGE
+        ; BOOTS IN ULTIMAX WITH NO KERNAL, so nothing had set it and the
+        ; register held whatever it powered up with. That is the same class of
+        ; bug as every other "the KERNAL normally does this for us" assumption
+        ; in this file, and the only reason it survived is that VICE happened
+        ; to power up with CSEL set while a real machine did not.
+        lda #$c8                        ; CSEL=1: 40 columns. XSCROLL=0.
+        sta VICCTL2
         lda #$1b                        ; DEN=1 -- display on
         sta VICCTL1
 
@@ -2847,8 +2861,14 @@ dc_rows:
         jsr prstr
         lda #V_ROW-2                    ; ⚠ the version tucked in the corner:
         sta w_row                       ; on the title row there was no space
-        lda #37                         ; left once the counters were named
+        lda #35                         ; left once the counters were named
         sta w_col                       ; for what they actually count
+                                        ; ⚠ COL 35, NOT 37. Even with CSEL set
+                                        ; correctly, columns 0 and 39 are the
+                                        ; first thing a marginal display eats.
+                                        ; Nothing that carries INFORMATION goes
+                                        ; there; the dashed rules may, because
+                                        ; losing an end dash costs nothing.
         lda #<s_ver
         ldy #>s_ver
         jsr prstr
@@ -3096,7 +3116,7 @@ s_p9:       !scr "colour ram", 0
 s_legend:   !scr "64k map: "
             !byte CH_FULL
             !scr "=full *=lighter x=bad", 0
-s_ver:      !scr "1.4", 0   ; ⚠ 3 chars at col 37: the legend must end by 35
+s_ver:      !scr "1.5", 0   ; ⚠ 3 chars at col 35-37: the legend must end by 33
 ; ⚠ Nothing told the user it never stops, or how to end it.
 
 ; ⚠ Four bytes per entry, space padded, indexed by bit*4. The designators are
