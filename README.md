@@ -584,9 +584,14 @@ one is traced in [`PROVENANCE.md`](PROVENANCE.md).
 ⚠ The figure below was **silently lost for several revisions** and is now tied to the run
 table by an assembly-time `!error`, so the strings and the table cannot drift apart again.
 
-**All 65,534 bytes of RAM.** A C64 has 65,536 *addresses*, but two of them are not memory:
-`$0000` and `$0001` are the CPU's data-direction register and banking latch. 65,534 is
-therefore the whole of the RAM, not a shortfall against it.
+**All 65,534 bytes the CPU can reach.** A C64 has 65,536 addresses. ⚠ **There is real RAM
+underneath `$0000` and `$0001`** — the cells exist like any others — but the 6510 has those two
+addresses **hardwired to internal registers**, its data-direction register and banking port.
+Every CPU read and write there hits the register inside the processor and **never reaches the
+RAM chips**. So they are not "not RAM": they are two bytes of RAM **no program running on the
+6510 can reach**, and therefore none can test. *(The VIC can get at them, using a different
+phase of the bus cycle, so a fault there could show as a display artefact — never as a
+CPU-visible memory fault.)*
 
 The verdict line prints the split rather than rounding it to a claim —
 `59,648 FULL + 5,886 LIGHTER = 65,534` — and the map distinguishes depth rather than
@@ -609,8 +614,9 @@ internal state is unchanged, because it is the reason the map cannot over-claim.
 ⚠ **The legend used to say `.=NOT RAM`, and that was simply false.** Every one of the 256
 pages is RAM and every one is tested, `$D000–$DFFF` included — marched with the I/O chips
 banked out. `.` means *not reached yet*, and it is dark grey on black so that it reads as
-absence. The two bytes that genuinely are not RAM are `$0000` and `$0001`, the CPU's
-data-direction register and banking latch, which is why the total is 65,534 and not 65,536.
+absence. The two bytes missing from the total are `$0000` and `$0001` — real RAM that the
+6510 shadows with its own port registers and cannot reach, which is why the figure is 65,534
+and not 65,536.
 
 The `*` regions get a shorter march because the test is standing on them: the engine's home
 is marched by a module copied to `$3000`, which then re-copies the engine from cartridge ROM

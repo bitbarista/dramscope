@@ -226,9 +226,15 @@ rather than in words:
 
   59,648 FULL + 5,886 LIGHTER = 65,534.
 
-That is ALL the RAM. A C64 has 65,536 ADDRESSES, but two of them are not
-memory: $0000 and $0001 are the CPU's data-direction register and banking
-latch. So 65,534 is the whole of it, not a shortfall.
+That is ALL THE RAM THE CPU CAN REACH. A C64 has 65,536 addresses.
+
+⚠ THERE IS REAL RAM UNDERNEATH $0000 AND $0001 -- the cells exist like any
+others -- but the 6510 hardwires those two addresses to its own data-direction
+register and banking port. Every read and write there hits a register INSIDE
+THE PROCESSOR and never reaches the RAM chips. They are not "not RAM"; they are
+two bytes of RAM that no program running on the CPU can address, and therefore
+none can test. So 65,534 is the whole of what is testable, not a shortfall
+against it.
 
 
 IF IT FINDS A FAULT

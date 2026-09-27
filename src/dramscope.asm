@@ -3084,7 +3084,7 @@ runtab:  !byte $02,$02         ; ⚠ $03 is the workspace -- see WORK
 ; string.
 ;   full march (P3+P4+P5+P7), pages:   1 + 184 + 48 = 233  -> 59,648 bytes
 ;   9n (P6 and the handover),  pages:  2 +   1 +  4 + 16 = 23 -> 5,888
-;                                      less $0000/$0001, which are not RAM
+;                                      less $0000/$0001, which the CPU cannot reach
 ;   tested: 59,648 + 5,886 = 65,534 of 65,536
 !if ($02-$02+1) + ($bf-$08+1) + ($ff-$d0+1) != 233 {
         !error "run table changed -- the coverage figure in s_ok2 is now wrong"
@@ -3297,9 +3297,14 @@ hv_entry:
 ; because the engine runs from RAM; it is NOT available in the ROML bootstrap,
 ; which is why P0a and P0b are written out longhand instead.
 ;
-; ⚠⚠ $0000 AND $0001 ARE NOT RAM. They are the CPU's data-direction register
-; and banking latch. Writing a march pattern to $0001 would rearrange memory
-; underneath the running program. The scan starts at $0002 on page zero.
+; ⚠⚠ $0000 AND $0001 CANNOT BE REACHED. There IS real RAM underneath them --
+; the cells exist like any others -- but the 6510 hardwires those two addresses
+; to its own data-direction register and banking port, so every CPU read and
+; write hits the register inside the processor and never reaches the chips.
+; They are not "not RAM"; they are RAM no 6502 instruction can address.
+; ⚠ And writing a march pattern to $0001 would rearrange memory underneath the
+; running program, which is the more immediate reason not to try.
+; The scan starts at $0002 on page zero.
 ;
 ; 9n rather than March B's 17n: the algorithm is written out twice over (once
 ; per page) because there is no pointer to walk, and the shorter march still

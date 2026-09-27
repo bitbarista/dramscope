@@ -671,7 +671,9 @@ for that reason. Both traps were hit during development: the first version used 
 and hung when the return address was overwritten, and the first fault-injection used `PHA`
 and reported seven bad bits instead of one.
 
-⚠ **`$0000` and `$0001` are not RAM** — the CPU's data-direction register and banking latch.
+⚠ **`$0000` and `$0001` cannot be reached by the CPU** — the 6510 shadows them with its own
+data-direction register and banking port. The RAM cells underneath are real; no program running
+on the CPU can address them.
 The scan starts at `$0002`.
 
 ---
