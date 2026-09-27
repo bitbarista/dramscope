@@ -161,6 +161,7 @@ only advice and not fact"*. Its claims, and where they come from:
 | C64s shipped with DRAM marked **150 ns** and **200 ns** | C64-Wiki, *RAM* | [C] |
 | `4164` is 64K × 1; `41464` (also sold as `4464`) is 64K × 4 | DRAM datasheets; C64-Wiki calls the two-chip part 4464 | [C] |
 | A **41256** can stand in for a 4164 by tying **pin 1 to pin 16**, because pin 1 is `NC` on the 4164 and `A8` on the 41256 — grounding it stops `A8` floating and confines the chip to its lower 64K | C64-Wiki, *RAM*: *"solder a short piece of wire between pins 1 and 16 … make the chip look just like a '64 chip to the system"*; corroborated by 6502.org and Lemon64 forum reports | [C] |
+| Replacements are new-old-stock or desoldered pulls, and a pull may have been removed *because it failed* | Follows from the parts being long out of production. ⚠ **An earlier draft said "much of what is sold is pulls, or relabelled, or simply dead"** — a proportion claim with nothing behind it, and my escalation of Carl's more careful "sources are questionable". Searching found counterfeiting material for **modern** RAM modules and **no documented cases of faked 4164s**, so the relabelling claim was dropped rather than hedged | [M] |
 | Fitting a socket; running warm to find marginal cells | Ordinary repair practice, not a sourced claim | [A] |
 
 ⚠ **NONE OF PAGE 2 HAS BEEN TESTED BY THIS PROJECT.** No 41256 substitution has been built or

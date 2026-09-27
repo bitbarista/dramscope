@@ -240,9 +240,10 @@ it against the DRAMs</b>. And when <b>every</b> bit fails it names no chip at al
 <p><b>Speed.</b> C64s shipped with parts marked <b>150&nbsp;ns</b> and <b>200&nbsp;ns</b>
 (C64-Wiki). A <i>lower</i> number is faster and is safe to fit; a slower part than the board
 was designed for is not.</p>
-<p>&#9888; <b>Provenance is the real problem, not price.</b> These are forty-year-old parts and
-much of what is sold is pulls, or relabelled, or simply dead. <b>Buy more than you need</b>,
-and treat every one as unproven until it has run &mdash; which is what DRAMscope is for.</p>
+<p>&#9888; <b>Treat every replacement as unproven.</b> These parts went out of production
+decades ago, so what is on sale is new-old-stock or desoldered pulls &mdash; and <b>a pull may
+have been taken off a board because it failed.</b> Buy more than you need, and let DRAMscope
+decide whether the one you fitted is any good.</p>
 
 <h2>If you cannot find a 4164 &mdash; the 41256 substitution</h2>
 <p>A <span class="mono">41256</span> is 256K&nbsp;&times;&nbsp;1, four times the size. <b>The

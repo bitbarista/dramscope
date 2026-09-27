@@ -160,10 +160,10 @@ SPEED. C64s shipped with parts marked 150ns and 200ns (C64-Wiki). A LOWER
 number is faster and is safe to fit; a slower part than the board was designed
 for is not.
 
-⚠ PROVENANCE IS THE REAL PROBLEM, NOT PRICE. These are forty-year-old parts
-and much of what is sold is pulls, or relabelled, or simply dead. Buy more
-than you need, and treat every one as unproven until it has run -- which is
-what DRAMscope is for.
+⚠ TREAT EVERY REPLACEMENT AS UNPROVEN. These parts went out of production
+decades ago, so what is on sale is new-old-stock or desoldered pulls -- and A
+PULL MAY HAVE BEEN TAKEN OFF A BOARD BECAUSE IT FAILED. Buy more than you
+need, and let DRAMscope decide whether the one you fitted is any good.
 
 
 IF YOU CANNOT FIND A 4164 -- THE 41256 SUBSTITUTION
