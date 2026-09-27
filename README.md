@@ -17,6 +17,12 @@ working KERNAL and no working RAM to start** — verified on a machine with ever
 from its sockets. It tests every byte of RAM, names the failing data bit and,
 where it can do so safely, the chip that carries it.
 
+⚠ **Before you rely on it, read [what it can do, what it cannot, and how much of that is
+actually proven](#-what-it-can-do-what-it-cannot-and-how-much-of-that-is-actually-proven).**
+Most of the testing behind this tool is **simulated**, no genuinely faulty DRAM has ever been
+tested with it, and two real bugs got past the entire suite and were found on hardware. That
+section says so plainly rather than leaving you to find out.
+
 ## Running it
 
 1. **[Download `dramscope.crt`](https://github.com/bitbarista/dramscope/releases/latest/download/dramscope.crt)** — always the current version.
@@ -201,6 +207,67 @@ row/column patterns, retention testing and chip naming. It borrows nothing from 
 see [`PROVENANCE.md`](PROVENANCE.md), which is a deliberately strict policy about what may
 even be looked at.
 
+## ⚠ What it can do, what it cannot, and how much of that is actually proven
+
+**Read this before trusting anything it tells you.** The C64 community has had enough
+diagnostic tools that over-promise. This section is the honest accounting.
+
+### It can
+
+| | Evidence |
+|---|---|
+| Start with **no working KERNAL** | Booted against a KERNAL of 8 KB of `$FF`, on 18 model × CIA combinations — **emulator** |
+| Start with **no working RAM**, not even the stack | **Real hardware.** Every DRAM pulled from its sockets; it boots and puts up a solid red screen |
+| Test **65,534 bytes**, including `$D000–$DFFF` marched with the I/O chips banked out | Coverage figure tied to the run table by an assembly-time `!error` |
+| Name the failing **data bit** | Derived from the failing-bit mask; true on every C64 ever made |
+| Name a **chip**, on boards with eight 4164s | Bit→chip table, every row confirmed by two independent sources |
+| Run as a **burn-in**, accumulating faults across runs | Exercised by a transient-fault mutation — **emulator** |
+| Report rather than hang when it cannot run at all | Mutations for "device ignores `$DE02`" and the MAX Machine — **emulator** |
+
+### It cannot
+
+| | Why |
+|---|---|
+| Test RAM that is **not fitted** | It reports it — flashing red — but there is nothing to test |
+| **Suppress refresh** | The VIC refreshes unconditionally, 5 cycles per raster line. `RETENTION` tests *against a working refresh*, which is a weaker test than a bench DRAM tester's |
+| Test at **temperature** | Not a software lever. Run it again on a machine that has been on for an hour |
+| Tell which **board** it is plugged into | Hence `LIKELY` and the assumption printed under it |
+| Name a chip on a **two-chip (41464) board** | The two such assemblies are wired the opposite way round and nothing on screen distinguishes them |
+| Catch **stuck-open faults** reliably | A known limitation of march tests generally, not of this implementation |
+| Cover **NPSF** (neighbourhood pattern sensitive faults) | Not claimed anywhere. `ROW/COLUMN` samples neighbourhood conditions; it is not an NPSF test |
+| Prove the **chip** is at fault rather than the line | A failing bit means the fault is somewhere on that data line |
+
+### ⚠ How it was tested — and what that is worth
+
+**Almost all of it is simulated.** 23 fault-injection cases, 25 whole-screen golden comparisons,
+18 model × CIA combinations, a hostile power-on test — **all of that runs in VICE.**
+
+⚠ **Injecting a fault proves the reporting works. It does not prove the algorithm finds a real
+fault of that class.** No genuinely faulty DRAM has ever been tested with this tool. Nobody has
+a curated library of chips with known coupling faults, linked faults or marginal retention, so
+the coverage claims rest on **the published algorithms being implemented faithfully — which you
+can check by reading the source** — and not on having caught one in the wild.
+
+⚠ **Two real bugs escaped the entire suite**, and both were found by looking at a real C64:
+
+- **`$D016` was never initialised**, so a real machine ran in 38-column mode and the VIC blanked
+  columns 0 and 39. Every golden screen passed, because VICE powers up with CSEL already set.
+- **The CIA interrupt masks were never cleared.** `SEI` does not mask NMI, and during the march
+  the NMI vector is RAM under test. VICE powers up quiet, so nothing ever fired.
+
+**That is the measure of what simulation is worth here.** The emulator is kinder than a cold
+machine, so every assumption about power-on state looked correct. There are now tests
+specifically for that class — the power-on state is deliberately corrupted before the cartridge
+runs — **but the honest position is that there may be more of them.**
+
+⚠ **Hardware coverage is narrow.** Two cartridge devices (Ultimate II+ and Kung Fu Flash), the
+author's own machines, and **no known-faulty RAM at all**. As far as this project knows it has
+**never been run on a two-chip (41464) board**, so the chip chart's short-board rows are
+researched but not exercised.
+
+**If it tells you something surprising, doubt it and say so.** Issues and corrections are
+genuinely welcome — several of the fixes above came from exactly that.
+
 ## Where it came from
 
 It is a spin-out of DRAMa Free 64 (the author's own, unpublished), an FPGA replacement for the eight
@@ -221,9 +288,9 @@ The two projects stay separate. This one has no dependency on that board and nev
 | **P1** `DATA LINES` — walking ones/zeroes/rails | ✅ |
 | **P2** `ADDR LINES` — **all 16 lines, A0–A15** | ✅ |
 | Display — 256-page map, bus lanes, verdict | ✅ |
-| Fault injection + headless VICE harness | ✅ 14 mutations, one shared hook |
-| Whole-screen golden comparison | ✅ [`test/golden/`](test/golden/) |
-| **Variant matrix** — every C64 model VICE emulates | ✅ 18 model × CIA combinations |
+| Fault injection + headless VICE harness | ✅ 23 cases, one shared hook — ⚠ **emulated** |
+| Whole-screen golden comparison | ✅ [`test/golden/`](test/golden/) — ⚠ **emulated** |
+| **Variant matrix** — every C64 model VICE emulates | ✅ 18 model × CIA combinations — ⚠ **emulated** |
 | Gate G1 — EasyFlash mode switching | ✅ **closed** — Ultimate II+ *and* Kung Fu Flash, `$DE02 = $02` |
 | EasyFlash delivery — boots in Ultimax, **needs no working RAM or KERNAL to start** | ✅ measured with the DRAMs out; ⚠ the launcher must map the cartridge without a menu |
 | Engine relocated to `$C000`, banks out with `$01 = $30` | ✅ |
@@ -237,9 +304,10 @@ The two projects stay separate. This one has no dependency on that board and nev
 | ~~P8 disturb~~ | ⚠ **declined** — a 6502 reaches ~400 row activations per refresh interval against the 10⁴–10⁵ rowhammer needs. See `SPEC.md` |
 | **Chip naming** from the failing-bit mask | ✅ all five assemblies researched — see below |
 | Classification rules beyond chip naming (stride, region, mux pairing) | ⬜ |
-| Board profiles for 250425 and the short boards | ⬜ |
-| Verified on real hardware (Ultimate II+) | ✅ 2026-09-26 |
-| Licence | ⬜ undecided |
+| Board profiles, all five assemblies | ✅ researched and corroborated — ⚠ **never run on a two-chip board** |
+| Verified on real hardware | ✅ Ultimate II+ and Kung Fu Flash; no-RAM boot measured with the DRAMs out |
+| Tested against a genuinely faulty DRAM | ⬜ **never** — see the section above |
+| Licence | ✅ [MIT](LICENSE) |
 
 ## Building
 
