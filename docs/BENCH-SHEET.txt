@@ -1,6 +1,11 @@
 DRAMSCOPE 1.4  --  C64 memory diagnostic          updated 2026-09-26
 ====================================================================
 
+Free and open source (MIT). If it finds a fault for you, or saves you from
+replacing a chip that was never the problem, you can support it here:
+
+  https://ko-fi.com/bitbarista
+
 DRAMSCOPE.CRT is the test. G1PROBE.CRT is a one-question hardware probe
 that has already been answered on both your devices; it is kept only as a
 record and does not need running again.

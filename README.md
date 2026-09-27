@@ -2,6 +2,16 @@
 
 A memory diagnostic cartridge for **any** Commodore 64.
 
+<div align="center">
+
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Platform](https://img.shields.io/badge/platform-Commodore%2064-4a3aff)
+![Cartridge](https://img.shields.io/badge/cartridge-EasyFlash-8b5cf6)
+![Version](https://img.shields.io/badge/version-1.4-0369a1)
+<a href="https://ko-fi.com/bitbarista" target="_blank"><img src="https://img.shields.io/badge/Ko--fi-Support%20the%20Project-FF5E5B?logo=ko-fi&logoColor=white" alt="Support on Ko-fi"></a>
+
+</div>
+
 It boots from the cartridge in Ultimax mode with its own reset vector, so it needs **no
 working KERNAL and no working RAM to start** — verified on a machine with every DRAM pulled
 from its sockets. It tests every byte of RAM, names the failing data bit and,
@@ -392,6 +402,21 @@ type. The old on-screen caveat `SHORT BOARD? 2 CHIPS` was wrong on that point an
 ## Licence
 
 [MIT](LICENSE). Use it, fork it, bundle it with a flash cart — attribution is all that is asked.
+
+## Support
+
+DRAMscope is a spare-time open source project, written to give something back to the C64
+community rather than to compete with anything. If it has found a fault for you — or saved you
+from replacing a chip that was never the problem — you can support continued development and
+testing.
+
+<div align="center">
+
+<a href="https://ko-fi.com/bitbarista" target="_blank"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi"></a>
+
+</div>
+
+---
 
 ## Credits
 
