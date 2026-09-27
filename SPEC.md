@@ -533,6 +533,42 @@ exists to keep it that way.
 
 ---
 
+### ⚠ G7 — OPEN: EasyFlash is not the only cartridge that can leave Ultimax
+
+**Carl asked whether EasyFlash is really the only alternative. It is not, and §2.2 overstated
+it.** The requirement is a **software-settable GAME line**; `$DE02` is one implementation.
+
+| Cartridge | Register | Tag |
+|---|---|---|
+| **EasyFlash** | `$DE02` — measured on Ultimate II+ and Kung Fu Flash (G1) | [M] |
+| **Final Cartridge III** | `$DFFF`, bit 4 = EXROM, bit 5 = GAME | [C] c64-wiki |
+| **Action Replay / Retro Replay / MMC Replay** | control register in `$DE00`–`$DE01` | [A] |
+
+⚠ **In hardware it is one chip.** A software-controllable cartridge is at core a **74LS273**
+octal flip-flop, inputs on the data bus, two outputs driving GAME and EXROM, clocked from an
+I/O decode. A homebrew dedicated cartridge therefore needs two 8 KB ROM windows, Ultimax
+strapping at reset, and **one latch** — not an EasyFlash specifically.
+
+**Why the tool still uses exactly one register.** `g1probe` sweeps safely *because it copies
+itself to RAM at `$0200` first* — a wrong write banks the cartridge out from under the CPU and
+ROM-resident code dies mid-instruction, which is indistinguishable from "the register did
+nothing". ⚠ **DRAMscope has no such luxury**: it runs from ROM, in Ultimax, on a machine whose
+RAM may not work at all. A speculative write to an unknown register could unmap ROML
+mid-instruction and hang with nothing on screen. One measured register beats several guessed
+ones.
+
+**The path, and it is the one this project already used to close G1:** extend `g1probe` to
+sweep `$DFFF` and the `$DE00`–`$DE01` range as well as `$DE02`, run it on a Final Cartridge III
+and a Retro Replay, and implement **what is measured**. ⚠ Until then, no claim is made for
+those cartridges beyond "the hardware can do it".
+
+⚠ **Not to be resolved by reasoning.** Whether a write to `$DFFF` is harmless on an EasyFlash,
+or `$DE02` harmless on an FC3, depends on each cartridge's address decoding. That is measurable
+and must be measured — exactly the trap G6 fell into when an undriven data bus was reasoned
+about instead of probed.
+
+---
+
 ### P5 — Topographical patterns · ✅ **implemented; ~34 s**
 
 A 4164 is physically **256 rows × 256 columns**, and the row and column addresses *are* the

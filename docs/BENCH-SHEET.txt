@@ -25,6 +25,12 @@ WHAT IT RUNS ON
   EasyFlash 1 or 3      expected -- and flashing one gives you a DEDICATED
                         TEST CARTRIDGE. Untested by us; please report.
   Other EasyFlash carts expected, if the $DE02 emulation is faithful
+  Action Replay, Retro Replay, Final Cartridge III and similar:
+                        ⚠ THE HARDWARE CAN DO IT, THIS BUILD CANNOT. They all
+                        have a register controlling GAME and EXROM -- the FC3's
+                        is at $DFFF, bit 4 EXROM and bit 5 GAME -- but this
+                        build only knows EasyFlash's $DE02. Supporting them
+                        needs measuring on the real cartridge first.
   A plain EPROM cart    ⚠ NOT FULLY -- see below
 
 ⚠ IT IS AN EASYFLASH CARTRIDGE, NOT A PLAIN ROM IMAGE, AND THAT IS NOT A

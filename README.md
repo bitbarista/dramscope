@@ -48,9 +48,46 @@ for 8 K mode with the cartridge still at `$8000` — and the other 60 KB becomes
 | **Kung Fu Flash** | ✅ confirmed on hardware, reports identically |
 | **A real EasyFlash 1 or 3** | ✅ expected — this is exactly the hardware `$DE02` belongs to, and flashing one gives you a **dedicated test cartridge**. Untested by us; please report. |
 | Other EasyFlash-capable carts | ✅ expected if the `$DE02` emulation is faithful. Untested. |
+| Action Replay, Retro Replay, Final Cartridge III, MMC Replay … | ⚠ **the hardware can do it, this build cannot.** See below. |
 | ⚠ **A plain EPROM cartridge** | ❌ **not fully.** See below. |
 
-### ⚠ Why a plain EPROM cartridge is not enough
+### ⚠ EasyFlash is not the only cartridge that can do this
+
+**The requirement is a software-settable GAME line, and EasyFlash is one implementation of
+that, not the only one.** Several cartridges expose GAME and EXROM in a control register:
+
+| Cartridge | Register |
+|---|---|
+| **EasyFlash** | `$DE02` — what this build uses |
+| **Final Cartridge III** | `$DFFF`, **bit 4 = EXROM, bit 5 = GAME** |
+| **Action Replay / Retro Replay / MMC Replay** | control register in `$DE00`–`$DE01` |
+
+⚠ **And in hardware it is genuinely small.** A software-controllable cartridge is, at its
+core, a single **74LS273** octal flip-flop with its inputs on the data bus, two of its outputs
+driving GAME and EXROM, and its clock from an I/O-area decode. So "you need an EasyFlash" is
+too strong: a homebrew cartridge needs two 8 KB ROM windows, Ultimax strapping at reset, and
+**one latch**.
+
+⚠ **What this build cannot do is speak to any of them but EasyFlash.** It writes `$02` to
+`$DE02`. Supporting Final Cartridge III would mean a different address and different bit
+meanings, and choosing between them at runtime is not free — see below.
+
+### ⚠ Why it does not simply try every known register
+
+`g1probe` can sweep registers safely because **it copies itself to RAM at `$0200` first**. A
+wrong write can bank the cartridge out from under the CPU, and code running from ROM would die
+mid-instruction — indistinguishable from "the register did nothing".
+
+DRAMscope has no such luxury. It runs from ROM, in Ultimax, on a machine whose RAM may not
+work at all — that is the entire point of it. A speculative write to an unknown register could
+unmap `ROML` mid-instruction and hang with no way to report anything. **So it uses one
+register, measured on real hardware, rather than guessing at several.**
+
+Widening that is a hardware question, not a software one, and the project's own method applies:
+extend `g1probe` to sweep the other known registers, run it on a Final Cartridge III and a
+Retro Replay, and implement what is *measured*. Gate **G7** in [`SPEC.md`](SPEC.md).
+
+### ⚠ Why a plain EPROM cartridge is still not enough
 
 A plain EPROM cart has no `$DE02` — GAME and EXROM are strapped by hardware and cannot change.
 So it can be *one* mode, not two:
