@@ -19,8 +19,8 @@ where it can do so safely, the chip that carries it.
 
 **[What it can do, what it cannot, and how much of that is
 proven](#-what-it-can-do-what-it-cannot-and-how-much-of-that-is-proven)** sets out every claim
-with the evidence behind it, and marks what is simulated as simulated. Worth a minute before
-you act on a result.
+with the evidence behind it, and says which results come from an emulator and which from a real
+machine. Worth a minute before you act on a result.
 
 ## Running it
 
@@ -208,9 +208,9 @@ even be looked at.
 
 ## ⚠ What it can do, what it cannot, and how much of that is proven
 
-Every claim here carries the evidence behind it, and **anything demonstrated in an emulator
-rather than on hardware is marked as such.** A diagnostic is only as useful as its weakest
-claim, so the limits are set out as plainly as the capabilities.
+Every claim here carries the evidence behind it, and anything shown only in an emulator is
+labelled **emulator** so you can weigh it against the ones measured on a real machine. The
+limits are set out as plainly as the capabilities.
 
 ### It can
 

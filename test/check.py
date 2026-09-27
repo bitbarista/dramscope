@@ -38,7 +38,7 @@ def halt_address(stem: str, sym: str = "pass_obs") -> str:
     sys.exit("could not find the 'halt' symbol in build/labels.txt")
 
 
-def run(crt: pathlib.Path, halt: str) -> tuple[bytes, bytes, int]:
+def run(crt: pathlib.Path, halt: str) -> tuple:
     for f in ("screen.bin", "colour.bin", "vic.bin"):
         (BUILD / f).unlink(missing_ok=True)
     # ⚠ `bank io` IS LOad-BEARING. Without it the monitor reads $D020 through
@@ -54,7 +54,10 @@ def run(crt: pathlib.Path, halt: str) -> tuple[bytes, bytes, int]:
         'save "build/work.bin" 0 0300 0330\n'
         'bank io\n'
         'save "build/colour.bin" 0 d800 dbff\n'
-        'save "build/vic.bin" 0 d020 d02f\n'
+        # ⚠ FROM $D011, NOT $D020. The old range captured the border and
+        # nothing else, so $D016 -- which decides whether the machine runs in
+        # 40 or 38 columns -- was not even in the dump to be asserted.
+        'save "build/vic.bin" 0 d011 d02f\n'
         "quit\n"
     )
     subprocess.run(
@@ -70,7 +73,8 @@ def run(crt: pathlib.Path, halt: str) -> tuple[bytes, bytes, int]:
         wrk = (BUILD / "work.bin").read_bytes()[2:]
     except FileNotFoundError:
         sys.exit(f"{crt.name}: VICE produced no dump -- it never reached halt")
-    return scr, col, vic[0] & 0x0F, wrk
+    # ⚠ vic is now the whole $D011-$D02F block; the border is at $D020.
+    return scr, col, vic[0x20 - 0x11] & 0x0F, wrk, vic
 
 
 GOLD = ROOT / "test" / "golden"
@@ -372,9 +376,23 @@ def main() -> int:
     for name, cart, sym, want_border, want_db, want_ah, want_al, extra in CASES:
         print(f"  {name}")
         stem = cart[:-4]
-        scr, col, border, wrk = run(BUILD / cart, halt_address(stem, sym))
+        scr, col, border, wrk, vic = run(BUILD / cart, halt_address(stem, sym))
         got = {"border": BORDER.get(border, f"colour {border}")}
         want = {"border": want_border}
+        # ⚠ The dump used to start at $D020, so $D016 was not merely
+        # unasserted -- it was never captured. Widening the range and asserting
+        # it is what turns "the border looked right" into "the display mode was
+        # right", which is the distinction that let a real bug through.
+        # ⚠⚠ ONLY FOR CASES THAT REACH THE DISPLAY. The fatal halts -- a dead
+        # scratch, a device that cannot leave Ultimax -- stop at rom_halt
+        # BEFORE the display is set up, so $D016 is legitimately untouched
+        # there and DEN=0 makes the whole screen border anyway. The first
+        # version of this check asserted it for every case and failed two of
+        # them, which is the very fault this harness keeps being caught by:
+        # ASSERTING MY EXPECTATION RATHER THAN THE PROGRAM'S CONTRACT.
+        if vic is not None and sym == "pass_obs":
+            got["D016"] = f"${vic[0x16 - 0x11]:02X}"
+            want["D016"] = "$C8"
         # ⚠ BURN-IN GUARD. pass_end fires after exactly one complete pass, so
         # the counter must read 0001 there. A zero means the loop never
         # completed; anything higher means the breakpoint is in the wrong place
@@ -458,6 +476,60 @@ def main() -> int:
     # persist. Without this the second pass onwards is a wall of OK left over
     # from the first, with nothing to watch. Checked part-way through pass 2,
     # where P1-P3 have run and P4 onwards have not.
+    # ⚠⚠ HOSTILE POWER-ON. THE HARNESS'S BIGGEST BLIND SPOT, WRITTEN DOWN.
+    # Two real bugs reached Carl's hardware and passed every check here:
+    # $D016 was never initialised, so a real C64 ran in 38-column mode and
+    # blanked columns 0 and 39; and the CIA interrupt masks were never cleared,
+    # so CIA2 could fire an NMI through a vector that is RAM under test.
+    # ⚠ BOTH WERE INVISIBLE BECAUSE VICE POWERS UP BENIGN. The emulator sets
+    # CSEL and leaves the CIAs quiet, so every "the KERNAL normally does this
+    # for us" assumption looked correct. An emulator kinder than the hardware
+    # tests nothing -- which is exactly what the sibling project already
+    # recorded about its own stub KERNAL, and was not applied here.
+    # So: break at entry, POKE THE REGISTERS WRONG, and require the run to come
+    # out clean anyway. The program must establish its own state.
+    print("  hostile power-on -- $D016 cleared, both CIA masks armed at entry")
+    for stem, want_ok, why in (
+            ("dramscope",       True,  "must establish its own state"),
+            ("dramscope_fd016", False, "skips $D016 -- must be caught"),
+            ("dramscope_fnmi",  False, "skips the NMI mask -- must be caught")):
+        (BUILD / "mon.txt").write_text(
+            "bank io\n> d016 00\n> dc0d 81\n> dd0d 81\n"
+            # ⚠ BARE HEX. "break 0xc0fb" sets NO breakpoint and fails silently;
+            # the first version of this test ran forever and looked like a
+            # finding. The instrument was broken, not the program.
+            f"break {halt_address(stem, 'pass_obs')[2:]}\nx\n"
+            'bank io\nsave "build/vic.bin" 0 d011 d02f\n'
+            'bank ram\nsave "build/work.bin" 0 0300 0330\nquit\n')
+        for f in ("vic.bin", "work.bin"):
+            (BUILD / f).unlink(missing_ok=True)
+        try:
+            subprocess.run(
+                ["x64sc", "-console", "-warp",
+                 "-initbreak", halt_address(stem, "entry"),
+                 "-moncommands", "build/mon.txt",
+                 "-cartcrt", str(BUILD / f"{stem}.crt")],
+                cwd=ROOT, timeout=240, check=False,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except subprocess.TimeoutExpired:
+            pass
+        if not (BUILD / "vic.bin").exists():
+            got_ok, detail = False, "never reached pass_obs"
+        else:
+            v = (BUILD / "vic.bin").read_bytes()[2:]
+            w = (BUILD / "work.bin").read_bytes()[2:]
+            d016, border = v[0x16 - 0x11], v[0x20 - 0x11] & 0x0F
+            errs = w[14] + 256 * w[15]
+            got_ok = (d016 == 0xC8 and border == 5 and errs == 0)
+            detail = (f"$D016=${d016:02X} CSEL={(d016 >> 3) & 1} "
+                      f"border={BORDER.get(border, border)} bad={errs}")
+        mark = "" if got_ok == want_ok else "   <-- ***"
+        verdict = "survives" if got_ok else "FAILS"
+        print(f"     {stem:18s} {verdict:8s} {detail}{mark}")
+        print(f"        ({why})")
+        if got_ok != want_ok:
+            failures += 1
+
     print("  mid-pass 2 -- passed phases reset, progress visible")
     (BUILD / "mon.txt").write_text(
         'x\nbank ram\nsave "build/screen.bin" 0 0400 07ff\nquit\n')

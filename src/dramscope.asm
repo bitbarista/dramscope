@@ -74,7 +74,8 @@
         !ifndef INJECT_ZP { !ifndef INJECT_HV { !ifndef INJECT_RET {
         !ifndef INJECT_COL { !ifndef INJECT_ONCE {
         !ifndef INJECT_P0A { !ifndef INJECT_NORAM {
-        !to "build/dramscope_roml.bin", plain } } } } } } } } } } } } } }
+        !ifndef INJECT_NOD016 { !ifndef INJECT_NONMI {
+        !to "build/dramscope_roml.bin", plain } } } } } } } } } } } } } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -267,11 +268,15 @@ entry:
         ; damage that survives.
         ; ⚠ Same class of bug as the uninitialised $D016, and hidden the same
         ; way: VICE powers up benign, so no amount of emulator testing finds it.
+; ⚠ INJECT_NONMI skips this, so the hostile-start test has something that must
+; FAIL. A guard nothing can trip is not a guard.
+!ifndef INJECT_NONMI {
         lda #$7f
         sta CIA1_ICR                    ; clear every IRQ source
         sta CIA2_ICR                    ; and every NMI source
         lda CIA1_ICR                    ; reading clears what is already latched
         lda CIA2_ICR
+}
         cld
         ldx #$ff
         txs                             ; ⚠ no JSR until RAM is proven
@@ -666,8 +671,12 @@ eng_start:
         ; bug as every other "the KERNAL normally does this for us" assumption
         ; in this file, and the only reason it survived is that VICE happened
         ; to power up with CSEL set while a real machine did not.
+; ⚠ INJECT_NOD016 skips this -- the bug Carl found on real hardware, kept as a
+; mutation so the test that would have caught it is proven to catch it.
+!ifndef INJECT_NOD016 {
         lda #$c8                        ; CSEL=1: 40 columns. XSCROLL=0.
         sta VICCTL2
+}
         lda #$1b                        ; DEN=1 -- display on
         sta VICCTL1
 

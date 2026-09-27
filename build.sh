@@ -67,6 +67,14 @@ mk '-DINJECT_MEM=1  -DINJ_PG=$62 -DINJ_OFF=$00 -DINJ_MASK=$ff -DINJ_ALLOFF=1' dr
 # lanes. That transition is what used to leave a tail behind.
 mk '-DINJECT_MEM=1  -DINJ_PG=$52 -DINJ_OFF=$19 -DINJ_MASK=$01 -DINJ_LATERPASS=1' dramscope_fchg "DS FAULT LATE"
 
+# ⚠ THE TWO THAT MUST FAIL THE HOSTILE-START TEST. Each skips a register the
+# program has to establish for itself, because the KERNAL is not running to do
+# it. Both bugs were real, both were found on hardware, and both were invisible
+# to VICE -- which powers up benign. These make the test that catches them
+# provably able to fail.
+mk '-DINJECT_NOD016=1' dramscope_fd016 "DS NO D016"
+mk '-DINJECT_NONMI=1'  dramscope_fnmi  "DS NO NMI MASK"
+
 # ⚠ The three nibble paths, because on a 41464 board four bits are ONE chip.
 # fmem ($01) is already low-nibble-only. These are the other two.
 mk '-DINJECT_MEM=1  -DINJ_PG=$44 -DINJ_OFF=$21 -DINJ_MASK=$f0' dramscope_fnhi "DS FAULT NIB HI"
