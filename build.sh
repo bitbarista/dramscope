@@ -36,6 +36,18 @@ mk() {   # $1 = -D flags or empty, $2 = output stem, $3 = cart name
   fi
   pack "build/$2_roml.bin" build/dramscope_romh.bin "build/$2.bin"
   cartconv -t easy -i "build/$2.bin" -o "build/$2.crt" -n "$3" >/dev/null
+  # ⚠ ASSERT THE CARTRIDGE NAME LANDED. Offset 32 of a .crt header is a 32-byte
+  # name field, and cartconv writes "EasyFlash" there when -n is not applied.
+  # Twice now a release asset has carried "EasyFlash" instead of "DRAMSCOPE"
+  # while the 6502 code was byte-identical -- found only by checksumming the
+  # published file against a fresh build. The cause was never established, so
+  # this checks the RESULT rather than trusting the command.
+  python3 -c "
+import sys
+name = open(sys.argv[1],'rb').read()[32:64].rstrip(b'\0').decode('ascii','replace')
+if name != sys.argv[2]:
+    sys.exit(f'  *** {sys.argv[1]}: cart name is {name!r}, expected {sys.argv[2]!r}')
+" "build/$2.crt" "$3" || exit 1
   printf "  %-22s %6s bytes\n" "$2.crt" "$(stat -c%s "build/$2.crt")"
 }
 
