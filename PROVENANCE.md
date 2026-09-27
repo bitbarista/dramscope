@@ -158,12 +158,25 @@ only advice and not fact"*. Its claims, and where they come from:
 
 | Claim | Source | Tag |
 |---|---|---|
+| `4164` is 64K × 1 in a 16-pin DIP, and **pin 1 is unused (N.C.) on the majority of 4164-class chips** | minuszerodegrees.net *Examples of 4164 class RAM chips*; pcbjunkie.net and amiga-stuff.com cross-reference lists | [C] |
+| The same part carries many numbers — `MB8264`, `HM4864`, `M3764`, `MT4264`, `M5K4164`, `MK4564`, `MCM6665`, `µPD4164`, `KM4164`, `TMS4164`, `TMM4164`, `AM9064`, `MN4164`, `HYB4164` and more | Same cross-reference lists. ⚠ **Prefixes are NOT reliable maker badges** — the published lists disagree with each other about who made what, so the chart lists numbers without attributing manufacturers | [C] |
+| `41464`, also sold as `4464`, is 64K × 4 | opencbm component tables; C64-Wiki calls the two-chip part 4464 | [C] |
 | C64s shipped with DRAM marked **150 ns** and **200 ns** | C64-Wiki, *RAM* | [C] |
-| `4164` is 64K × 1; `41464` (also sold as `4464`) is 64K × 4 | DRAM datasheets; C64-Wiki calls the two-chip part 4464 | [C] |
-| A **41256** can stand in for a 4164 by tying **pin 1 to pin 16**, because pin 1 is `NC` on the 4164 and `A8` on the 41256 — grounding it stops `A8` floating and confines the chip to its lower 64K | C64-Wiki, *RAM*: *"solder a short piece of wire between pins 1 and 16 … make the chip look just like a '64 chip to the system"*; corroborated by 6502.org and Lemon64 forum reports | [C] |
-| Replacements are new-old-stock or desoldered pulls, and a pull may have been removed *because it failed* | Follows from the parts being long out of production. ⚠ **An earlier draft said "much of what is sold is pulls, or relabelled, or simply dead"** — a proportion claim with nothing behind it, and my escalation of Carl's more careful "sources are questionable". Searching found counterfeiting material for **modern** RAM modules and **no documented cases of faked 4164s**, so the relabelling claim was dropped rather than hedged | [M] |
-| Machined sockets use a multi-finger collet intended for **round** pins; dual-wipe contacts bear on the two broad faces of a flat DIP lead; both have failure modes and repairers disagree about which is better | Arcade-museum, Parallax and modwiggler forum discussions. ⚠ **An earlier draft simply recommended turned-pin sockets** — a bare preference, and Carl's objection was concrete: point-style contact on a flat lead, and possible trouble with RAM *replacement boards*, which commonly present square header pins. The page now declines to pick a side and states the compatibility consideration instead | [C] |
-| Fitting a socket; running warm to find marginal cells | Ordinary repair practice, not a sourced claim | [A] |
+| A **41256** can stand in for a 4164 by tying **pin 1 to pin 16**, because pin 1 is `NC` on the 4164 and `A8` on the 41256 | C64-Wiki, *RAM*: *"solder a short piece of wire between pins 1 and 16 … make the chip look just like a '64 chip to the system"*; corroborated on 6502.org and Lemon64. ⚠ **Not built or run here** | [C] |
+| Machined sockets are a multi-finger collet intended for **round** pins; dual-wipe contacts bear on the two broad faces of a flat DIP lead; both have failure modes and repairers disagree | arcade-museum, Parallax and modwiggler discussions | [C] |
+| Replacements are new-old-stock or desoldered pulls, and a pull may have been removed *because it failed* | Follows from the parts being long out of production | [M] |
+| Socket choice, repair order, running warm | **Practice, not fact.** Labelled as such on the page itself | [A] |
+
+### ⚠ Three claims were invented on this page and are recorded here as a warning
+
+Carl caught each one. They share a cause: writing the sentence that sounds authoritative rather
+than the one the evidence supports.
+
+| What I wrote | Why it was wrong |
+|---|---|
+| The ASSY number is *"along the front edge near the keyboard connector"* | Invented. On a long board it is about as far from the keyboard connector as it gets. A second attempt from a search summary — *"near the cartridge port or RF modulator"* — was **also** wrong, and I had flagged that summary as a synthesis rather than a source and used it anyway. **No position is claimed now.** |
+| *"Much of what is sold is pulls, or relabelled, or simply dead"* | A proportion claim with nothing behind it, and an escalation of Carl's careful *"sources are questionable"*. Searching found counterfeiting material for **modern** RAM modules and **no documented cases of faked 4164s**. |
+| RAM replacement boards *"commonly present square header pins"* | Invented, and **backwards**: Carl's DRAMa Free 64 and his SRAM board both have **round** pins, which is what machined sockets are designed for. The compatibility argument built on it was worthless. |
 
 ⚠ **NONE OF PAGE 2 HAS BEEN TESTED BY THIS PROJECT.** No 41256 substitution has been built or
 run here. The page states that about itself in a box at the top, because advice that looks like

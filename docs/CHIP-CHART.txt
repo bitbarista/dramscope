@@ -10,10 +10,11 @@ board you have, and translating one into the other is what this chart is for.
 STEP 1 -- FIND YOUR ASSEMBLY NUMBER
 -----------------------------------
 
-Look for "ASSY" followed by six digits silkscreened on the board itself --
-"ASSY 250469" or similar. THE POSITION VARIES BETWEEN REVISIONS, so scan the
-whole board rather than one corner. Do not guess from the case or the badge:
-the same case was used for several boards.
+Look for "ASSY" followed by six digits, printed on the board itself --
+"ASSY 250469" or similar. SCAN THE WHOLE BOARD; this chart does not claim a
+position, because two published descriptions of one turned out to be wrong.
+⚠ Do not guess from the case or the badge: the same case housed several
+different boards.
 
 
 STEP 2 -- READ ACROSS
@@ -135,90 +136,97 @@ part and is wrong. Full evidence in PROVENANCE.md.
 PAGE 2 -- IF YOU HAVE TO REPLACE ONE
 ===========================================================================
 
-⚠ THIS SECTION IS ADVICE, NOT MEASUREMENT.
+⚠ TWO KINDS OF STATEMENT ON THIS PAGE, MARKED APART.
 
-Everything above is derived from schematics and checked against the program
-that prints it. THIS SECTION IS NOT. It is collected practice -- from
-datasheets, the C64 community and published repair notes -- and NONE OF IT IS
-TESTED BY DRAMSCOPE OR VERIFIED BY THIS PROJECT ON HARDWARE. Sources are named
-so you can judge each claim yourself. Treat it as a starting point and a set of
-things to check, not as instructions to follow blindly.
+Everything above is derived from schematics and checked by the project's own
+tests. THIS SECTION IS NOT. So everything here is labelled:
+
+  [FACT]      has a named source at the end and can be checked.
+  [REPORTED]  documented elsewhere, but not tested by this project.
+  [PRACTICE]  judgement -- what repairers generally do. NOT a fact about
+              your machine, and yours may differ.
+
+NOTHING ON THIS PAGE IS TESTED BY DRAMSCOPE OR VERIFIED ON HARDWARE BY THIS
+PROJECT.
 
 
-WHAT TO BUY
------------
+THE PARTS  [FACT]
+-----------------
 
-  Eight RAM chips    4164    64K x 1 DRAM. Many makers, many prefixes --
-                             MB8264, TMS4164, HM4864, uPD4164 and others are
-                             the same part.
+  Eight RAM chips    4164             64K x 1 DRAM, 16-pin DIP. On the
+                                      majority of 4164-class chips PIN 1 IS
+                                      UNUSED, marked N.C.
 
-  Two RAM chips      41464   64K x 4 DRAM, also sold as 4464. The two names
-                             are the same organisation; prefixes vary by
-                             maker in the same way.
+  Two RAM chips      41464 / 4464     64K x 4 DRAM. Both names are used for
+                                      this organisation.
 
-SPEED. C64s shipped with parts marked 150ns and 200ns (C64-Wiki). A LOWER
-number is faster and is safe to fit; a slower part than the board was designed
-for is not.
+Makers did not use a common naming standard, so the same part carries many
+numbers. Published cross-references list, among others:
 
-⚠ TREAT EVERY REPLACEMENT AS UNPROVEN. These parts went out of production
-decades ago, so what is on sale is new-old-stock or desoldered pulls -- and A
-PULL MAY HAVE BEEN TAKEN OFF A BOARD BECAUSE IT FAILED. Buy more than you
-need, and let DRAMscope decide whether the one you fitted is any good.
+  MB8264   HM4864   M3764    MT4264   M5K4164  MK4564   MCM6665
+  uPD4164  KM4164   TMS4164  TMM4164  AM9064   MN4164   HYB4164
+
+⚠ Prefixes are not reliable maker badges -- published lists disagree about who
+made what -- so match the ORGANISATION and the speed, not the letters.
+
+SPEED. C64s shipped with parts marked 150ns and 200ns. A lower number is a
+faster part and meets a slower requirement; a slower part than the board was
+designed for does not.
 
 
 IF YOU CANNOT FIND A 4164 -- THE 41256 SUBSTITUTION
 ---------------------------------------------------
 
-A 41256 is 256K x 1, four times the size. THE ONLY PINOUT DIFFERENCE FROM A
-4164 IS PIN 1: not connected on the 4164, the ninth address line A8 on the
-41256.
+[FACT] A 41256 is 256K x 1. THE ONLY PINOUT DIFFERENCE FROM A 4164 IS PIN 1:
+not connected on the 4164, the ninth address line A8 on the 41256.
 
-The reported method is to tie PIN 1 TO PIN 16 (GROUND) with a short wire, so
-A8 cannot float. The chip then addresses only its lower 64K and, in C64-Wiki's
-words, "look[s] just like a '64 chip to the system".
+[REPORTED] The published method is to tie PIN 1 TO PIN 16 (GROUND) with a
+short wire so A8 cannot float. The chip then addresses only its lower 64K and,
+in C64-Wiki's words, "look[s] just like a '64 chip to the system".
 
-⚠ REPORTED PRACTICE, NOT TESTED HERE. C64-Wiki documents it and it is widely
-reported on the forums, but this project has not tried it and makes no promise
-about current draw, timing margin, or how a given board behaves. If you do it,
-DRAMscope will tell you whether the result actually works.
+⚠ DOCUMENTED, BUT NOT TESTED HERE. This project has not built one and makes no
+promise about current draw, timing margin or how a given board behaves.
+DRAMscope will tell you whether the result works.
 
 
-WHILE THE CHIP IS OUT
+PRACTICE, NOT FACT -- THIS IS JUDGEMENT, AND YOURS MAY DIFFER
+--------------------------------------------------------------
+
+TREAT EVERY REPLACEMENT AS UNPROVEN. These parts left production decades ago,
+so what is on sale is new-old-stock or desoldered pulls -- and a pull may have
+come off a board BECAUSE IT FAILED. Buy more than you need.
+
+FIT A SOCKET if the RAM was soldered directly; the next swap is then minutes
+rather than a desoldering job. ⚠ The risk is in the removal -- old
+through-plated holes lift pads easily.
+
+[FACT] ON SOCKET TYPES: machined ("turned-pin") contacts are a multi-finger
+collet intended for ROUND pins; dual-wipe contacts bear on the two broad faces
+of a flat DIP lead. Both have failure modes -- cheap dual-wipe contacts
+deform, machined collets damage more easily. WHICH TO FIT IS DISPUTED AMONG
+REPAIRERS AND THIS PAGE TAKES NO SIDE.
+
+A REPAIR ORDER, cheapest and most reversible first:
+
+  1. Reseat the chip.
+  2. Inspect and reflow its joints and socket.
+  3. Check continuity, RAM pin to CPU pin.
+  4. Only then swap it, keeping the old chip until the repair is confirmed.
+
+If the same bit still fails with a new chip, the fault may be elsewhere on
+that line -- OR THE REPLACEMENT IS BAD TOO.
+
+PROVE IT BY RUNNING IT, AND RUN IT WARM. A single clean pass says the fault is
+not present right now, not that the machine is well. Marginal cells pass on a
+cold machine and drop bits an hour later, which is why the run counter and the
+burn-in exist.
+
+
+SOURCES FOR THIS PAGE
 ---------------------
 
-FIT A SOCKET if the RAM was soldered directly. The next fault becomes a
-two-minute job instead of a desoldering job -- and you may well need it twice,
-because a replacement of unknown provenance can itself turn out bad. ⚠ The
-risk is all in the removal: forty-year-old through-plated holes lift pads
-easily, so take the time rather than the heat.
-
-⚠ WHICH TYPE OF SOCKET IS A REAL ARGUMENT AND THIS PAGE WILL NOT SETTLE IT.
-Machined ("turned-pin") sockets grip with a multi-finger collet and are
-intended for ROUND pins; dual-wipe sockets bear on the two broad faces of a
-flat DIP lead. Opinion among repairers is genuinely split, and both fail in
-their own way -- cheap dual-wipe contacts deform, machined collets damage more
-easily.
-
-WHAT IS WORTH KNOWING BEFORE YOU CHOOSE: RAM REPLACEMENT BOARDS -- SRAM and
-FPGA types -- commonly present SQUARE HEADER PINS, which is what dual-wipe
-contacts are suited to and what machined collets are not made for. If one of
-those might go into that socket later, decide with it in mind, because the
-socket is the part you will not want to change again.
-
-
-PROVING THE REPAIR
-------------------
-
-RUN DRAMSCOPE AGAIN AND LET IT KEEP RUNNING. A single clean pass says the
-fault is not immediately present; it does not say the machine is well. The run
-counter exists precisely so that a fault appearing once an hour is still on
-screen when you come back.
-
-THEN RUN IT WARM. Marginal cells pass every fast test on a cold machine and
-drop bits once it has been on for an hour -- which is the fault people chase
-for weeks. Leave the lid on, leave it running, and come back to it.
-
-
-Sources for this section: C64-Wiki (RAM) for the 41256 method and the 150/200ns
-markings; C64-Wiki and 6502.org / Lemon64 forum reports for the pin 1 handling;
-DRAM datasheets for the organisations. Nothing here is tested by this project.
+Part numbers, and "pin 1 unused on the majority of 4164-class chips" --
+minuszerodegrees.net, pcbjunkie.net and amiga-stuff.com cross-reference lists.
+41256 method and the 150/200ns markings -- C64-Wiki (RAM), corroborated on
+6502.org and Lemon64. Socket contact types -- arcade-museum, Parallax and
+modwiggler discussions. Nothing here is tested by this project.

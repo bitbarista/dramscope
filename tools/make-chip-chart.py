@@ -77,6 +77,10 @@ pre.screen { font-family: "DejaVu Sans Mono", monospace; font-size: 8.4pt;
 .page2 { page-break-before: always; }
 .advisory { border: 1.6pt solid #000; padding: 2.4mm 3mm; margin: 0 0 3mm 0; background: #ececec; }
 .advisory h2 { margin: 0 0 1.2mm 0; border: 0; padding: 0; font-size: 10pt; }
+.tag { font-family: "DejaVu Sans Mono", monospace; font-size: 6.8pt; letter-spacing: 0.5pt;
+       text-transform: uppercase; background: #000; color: #fff; padding: 0.2mm 1mm;
+       border-radius: 0.6mm; vertical-align: 0.4mm; }
+h2 .tag { vertical-align: 0.8mm; }
 table.parts { width: 100%; border-collapse: collapse; margin: 1mm 0 2mm 0; }
 table.parts th, table.parts td { border: 0.6pt solid #666; padding: 1.3mm 1.8mm;
                                  text-align: left; vertical-align: top; font-size: 8.8pt; }
@@ -128,10 +132,11 @@ holds on every C64 ever made. <b>Which chip carries it does not</b> &mdash; that
 which board you have, and translating one into the other is what this chart is for.</p>
 
 <h2>1 &nbsp; Find your assembly number</h2>
-<p>Look for <span class="mono">ASSY</span> followed by six digits, silkscreened on the board
-itself &mdash; <span class="mono">ASSY 250469</span> or similar. <b>The position varies between
-revisions</b>, so scan the whole board rather than one corner. Do not guess from the case or
-the badge: the same case was used for several boards.</p>
+<p>Look for <span class="mono">ASSY</span> followed by six digits, printed on the board itself
+&mdash; <span class="mono">ASSY 250469</span> or similar. <b>Scan the whole board</b>; this
+chart does not claim a position, because two published descriptions of one turned out to be
+wrong. &#9888; Do not guess from the case or the badge: the same case housed several different
+boards.</p>
 
 <h2>2 &nbsp; Read across</h2>
 <table class="chips">
@@ -214,79 +219,92 @@ it against the DRAMs</b>. And when <b>every</b> bit fails it names no chip at al
 </div>
 
 <div class="advisory">
-  <h2>&#9888; This page is advice, not measurement</h2>
-  <p style="margin:0">Page 1 is derived from schematics and checked against the program that
-  prints it. <b>This page is not.</b> It is collected practice &mdash; from datasheets, the
-  C64 community and published repair notes &mdash; and <b>none of it is tested by DRAMscope
-  or verified by this project on hardware.</b> Sources are named so you can judge each
-  claim yourself. Treat it as a starting point and a set of things to check, not as
-  instructions to follow blindly.</p>
+  <h2>&#9888; Two kinds of statement on this page, marked apart</h2>
+  <p style="margin:0 0 1.2mm 0">Page 1 is derived from schematics and checked by the project's
+  own tests. <b>This page is not.</b> So everything here is labelled:</p>
+  <p style="margin:0"><span class="tag">FACT</span> has a named source in the footer and can
+  be checked. &nbsp; <span class="tag">PRACTICE</span> is judgement &mdash; what repairers
+  generally do &mdash; and is <b>not</b> a fact about your machine.
+  <b>Nothing on this page is tested by DRAMscope or verified on hardware by this project.</b></p>
 </div>
 
-<h2>What to buy</h2>
+<h2>The parts <span class="tag">fact</span></h2>
 <table class="parts">
-  <thead><tr><th style="width:21%">Board</th><th style="width:25%">Part</th><th>What to look for</th></tr></thead>
+  <thead><tr><th style="width:21%">Board</th><th style="width:25%">Part</th><th>Detail</th></tr></thead>
   <tbody>
     <tr><td>Eight RAM chips</td><td class="pn">4164</td>
-        <td>64K &times; 1 DRAM. Many makers, many prefixes &mdash;
-        <span class="mono">MB8264</span>, <span class="mono">TMS4164</span>,
-        <span class="mono">HM4864</span>, <span class="mono">&micro;PD4164</span> and others are
-        the same part.</td></tr>
-    <tr><td>Two RAM chips</td><td class="pn">41464<br>also sold as 4464</td>
-        <td>64K &times; 4 DRAM. The two names are the same organisation; prefixes vary by
-        maker in the same way.</td></tr>
+        <td>64K&nbsp;&times;&nbsp;1 DRAM, 16-pin DIP. <b>On the majority of 4164-class chips
+        pin&nbsp;1 is unused</b>, marked N.C.</td></tr>
+    <tr><td>Two RAM chips</td><td class="pn">41464<br>also 4464</td>
+        <td>64K&nbsp;&times;&nbsp;4 DRAM. Both names are used for this organisation.</td></tr>
   </tbody>
 </table>
-<p><b>Speed.</b> C64s shipped with parts marked <b>150&nbsp;ns</b> and <b>200&nbsp;ns</b>
-(C64-Wiki). A <i>lower</i> number is faster and is safe to fit; a slower part than the board
-was designed for is not.</p>
-<p>&#9888; <b>Treat every replacement as unproven.</b> These parts went out of production
-decades ago, so what is on sale is new-old-stock or desoldered pulls &mdash; and <b>a pull may
-have been taken off a board because it failed.</b> Buy more than you need, and let DRAMscope
-decide whether the one you fitted is any good.</p>
+<p><b>Makers did not use a common naming standard, so the same part carries many numbers.</b>
+Published cross-references list, among others:
+<span class="mono">MB8264</span>, <span class="mono">HM4864</span>,
+<span class="mono">M3764</span>, <span class="mono">MT4264</span>,
+<span class="mono">M5K4164</span>, <span class="mono">MK4564</span>,
+<span class="mono">MCM6665</span>, <span class="mono">&micro;PD4164</span>,
+<span class="mono">KM4164</span>, <span class="mono">TMS4164</span>,
+<span class="mono">TMM4164</span>, <span class="mono">AM9064</span>,
+<span class="mono">MN4164</span>, <span class="mono">HYB4164</span>.
+&#9888; Prefixes are not reliable maker badges &mdash; published lists disagree about who made
+what &mdash; so match the <i>organisation</i> and the speed, not the letters.</p>
+<p><b>Speed.</b> C64s shipped with parts marked <b>150&nbsp;ns</b> and <b>200&nbsp;ns</b>. A
+lower number is a faster part and meets a slower requirement; a slower part than the board was
+designed for does not.</p>
 
-<h2>If you cannot find a 4164 &mdash; the 41256 substitution</h2>
-<p>A <span class="mono">41256</span> is 256K&nbsp;&times;&nbsp;1, four times the size. <b>The
-only pinout difference from a 4164 is pin&nbsp;1</b>: not connected on the 4164, the ninth
-address line <span class="mono">A8</span> on the 41256.</p>
-<p><b>The reported method is to tie pin&nbsp;1 to pin&nbsp;16 (ground)</b> with a short wire,
-so <span class="mono">A8</span> cannot float. The chip then addresses only its lower 64K and,
-in C64-Wiki's words, &ldquo;look[s] just like a &rsquo;64 chip to the system&rdquo;.</p>
-<p>&#9888; <b>Reported practice, not tested here.</b> C64-Wiki documents it and it is widely
-reported on the forums, but this project has not tried it and makes no promise about current
-draw, timing margin, or how a given board behaves. If you do it, DRAMscope will tell you
-whether the result actually works.</p>
+<h2>If you cannot find a 4164 &mdash; the 41256 substitution <span class="tag">reported</span></h2>
+<p><span class="tag">fact</span> A <span class="mono">41256</span> is 256K&nbsp;&times;&nbsp;1.
+<b>The only pinout difference from a 4164 is pin&nbsp;1</b>: not connected on the 4164, the
+ninth address line <span class="mono">A8</span> on the 41256.</p>
+<p><span class="tag">reported</span> The published method is to tie <b>pin&nbsp;1 to
+pin&nbsp;16 (ground)</b> with a short wire so <span class="mono">A8</span> cannot float. The
+chip then addresses only its lower 64K and, in C64-Wiki's words, &ldquo;look[s] just like a
+&rsquo;64 chip to the system&rdquo;.</p>
+<p>&#9888; <b>Documented, but not tested here.</b> This project has not built one and makes no
+promise about current draw, timing margin or how a given board behaves. DRAMscope will tell you
+whether the result works.</p>
 
-<h2>While the chip is out</h2>
-<p><b>Fit a socket</b> if the RAM was soldered directly. The next fault becomes a two-minute
-job instead of a desoldering job &mdash; and you may well need it twice, because a replacement
-of unknown provenance can itself turn out bad. &#9888; The risk is all in the removal:
-forty-year-old through-plated holes lift pads easily, so take the time rather than the heat.</p>
-<p>&#9888; <b>Which type of socket is a real argument and this page will not settle it.</b>
-Machined (&ldquo;turned-pin&rdquo;) sockets grip with a multi-finger collet and are intended for
-<b>round</b> pins; dual-wipe sockets bear on the two broad faces of a flat DIP lead. Opinion
-among repairers is genuinely split, and both fail in their own way &mdash; cheap dual-wipe
-contacts deform, machined collets damage more easily.</p>
-<p><b>What is worth knowing before you choose:</b> RAM <i>replacement boards</i> &mdash; SRAM
-and FPGA types &mdash; commonly present <b>square header pins</b>, which is what dual-wipe
-contacts are suited to and what machined collets are not made for. <b>If one of those might go
-into that socket later, decide with it in mind</b>, because the socket is the part you will
-not want to change again.</p>
-
-<h2>Proving the repair</h2>
-<p><b>Run DRAMscope again and let it keep running.</b> A single clean pass says the fault is
-not immediately present; it does not say the machine is well. The run counter exists precisely
-so a fault that appears once an hour is still on screen when you come back.</p>
-<p><b>Then run it warm.</b> Marginal cells pass every fast test on a cold machine and drop bits
-once it has been on for an hour &mdash; which is the fault people chase for weeks. Leave the
-lid on, leave it running, and come back to it.</p>
+<div class="box" style="margin-top:2.4mm">
+<h3 style="margin:0 0 1.4mm 0">Practice, not fact &mdash; this is judgement, and yours may differ</h3>
+<div class="cols">
+ <div>
+  <p><b>Treat every replacement as unproven.</b> These parts left production decades ago, so
+  what is on sale is new-old-stock or desoldered pulls &mdash; and a pull may have come off a
+  board <i>because it failed</i>. Buy more than you need.</p>
+  <p><b>Fit a socket</b> if the RAM was soldered directly; the next swap is then minutes rather
+  than a desoldering job. &#9888; The risk is in the removal &mdash; old through-plated holes
+  lift pads easily.</p>
+  <p><span class="tag">fact</span> <b>On socket types</b>, machined (&ldquo;turned-pin&rdquo;)
+  contacts are a multi-finger collet intended for <b>round</b> pins; dual-wipe contacts bear on
+  the two broad faces of a flat DIP lead. Both have failure modes &mdash; cheap dual-wipe
+  contacts deform, machined collets damage more easily. <b>Which to fit is disputed among
+  repairers and this page takes no side.</b></p>
+ </div>
+ <div>
+  <p><b>A repair order</b>, cheapest and most reversible first:</p>
+  <ol style="margin-top:0.8mm">
+   <li><b>Reseat the chip.</b></li>
+   <li><b>Inspect and reflow</b> its joints and socket.</li>
+   <li><b>Check continuity</b>, RAM pin to CPU pin.</li>
+   <li><b>Only then swap it</b>, keeping the old chip until the repair is confirmed.</li>
+  </ol>
+  <p style="margin-top:1.3mm">If the same bit still fails with a new chip, the fault may be
+  elsewhere on that line &mdash; <b>or the replacement is bad too.</b></p>
+  <p><b>Prove it by running it, and run it warm.</b> A single clean pass says the fault is not
+  present right now, not that the machine is well. Marginal cells pass on a cold machine and
+  drop bits an hour later, which is why the run counter and the burn-in exist.</p>
+ </div>
+</div>
+</div>
 
 <div class="foot">
-  <div><b>Sources for this page:</b> C64-Wiki (<i>RAM</i>) for the 41256 method and the
-  150/200&nbsp;ns markings; C64-Wiki and 6502.org / Lemon64 forum reports for the pin&nbsp;1
-  handling; arcade-museum, Parallax and modwiggler forum discussions for the socket contact
-  types; DRAM datasheets for the organisations. <b>Nothing here is tested by this
-  project.</b></div>
+  <div><b>Sources:</b> part numbers and &ldquo;pin&nbsp;1 unused on the majority of 4164-class
+  chips&rdquo; &mdash; minuszerodegrees.net, pcbjunkie.net and amiga-stuff.com cross-reference
+  lists. 41256 method and the 150/200&nbsp;ns markings &mdash; C64-Wiki (<i>RAM</i>),
+  corroborated on 6502.org and Lemon64. Socket contact types &mdash; arcade-museum, Parallax
+  and modwiggler discussions. <b>Nothing here is tested by this project.</b></div>
   <div style="text-align:right; white-space:nowrap">MIT licensed &middot; <b>no warranty</b><br>
   ko-fi.com/bitbarista</div>
 </div>
