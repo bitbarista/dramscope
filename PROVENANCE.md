@@ -137,7 +137,7 @@ demultiplexing. It is carried here with its rationale intact.
 | Address multiplexing: two 74LS257 at U13/U25, pairing `An`/`An+8` → `MAn` | Commodore schematic 251138, cross-checked in `c64-ice40-ram` §2.3 | [D] |
 | Multiplexed address lines pass through 330 Ω series packs RP1/RP2 | Same | [D] |
 | `/CAS` at the DRAM is CASRAM from the PLA, gated by the memory map | Same, §2.4 | [D] |
-| Colour RAM is a separate 1K × 4 static RAM, not part of the 64 KB | `c64-ice40-ram` DEFERRED 14, citing `reference/vic-article.txt` | [C] |
+| Colour RAM is a separate 1K × 4 static RAM, not part of the 64 KB | `c64-ice40-ram`, citing `reference/vic-article.txt` | [C] |
 | 4164 is 65,536 × 1 bit, organised 256 rows × 256 columns | 4164 datasheets | [D] |
 | On a stock C64 each 4164 supplies one bit across the entire address space | `c64-ice40-ram/diag/README.md` | [C] |
 | ⚠ **`$0000`/`$0001` are real RAM the CPU cannot reach** — the 6510 hardwires them to its own data-direction register and banking port, so reads and writes hit the internal register and never reach the chips; the cells underneath exist, and the VIC can reach them using a different bus phase | [C64-Wiki *Zeropage*](https://www.c64-wiki.com/wiki/Zeropage); [C64 OS, *The 6510 Processor Port*](https://www.c64os.com/post/6510procport). ⚠ **Carl asked why two bytes "counted as RAM" are not** — the documents had been saying "not RAM", which is wrong and was the source of the confusion | [C] |

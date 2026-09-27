@@ -168,8 +168,8 @@ final phase text blanks the spinner cell and the screen alone cannot prove it ev
 
 The VIC fetches its character matrix — 1000 bytes — from DRAM. Anything displayed therefore
 occupies memory that cannot simultaneously be under test. This is the same trap that
-produced **ERRATA F-16** in the sibling project, where the test could not test the block it
-was running from.
+caught an early version of the sibling project's test, which could not test the block it was
+running from.
 
 Three facts make it tractable:
 
@@ -823,9 +823,9 @@ screen exists precisely because no amount of simulation will catch that error.
 
 ## 8. Verification
 
-⚠ **A RAM test that cannot fail is worthless, and this is not a hypothetical concern** — the
-sibling project shipped a test that could not test the block it ran from, and only found out
-by mutation-testing it (ERRATA F-16).
+⚠ **A RAM test that cannot fail is worthless, and this is not a hypothetical concern** — an
+early version of the sibling project's own test could not test the block it ran from, and that
+was only discovered by mutation-testing it.
 
 Every phase ships with:
 
@@ -898,7 +898,6 @@ all. Do not hold the release for step 8.
   independent of the licence, but a permissive licence makes the "not derived from" claim
   easier for others to rely on.
 - **Scope of board support.** 250407 only at first, or profiles from the start?
-- **Does this ever ship on the DRAMa Free 64 board itself?** The sibling project's
-  DEFERRED 14 wants a diagnostic injected into the C64 from the FPGA. The same engine could
-  serve both — a `.crt` for everyone, an injected copy for board owners — but that coupling
-  should be a deliberate decision, not a drift.
+- **Should this engine ever be reused elsewhere?** It is written to run from cartridge ROM on
+  an unmodified C64, and any other home for it would be a deliberate decision rather than a
+  drift.

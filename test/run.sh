@@ -2,8 +2,9 @@
 # Run every build in VICE, headless, and CHECK THE RESULT.
 #
 # ⚠ THE FAULT BUILDS ARE THE IMPORTANT ONES. A diagnostic that cannot report a
-# fault proves nothing. SPEC.md §8, and the sibling project's ERRATA F-16 -- a
-# test that could not test the block it ran from, found only by mutation.
+# fault proves nothing. SPEC.md §8 -- and an early version of the sibling
+# project's own test could not test the block it ran from, found only by
+# mutation testing.
 #
 # ⚠ USES THE REAL COMMODORE ROMS, which VICE finds in its own data directory.
 # They are NOT vendored here and must not be: they are copyrighted. Without
