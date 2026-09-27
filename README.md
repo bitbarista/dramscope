@@ -485,6 +485,7 @@ things got in.
 | **[S10]** | WCAG 2.3.1, three flashes per second |
 | **[S11]** | Community discussion — 6502.org, Lemon64, arcade-museum, Parallax, modwiggler. ⚠ Corroboration, never a sole source for anything actionable |
 | **[S12]** | Open reproduction projects — [bwack 250407](https://github.com/bwack/C64-250407-Replica-KiCad) and [bwack 250469](https://github.com/bwack/C64C-250469-KiCAD-Replica) KiCad replicas, reverse-engineered from real boards and prototype-verified |
+| **[S13]** | ⚠ Modified derivative boards — [250466 Plus](https://bitbucket.org/fade0ff/c64-250466/src/master/). **Not 1:1 replicas**; a cross-reference only, never corroboration for a detail the author may have changed |
 | **[M]** | Measured by this project — the VICE harness, or Carl's hardware. The measuring artefact is named with the claim |
 
 ## Credits

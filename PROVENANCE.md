@@ -66,6 +66,7 @@ none had a source.
 | **[S9]** | DRAM cross-reference lists — minuszerodegrees.net, pcbjunkie.net, amiga-stuff.com |
 | **[S10]** | WCAG 2.3.1, three-flashes-per-second threshold |
 | **[S11]** | Community discussion — 6502.org, Lemon64, arcade-museum, Parallax, modwiggler. ⚠ Corroboration, never a sole source for anything actionable |
+| **[S13]** | ⚠ **Modified derivative boards** — [`fade0ff/c64-250466`](https://bitbucket.org/fade0ff/c64-250466/src/master/) ("250466 Plus": 12 V supply, EEPROMs, DualSID, multiple kernals, joystick switch). **NOT a 1:1 replica** — Carl flagged this when supplying it. A cross-reference only: it shows what a knowledgeable third party believes the original does, and cannot corroborate a detail its author may have changed |
 | **[S12]** | **Open reproduction projects** — [`bwack/C64-250407-Replica-KiCad`](https://github.com/bwack/C64-250407-Replica-KiCad) and [`bwack/C64C-250469-KiCAD-Replica`](https://github.com/bwack/C64C-250469-KiCAD-Replica), reverse-engineered from real boards and verified with working prototypes. ⚠ **Derived works, not Commodore documents** — but independent of [S4] and [S6], and machine-readable |
 | **[M]** | Measured by this project — the VICE harness, or on Carl's hardware. The measuring artefact is named with the claim |
 
@@ -182,7 +183,7 @@ schematic 251138, which this project already used. No RAM-test source or binary 
 | 250407 | schematic 251138 [S1]; opencbm [S4]; **KiCad replica [S12]** | ✅ **three sources, agree on all eight bits** |
 | 250425 | opencbm [S4]; myoldcomputer [S6] | ✅ **agree on all eight bits** |
 | 250469 | opencbm [S4]; myoldcomputer [S6]; **KiCad replica [S12]** | ✅ **three sources, agree** — U10 = D0–D3, U11 = D4–D7 |
-| **250466** | **Commodore schematic 252278 [S1]**; myoldcomputer [S6] | ✅ **agree** — U9 = D4–D7, U10 = D0–D3 |
+| **250466** | **Commodore schematic 252278 [S1]**; myoldcomputer [S6]; ⚠ derivative board [S13] as cross-reference | ✅ **agree** — U9 = D4–D7, U10 = D0–D3 |
 
 ### How the replicas were read, and why the method is trusted
 
@@ -226,6 +227,28 @@ removed from the printed chart.
    for corroboration: **a source that is reliable elsewhere is not thereby reliable here.**
 2. **The designators are U9 and U10**, not U10/U11. A repair write-up had been read as saying
    U10/U11; the schematic shows U9/U10 and the discrepancy is resolved against it.
+
+### The 250466 Plus, as a cross-reference and nothing more
+
+Carl also supplied [`fade0ff/c64-250466`](https://bitbucket.org/fade0ff/c64-250466/src/master/)
+— **and flagged that it is not a 1:1 replica.** It is a *"250466 Plus"*: 12 V supply, EEPROMs,
+DualSID, multiple kernals, a joystick switch. ⚠ **That caveat governs how it may be used.** A
+modified board cannot corroborate a detail its author may have changed, and if the author
+worked from the original schematic it is not fully independent either. It is a cross-reference:
+what a knowledgeable third party believes the original does.
+
+Read the same way as the KiCad replicas — the pin-stub row, one label per chip at a constant
+offset, with the bus rows discarded — its schematic PDF gives:
+
+| Chip | Pin-stub row (y = 197.1) |
+|---|---|
+| **U9** | `D7` `D6` `D5` `D4` |
+| **U10** | `D3` `D2` `D1` `D0` |
+
+**Consistent with schematic 252278 on all eight bits**, and its BOM lists *"2 × 50464 … U9,
+U10"*. It changes nothing about the row's status, which was already settled by the primary
+source — but it is a **third** refutation of the U10/U11 designator reading, and worth having
+written down for that alone.
 
 ⚠ **And the scan had to be magnified to be read.** At the resolution supplied, the pin labels
 were not legible and a confident guess would have been available. Cropping and upscaling the
