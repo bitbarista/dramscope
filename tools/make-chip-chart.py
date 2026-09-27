@@ -113,8 +113,9 @@ def build_html() -> str:
   <div class="ver">DRAMscope {VERSION}<br>github.com/bitbarista/dramscope</div>
 </div>
 
-<p class="lead"><b>DRAMscope names the failing data bit, D0 to D7.</b> That bit number is
-true on every C64 ever made. This chart turns it into a chip &mdash; which is not.</p>
+<p class="lead"><b>DRAMscope names the failing data bit, D0 to D7</b>, and that bit number
+holds on every C64 ever made. <b>Which chip carries it does not</b> &mdash; that depends on
+which board you have, and translating one into the other is what this chart is for.</p>
 
 <h2>1 &nbsp; Find your assembly number</h2>
 <p>It is printed on the board itself, usually along the front edge near the keyboard

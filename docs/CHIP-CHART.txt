@@ -2,8 +2,9 @@ DRAMSCOPE -- WHICH CHIP CARRIES WHICH BIT                 print me, keep me
 (there is a nicer one-page A4 PDF of this in the release, if you can print it)
 ===========================================================================
 
-DRAMscope names the failing DATA BIT, D0 to D7. That bit number is true on
-EVERY C64 ever made. This chart turns it into a chip, which is not.
+DRAMscope names the failing DATA BIT, D0 to D7, and that bit number holds on
+EVERY C64 ever made. WHICH CHIP CARRIES IT DOES NOT -- that depends on which
+board you have, and translating one into the other is what this chart is for.
 
 
 STEP 1 -- FIND YOUR ASSEMBLY NUMBER
