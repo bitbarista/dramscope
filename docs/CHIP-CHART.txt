@@ -1,4 +1,5 @@
 DRAMSCOPE -- WHICH CHIP CARRIES WHICH BIT                 print me, keep me
+(there is a nicer one-page A4 PDF of this in the release, if you can print it)
 ===========================================================================
 
 DRAMscope names the failing DATA BIT, D0 to D7. That bit number is true on

@@ -29,6 +29,17 @@ CHART = {
     "250466": ["U10", "U10", "U10", "U10", "U9",  "U9",  "U9",  "U9"],
     "250469": ["U10", "U10", "U10", "U10", "U11", "U11", "U11", "U11"],
 }
+# Board type and RAM fitted, for anything that renders the chart.
+# ⚠ 250466 is a LONG board with two chips. Counting chips does not tell you the
+# board type, and an earlier version of the bench sheet said it did.
+BOARDS = {
+    "326298": ("long",  "8 x 4164"),
+    "250407": ("long",  "8 x 4164"),
+    "250425": ("long",  "8 x 4164"),
+    "250466": ("long",  "2 x 41464"),
+    "250469": ("short", "2 x 41464"),
+}
+
 # The on-screen table, which only ever names the 8 x 4164 boards.
 ON_SCREEN = "u21 u9  u22 u10 u23 u11 u24 u12 "
 
