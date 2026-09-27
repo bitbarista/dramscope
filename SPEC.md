@@ -843,7 +843,7 @@ synthetic failure set that triggers it and a neighbouring set that does not.
 | **G4** | In Ultimax, do VIC fetches in `$3000–$3FFF` come from cartridge ROMH? | Screen home selection | [A] |
 | ~~**G6**~~ | ✅ **ANSWERED on hardware, 2026-09-27: it starts and reports with every DRAM removed** — solid red from `p0a_dead` on Kung Fu Flash, which boots the remembered cartridge with no menu. The Ultimate II+ needs its menu, and that menu needs RAM. | — | [M] |
 | ~~**G6a**~~ | ✅ **BUILT 2026-09-27** — red now distinguishes "scratch bad, RAM fitted" (steady) from "nothing responds anywhere, no RAM fitted" (slow flash). Both directions tested, flash rate measured at 0.55–0.58 Hz. | — | [M] |
-| **G5** | Bit → chip designator tables per assembly, from schematics | Chip naming in §5 | [A] |
+| ~~**G5b**~~ | ✅ **CLOSED 2026-09-27 — all five assemblies held and corroborated.** 326298, 250407, 250425, 250466, 250469, each confirmed by **two independent sources agreeing on all eight bits**; the 250466 from Commodore schematic **252278** after its opencbm entry proved wrong. Table and corroboration status in `PROVENANCE.md`, checked against the cartridge by `test/chart.py`. ⚠ Renamed from a second **G5**, which duplicated the closed gate above it. | — | **[D][C]** |
 
 **G1 first.** It is cheap to test and it decides whether this is one binary or two.
 
@@ -885,6 +885,23 @@ all. Do not hold the release for step 8.
   independent of the licence, but a permissive licence makes the "not derived from" claim
   easier for others to rely on.
 - **Scope of board support.** 250407 only at first, or profiles from the start?
+- ⚠ **A known-good modern 250466 as a test bed — an item for the DRAMa Free 64 project, not
+  this one.** Carl supplied [`fade0ff/c64-250466`](https://bitbucket.org/fade0ff/c64-250466/src/master/)
+  as a cross-reference for the chip chart (see `PROVENANCE.md` **[S13]**), and flagged that it
+  is a modified *"250466 Plus"* rather than a 1:1 replica. That makes it weak evidence about
+  the original board — but it is a **newly fabricated, actively maintained, documented** C64
+  that takes two 41464s.
+
+  **The opportunity is for DRAMa Free 64, which plugs into exactly those sockets.** Bring-up on
+  a forty-year-old board confounds two unknowns at once: is the fault in the new hardware, or
+  in the machine it is plugged into? A new board removes one of them. It also already answers,
+  in its own build, the socket question raised in the chip chart — machined versus dual-wipe —
+  which is a live compatibility question for a board with round pins.
+
+  ⚠ **Recorded here only because DRAMscope is where it came up.** The sibling project keeps its
+  open items in `DEFERRED.md`; this belongs there, and is **not** DRAMscope work. Nothing has
+  been changed in that repository.
+
 - **Does this ever ship on the DRAMa Free 64 board itself?** The sibling project's
   DEFERRED 14 wants a diagnostic injected into the C64 from the FPGA. The same engine could
   serve both — a `.crt` for everyone, an injected copy for board owners — but that coupling
