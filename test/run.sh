@@ -16,6 +16,9 @@ cd "$(dirname "$0")/.."
 # ⚠ The chip chart first, because it takes a second and it is the check whose
 # failure mode is someone desoldering the wrong part. No emulator needed.
 python3 test/chart.py
+# ⚠ And the landing-page screenshots, for the same reason: a generated artefact
+# is only honest while it came from the binary that is shipping.
+python3 tools/check-screenshots.py
 echo
 echo "  rebuilding first (a stale binary would give a false PASS)"
 bash build.sh >/dev/null
