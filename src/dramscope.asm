@@ -56,6 +56,14 @@
 ; A BLACK border means the cartridge never got control at all.
 ;
 ; ⚠ NO SELF-MODIFYING CODE IN THE ROML HALF. It is cartridge ROM.
+;
+; ---------------------------------------------------------------------------
+; ⚠ CITATION RULE. Every factual claim in this file -- about the C64, about
+; DRAM, or about the algorithms -- must name its source. [S#] keys refer to the
+; table in PROVENANCE.md; [M] means measured by this project, and the measuring
+; artefact is named with the claim. If a thing cannot be sourced or measured it
+; does not get asserted in a comment, because comments here are read as fact by
+; whoever maintains this next.
 ; ===========================================================================
 
 ; ⚠ BOTH fault builds pass -o, and an unguarded !to here would warn "output
@@ -1904,15 +1912,26 @@ mrd_x:  rts
 ; draw_diag -- name the failing bits, and the chips that carry them.
 ; Caller puts the failing-bit mask in w_tmp.
 ;
-; ⚠⚠ SHORT BOARDS ARE NOT EIGHT CHIPS. Carl, 2026-09-26: a C64 short board
-; (250469 and relatives) carries TWO 41464s -- 64K x 4 -- not eight 4164s.
-; Each chip therefore supplies FOUR bits, so a single failing bit narrows to
-; one of two chips and no further, and the designators below are simply not
-; that board's designators. The tool cannot tell which board it is plugged
-; into, so it does three things: it prints the BIT, which is true everywhere;
-; it prints designators only under a heading naming the assembly they belong
-; to; and when it names a chip at all it prints the short-board caveat
-; underneath. Guessing here would send someone to desolder the wrong part.
+; ⚠⚠ NOT EVERY C64 HAS EIGHT RAM CHIPS. Carl raised this on 2026-09-26.
+; Researched since, and the shape is not what "short board" suggests [S4][S6]:
+;
+;   326298, 250407, 250425   long    8 x 4164    identical designators
+;   250466                   LONG    2 x 41464   U10 = D0-D3, U9  = D4-D7
+;   250469                   short   2 x 41464   U10 = D0-D3, U11 = D4-D7
+;
+; ⚠ SO "TWO CHIPS" DOES NOT MEAN "SHORT BOARD" -- the 250466 is a long board
+; with two -- and the two 41464 boards are REVERSED relative to each other,
+; which no rule predicts. An earlier version of this comment, and of the
+; on-screen caveat, said short boards were the two-chip case. It was wrong.
+;
+; A 41464 is four bits wide, so on those boards a failing bit narrows to one of
+; two chips and no further. The tool cannot tell which board it is plugged
+; into, so: it prints the BIT, which is true on every C64 [S1][S4]; it prints
+; designators only for the eight-chip boards, under a row labelled LIKELY; and
+; it states the board it assumes on the line below. Guessing here would send
+; someone to desolder the wrong part.
+; ⚠ The full table with sources is in PROVENANCE.md and test/chart.py checks
+; this file against it.
 ;
 ; ⚠ THIS IS THE ONE OUTPUT THAT IS A CLAIM ABOUT SOMEONE ELSE'S HARDWARE.
 ; "Replace U10" costs them a chip, an hour, and their trust in every other

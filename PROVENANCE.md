@@ -18,6 +18,57 @@ are used the same way:
 
 ---
 
+## ⚠ THE CITATION RULE — every claim carries a source
+
+**Carl, 2026-09-27: "all claims must be cited with the cites referenced."**
+
+This was already the rule for the *table* of chip designators and for the algorithms. It was
+**not** being applied to the prose, and three invented statements reached the printable chart
+before he caught them — the location of the ASSY number, a proportion claim about the
+second-hand parts market, and the pin style of RAM replacement boards. Each read as fact and
+none had a source.
+
+**The rule now, in full:**
+
+1. **Every factual claim in this repository must be traceable to a source in the table below.**
+   A claim is anything a reader could act on and find false: a number, a part, a pinout, a
+   behaviour, a location.
+2. **What is not a sourced fact must say what it is.** Use `[M]` for something this project
+   measured, and label judgement as judgement — the chip chart tags statements `FACT`,
+   `REPORTED` and `PRACTICE` on the page itself for exactly this reason.
+3. **If it cannot be sourced or measured, cut it.** Do not reach for a plausible substitute.
+   "The position varies, scan the board" is less helpful than a location and has the merit of
+   being true.
+4. ⚠ **A search-engine summary is a synthesis, not a source.** Follow it to the page it came
+   from and cite that. One such summary gave a wrong DRAM bit mapping for the 250466 and a
+   wrong location for the ASSY number.
+5. **Reader-facing documents carry a Sources section**; this file carries the claim-to-source
+   detail. Inline `[S#]` keys are used where a claim is unusual, contested, or likely to be
+   challenged.
+
+### Source keys
+
+| Key | Source |
+|---|---|
+| **[S1]** | Commodore schematic **251138** (Assy 250407), via `c64-ice40-ram` README §2.2–§2.4 |
+| **[S2]** | Bauer, *The MOS 6567/6569 video controller (VIC-II) and its application in the Commodore 64* |
+| **[S3]** | van de Goor, *Testing Semiconductor Memories: Theory and Practice*, and the March LR literature |
+| **[S4]** | opencbm *Hardware Reference and Repair Guide*, per-PCB component tables |
+| **[S5]** | C64-Wiki (*RAM*, *Motherboard*, *Final Cartridge 3*, *Hardware internals of the C64*) |
+| **[S6]** | myoldcomputer.nl mainboard pages |
+| **[S7]** | retrorewind support wiki — assembly numbers, board types, schematic numbers |
+| **[S8]** | 4164 / 41464 datasheets |
+| **[S9]** | DRAM cross-reference lists — minuszerodegrees.net, pcbjunkie.net, amiga-stuff.com |
+| **[S10]** | WCAG 2.3.1, three-flashes-per-second threshold |
+| **[S11]** | Community discussion — 6502.org, Lemon64, arcade-museum, Parallax, modwiggler. ⚠ Corroboration, never a sole source for anything actionable |
+| **[M]** | Measured by this project — the VICE harness, or on Carl's hardware. The measuring artefact is named with the claim |
+
+⚠ **`[S11]` is deliberately weakest.** Forum consensus is worth having and is not evidence on
+its own. Where it is the only support — the 41256 substitution — the claim is labelled
+**reported, not tested here** wherever it appears.
+
+---
+
 ## ⚠ The rule about existing RAM tests
 
 **Dead Test, DesTest, DesTestMAX and MAX-Switch are prior art, not source material.**

@@ -264,11 +264,11 @@ FOUR BITS IN ONE NIBBLE, ON A TWO-CHIP BOARD
 SEVERAL BITS, OR ALL EIGHT -- PROBABLY NOT A RAM CHIP AT ALL
   These are shared by the whole array, so one failure takes many bits at once:
 
-    U13, U25    74LS257 address multiplexers
-    U14, U26    74LS258 and 74LS373 -- VIC/CPU address switching
-    RP1, RP2    330 ohm series packs on those lines
-    U17         the PLA, which gates /CAS to the RAM
-    VIC-II      generates RAS/CAS and the refresh
+    U13, U25    74LS257 address multiplexers                      [S1][S4]
+    U14, U26    74LS258 and 74LS373 -- VIC/CPU address switching   [S4][S5]
+    RP1, RP2    330 ohm series packs on those lines                [S1]
+    U17         the PLA, which gates /CAS to the RAM               [S1]
+    VIC-II      generates RAS/CAS and the refresh                  [S2]
 
 Work in this order, cheapest and most reversible first:
 
@@ -281,10 +281,10 @@ Work in this order, cheapest and most reversible first:
 
 If you replace a chip and the same bit still fails, DO NOT CONCLUDE THE RAM
 WAS INNOCENT. Either the fault is elsewhere on that line, or THE REPLACEMENT
-IS FAULTY TOO. Spare 4164s and 41464s are getting scarce and much of what is
-sold is pulls or new-old-stock of unknown provenance, so a dud replacement is
-a real possibility rather than a remote one. Try a second chip from a
-different source before ruling the RAM out.
+IS FAULTY TOO. These parts left production decades ago, so what is on sale is
+new-old-stock or desoldered pulls -- and a pull may have come off a board
+BECAUSE IT FAILED. Try a second chip from a different source before ruling the
+RAM out.  [S9]
 
 ⚠ This is the other reason to KEEP THE CHIP YOU REMOVED. If you can test it in
 a machine that is known good, you find out which of the two was bad -- and
@@ -332,9 +332,16 @@ any of them.
 
   ** THE BIT NUMBER IS TRUE ON EVERY C64. THE CHIP NAME IS NOT. **
 
-The designators are for Assy 250407. A short board carries two 41464s --
-four bits each -- so those names are simply wrong there, which is what the
-last line is warning about. The tool cannot tell which board it is in.
+Each 4164 supplies one bit across the whole address space, which is why a
+failing bit is a named chip at all.  [S1][S4]
+
+The designators on screen are for boards with EIGHT 4164s -- assemblies
+326298, 250407 and 250425, which are wired identically.  [S1][S4]
+
+A board with only TWO RAM chips carries 41464s, four bits each, so those names
+are wrong there and the tool names no chip at all. ⚠ Two chips does NOT mean a
+short board: the 250466 is a LONG board with two.  [S4][S6]  The tool cannot
+tell which board it is in, which is why the row says LIKELY.
 
 If EVERY bit fails it names no chip at all and points at the PLA instead.
 Eight dead DRAMs is not the likely reading, and sending you to desolder
@@ -344,15 +351,39 @@ eight chips would be worse than sending you nowhere.
 WHAT IT CANNOT DO
 -----------------
 
-Refresh cannot be switched off from software on a C64 -- the VIC refreshes
-regardless, and blanking the screen actually gives the CPU more cycles
-while refresh carries on unchanged. So RETENTION tests against a
-WORKING refresh. It catches cells leaking faster than refresh can sustain.
+Refresh cannot be switched off from software on a C64 -- the VIC performs 5
+refresh cycles per raster line unconditionally, and blanking the screen
+actually gives the CPU MORE cycles while refresh carries on unchanged.  [S2]
+So RETENTION tests against a WORKING refresh. It catches cells leaking faster
+than refresh can sustain.
 
 Temperature is the other lever and it is not a software one:
 
   ** RUN IT AGAIN ON A MACHINE THAT HAS BEEN ON FOR AN HOUR. **
 
-ROW/COLUMN uses row and column adjacency as the C64 ADDRESSES them, which
-is correct. They do not model the physical layout
-inside any particular manufacturer's die, and do not claim to.
+ROW/COLUMN uses row and column adjacency AS THE C64 ADDRESSES THEM: the DRAM
+row address is A0-A7 and the column is A8-A15, so two cells that are physically
+row-adjacent are 256 bytes apart.  [S2]  It does not model the physical layout
+inside any particular manufacturer's die, and does not claim to.
+
+
+SOURCES
+-------
+
+Every factual claim in this sheet is traceable. The keys used above:
+
+  [S1]  Commodore schematic 251138 (Assy 250407)
+  [S2]  Bauer, "The MOS 6567/6569 video controller (VIC-II) and its
+        application in the Commodore 64"
+  [S3]  van de Goor, "Testing Semiconductor Memories: Theory and Practice",
+        and the published March LR literature
+  [S4]  opencbm Hardware Reference and Repair Guide, per-PCB component tables
+  [S5]  C64-Wiki
+  [S6]  myoldcomputer.nl mainboard pages
+  [S9]  DRAM cross-reference lists -- minuszerodegrees.net, pcbjunkie.net,
+        amiga-stuff.com
+  [S10] WCAG 2.3.1, three flashes per second
+  [M]   Measured by this project, in the VICE harness or on real hardware
+
+Full claim-by-claim detail, including what is NOT held and where earlier
+versions of this sheet were wrong, is in PROVENANCE.md in the repository.

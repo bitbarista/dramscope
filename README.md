@@ -64,7 +64,7 @@ that, not the only one.** Several cartridges expose GAME and EXROM in a control 
 
 ⚠ **And in hardware it is genuinely small.** A software-controllable cartridge is, at its
 core, a single **74LS273** octal flip-flop with its inputs on the data bus, two of its outputs
-driving GAME and EXROM, and its clock from an I/O-area decode. So "you need an EasyFlash" is
+driving GAME and EXROM, and its clock from an I/O-area decode **[S5][S11]**. So "you need an EasyFlash" is
 too strong: a homebrew cartridge needs two 8 KB ROM windows, Ultimax strapping at reset, and
 **one latch**.
 
@@ -143,8 +143,8 @@ that come next and are harder:
   misdiagnosed as a VIC fault. It gets its own indicator and its own verdict, and ⚠ **never
   contributes to the DRAM bit mask** — a fault there must not name a 4164.
 
-- **Which chip?** Each 4164 supplies one bit across the whole address space, so a failing bit
-  is a named chip. The tool prints, under the bit number, the designator it maps to:
+- **Which chip?** Each 4164 supplies one bit across the whole address space **[S1][S4]**, so a
+  failing bit is a named chip. The tool prints, under the bit number, the designator it maps to:
 
   ```
    MEMORY FAULT, FIRST BAD BYTE AT $4037
@@ -354,7 +354,7 @@ fails once an hour is invisible to a single pass, and it is the one people actua
 
 ⚠ **On flashing and photosensitivity.** The border pulse is deliberately slow and its rate
 is fixed by a CIA timer rather than by how fast the test is running: **0.94 Hz on PAL,
-0.98 Hz on NTSC**, against the 3 flashes-per-second limit in WCAG 2.3.1 — a 3.2× margin,
+0.98 Hz on NTSC** **[M]**, against the 3 flashes-per-second limit in WCAG 2.3.1 **[S10]** — a 3.2× margin,
 derived from the timer chain and confirmed by sampling the emulator. The spinner changes
 faster but is a single character cell, 0.1 % of the display.
 
@@ -462,6 +462,29 @@ testing.
 </div>
 
 ---
+
+## Sources
+
+⚠ **Every factual claim in this repository must be traceable to a source.** That rule, the
+keyed source list, and the claim-by-claim detail are in [`PROVENANCE.md`](PROVENANCE.md) —
+including a record of the statements that were **invented and later corrected**, kept
+deliberately, because a file that only lists what survived teaches nothing about how the wrong
+things got in.
+
+| Key | Source |
+|---|---|
+| **[S1]** | Commodore schematic **251138** (Assy 250407) |
+| **[S2]** | Bauer, *The MOS 6567/6569 video controller (VIC-II) and its application in the Commodore 64* |
+| **[S3]** | van de Goor, *Testing Semiconductor Memories: Theory and Practice*; March LR literature |
+| **[S4]** | [opencbm *Hardware Reference and Repair Guide*](https://opencbm.org/doc/c64/hardware_reference_and_repair_guide/), per-PCB component tables |
+| **[S5]** | [C64-Wiki](https://www.c64-wiki.com/) |
+| **[S6]** | [myoldcomputer.nl](https://myoldcomputer.nl/technical-info/mainboards/commodore-64/) mainboard pages |
+| **[S7]** | [retrorewind support wiki](https://hd.retrorewind.ca/commodore/c64) — assembly numbers and board types |
+| **[S8]** | 4164 / 41464 datasheets |
+| **[S9]** | DRAM cross-references — [minuszerodegrees](https://minuszerodegrees.net/memory/4164.htm), [pcbjunkie](https://pcbjunkie.net/index.php/resources/ram-info-and-cross-reference-page/), [amiga-stuff](https://www.amiga-stuff.com/hardware/64kx1-dram.html) |
+| **[S10]** | WCAG 2.3.1, three flashes per second |
+| **[S11]** | Community discussion — 6502.org, Lemon64, arcade-museum, Parallax, modwiggler. ⚠ Corroboration, never a sole source for anything actionable |
+| **[M]** | Measured by this project — the VICE harness, or Carl's hardware. The measuring artefact is named with the claim |
 
 ## Credits
 

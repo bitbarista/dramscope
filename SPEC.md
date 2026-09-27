@@ -3,6 +3,11 @@
 ⚠ **The name is a placeholder.** It is used consistently so it can be changed with one
 `sed`, but it should be settled before anything is published.
 
+⚠ **Every factual claim in this document must carry a source.** The keyed source list and the
+claim-by-claim detail live in [`PROVENANCE.md`](PROVENANCE.md), which also records the
+statements that were invented and later corrected. `[S#]` keys below refer to that list;
+`[M]` means measured by this project, and the measuring artefact is named with the claim.
+
 **Status:** iteration 5 implemented and verified — EasyFlash delivery (boots in Ultimax; ⚠ it
 it starts with no working RAM and no
 working KERNAL — ⚠ **measured on a machine with the DRAMs removed**, and the launcher
@@ -323,7 +328,7 @@ frame-counting idiom `P7` uses: one rule for the flash rate, not two.
 
 ⚠ **THE RATE IS A SAFETY CLAIM, SO IT IS MEASURED.** `test/check.py` brackets four intervals in
 emulated cycles: more than 3.4 M and less than 3.6 M, i.e. **850,000–900,000 cycles each**, i.e.
-0.86–0.91 s at the PAL phi2 of 985,248 Hz. A full on/off cycle is therefore **0.55–0.58 Hz**
+0.86–0.91 s at the PAL phi2 of 985,248 Hz **[S5]**. A full on/off cycle is therefore **0.55–0.58 Hz**
 against the three-flashes-per-second limit in WCAG 2.3.1 — a **≥5.2× margin**, wider than the
 running pulse's 3.2× *on purpose*, because `DEN=0` makes this fill the whole screen rather than
 just the border, which is the large-area case the standard is strictest about.
@@ -494,7 +499,7 @@ column swap wholesale.
 ✅ **It is caught — by P7 RETENTION, and only by P7.** The VIC's refresh counter drives 8 bits
 to generate 256 **row** addresses (G2, Bauer §3.13). Swap row and column and the counter now
 sweeps physical *columns*, so each physical row is refreshed once per 256 refresh cycles instead
-of every cycle — retention collapses from the ~2 ms budget to hundreds of ms, which the 12-second
+of every cycle — retention collapses from the ~2 ms refresh budget **[S8]** to hundreds of ms, which the 12-second
 dwell finds instantly. ⚠ **This is written down because it is the ONLY coverage of that fault.**
 Shorten or remove the dwell and it disappears silently, and nothing else in the design would
 notice.
@@ -584,7 +589,7 @@ about instead of probed.
 
 ### P5 — Topographical patterns · ✅ **implemented; ~34 s**
 
-A 4164 is physically **256 rows × 256 columns**, and the row and column addresses *are* the
+A 4164 is physically **256 rows × 256 columns** **[S8]**, and the row and column addresses *are* the
 grid coordinates. Patterns structured by row-index and column-index therefore stress
 physically adjacent cells in a way that a logical address sweep does not.
 
@@ -613,8 +618,8 @@ coverage it is not delivering. So: no per-manufacturer scrambler, and no claim o
 Write the full address-dependent pattern, let real time pass, verify.
 
 ⚠⚠ **REFRESH CANNOT BE SUPPRESSED FROM SOFTWARE ON A C64, AND ANY DESIGN THAT ASSUMES
-OTHERWISE IS WRONG.** The VIC performs 5 refresh cycles per raster line unconditionally —
-78,000/s PAL, 78,600/s NTSC, computed from raster geometry with no display-state term.
+OTHERWISE IS WRONG.** The VIC performs 5 refresh cycles per raster line unconditionally **[S2]**
+— 78,000/s PAL, 78,600/s NTSC, computed from raster geometry **[M]** with no display-state term.
 `DEN=0` suppresses badline character fetches and sprite fetches; refresh is not a badline
 activity and continues regardless.
 
@@ -745,7 +750,7 @@ which part to desolder.
 ## 7. Runtime budget
 
 Measured baseline from the sibling project: **255.6 cycles per byte for 17n March B**, i.e.
-**15.0 cycles per operation**, on a PAL machine at 0.985 MHz.
+**15.0 cycles per operation**, on a PAL machine at 0.985 MHz **[S5]**.
 
 | Phase | Ops | Estimate |
 |---|---|---|
