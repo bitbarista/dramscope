@@ -60,7 +60,11 @@ def chart_rows(text: str, assy: str) -> list:
     """
     out = []
     for line in text.splitlines():
-        bare = line.replace("|", " ").replace("*", " ").strip()
+        # ⚠ Strip DECORATION, not just markdown. The 250466 row carries a "⚠"
+        # because it rests on a single source, and that alone made this checker
+        # report "no table row" -- a checker that goes quiet when a row is
+        # marked as doubtful is worse than useless.
+        bare = line.replace("|", " ").replace("*", " ").replace("⚠", " ").strip()
         # ⚠ BOTH part numbers, spelled out. "41464" does NOT contain "4164"
         # as a substring, so a single `"4164" in bare` silently skipped every
         # two-chip row and the check passed by testing nothing.

@@ -45,6 +45,11 @@ none had a source.
 5. **Reader-facing documents carry a Sources section**; this file carries the claim-to-source
    detail. Inline `[S#]` keys are used where a claim is unusual, contested, or likely to be
    challenged.
+6. ⚠ **CORROBORATE. Where a second independent source exists, check it.** Carl, 2026-09-27.
+   This is not belt-and-braces: **it has already caught a wrong answer that would have named
+   the wrong chip.** The opencbm guide's 250466 row assigns a *single* data bit to a *four-bit*
+   part, and only a second source revealed it. A claim resting on one source is marked as such
+   wherever it is printed, so a reader can weigh it.
 
 ### Source keys
 
@@ -162,11 +167,42 @@ schematic 251138, which this project already used. No RAM-test source or binary 
 
 | Assembly | Board | DRAM | D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | Tag |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| **326298** | long, 5-pin video | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 | [C] |
+| **326298** | long, 5-pin video | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 | **[C][C]** |
 | **250407** | long, 8-pin video | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 | **[D][C]** |
-| **250425** | long | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 | [C] |
-| **250466** | long | 2 × 41464 | U10 | U10 | U10 | U10 | U9 | U9 | U9 | U9 | [C] |
-| **250469** | **short** | 2 × 41464 | U10 | U10 | U10 | U10 | U11 | U11 | U11 | U11 | [C] |
+| **250425** | long | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 | **[C][C]** |
+| ⚠ **250466** | long | 2 × 41464 | U10 | U10 | U10 | U10 | U9 | U9 | U9 | U9 | **[C] ONE SOURCE** |
+| **250469** | **short** | 2 × 41464 | U10 | U10 | U10 | U10 | U11 | U11 | U11 | U11 | **[C][C]** |
+
+### Corroboration status, row by row
+
+| Row | Sources checked | Status |
+|---|---|---|
+| 326298 | opencbm [S4]; myoldcomputer [S6] | ✅ **agree on all eight bits** |
+| 250407 | schematic 251138 [S1]; opencbm [S4] | ✅ **agree on all eight bits** |
+| 250425 | opencbm [S4]; myoldcomputer [S6] | ✅ **agree on all eight bits** |
+| 250469 | opencbm [S4]; myoldcomputer [S6] | ✅ **agree** — U10 = D0–D3, U11 = D4–D7 |
+| ⚠ **250466** | myoldcomputer [S6] **only** | ❌ **NOT CORROBORATED — see below** |
+
+### ⚠ 250466 is the one row that rests on a single source
+
+Three things are true of it at once, and all three are why it carries a warning wherever it is
+printed:
+
+1. **The bit mapping has one source.** myoldcomputer [S6] gives `U9 = D4..D7`, `U10 = D0..D3`.
+2. ⚠ **The obvious second source is demonstrably wrong.** The opencbm guide [S4] lists
+   `U9 … DRAM 64K x 4 … D1` and `U10 … D3` — a **single-bit** assignment for a **four-bit**
+   part, impossible on its face, and identical to the D1/D3 entries on the eight-chip boards.
+   It has plainly inherited the bit column from the 4164 layout. **It cannot be used to
+   corroborate, and it is not neutral evidence either.**
+3. ⚠ **A fourth source disagrees about the designators themselves.** A repair write-up
+   (retrorepairsandrefurbs, 250466) was read as placing the two 41464s at **U10 and U11**, not
+   U9 and U10. Three sources [S4][S6][S7] say U9/U10, and the fourth may simply have been
+   confused with the 250469 — but **it is recorded rather than dismissed**, because dismissing
+   the inconvenient source is how the wrong answer survives.
+
+**Consequence:** the chart prints the 250466 row with an explicit *single source, not
+corroborated* mark. It is still the best information held; it is not held to the same standard
+as the other four, and a reader deciding whether to desolder deserves to know which.
 
 ✅ **THE THREE 8 × 4164 BOARDS ARE IDENTICAL.** The table this project already held for
 250407 — from schematic 251138 via `c64-ice40-ram` §2.2 — is reproduced **exactly** by the

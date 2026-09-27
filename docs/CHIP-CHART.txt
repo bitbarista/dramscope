@@ -25,8 +25,14 @@ STEP 2 -- READ ACROSS
   326298   long    8 x 4164     U21   U9    U22   U10   U23   U11   U24   U12
   250407   long    8 x 4164     U21   U9    U22   U10   U23   U11   U24   U12
   250425   long    8 x 4164     U21   U9    U22   U10   U23   U11   U24   U12
-  250466   long    2 x 41464    <------ U10 ------>    <------ U9 ------->
+  250466 * long    2 x 41464    <------ U10 ------>    <------ U9 ------->
   250469   short   2 x 41464    <------ U10 ------>    <------ U11 ------>
+
+  * ⚠ 250466: ONE SOURCE, NOT CORROBORATED. Every other row is confirmed by
+    two independent sources agreeing on all eight bits. The obvious second
+    source for this one assigns a single data bit to a four-bit part --
+    impossible, so it cannot confirm anything. Check it against your own
+    board before you desolder.
 
   Example: DRAMscope says D5 on a 250425  ->  replace U11.
            DRAMscope says D5 on a 250469  ->  replace U11 (it carries D4-D7).

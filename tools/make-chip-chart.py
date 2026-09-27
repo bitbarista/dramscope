@@ -34,7 +34,7 @@ CSS = """
 html, body { margin: 0; padding: 0; }
 body {
   font-family: "DejaVu Sans", Arial, Helvetica, sans-serif;
-  font-size: 9.1pt; line-height: 1.27; color: #000; background: #fff;
+  font-size: 9.0pt; line-height: 1.23; color: #000; background: #fff;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 h1 { font-size: 17pt; margin: 0; letter-spacing: -0.2pt; }
@@ -44,14 +44,14 @@ h1 { font-size: 17pt; margin: 0; letter-spacing: -0.2pt; }
 .ver { font-family: "DejaVu Sans Mono", monospace; font-size: 8pt; color: #444;
        white-space: nowrap; text-align: right; }
 h2 { font-size: 9.4pt; text-transform: uppercase; letter-spacing: 0.7pt;
-     margin: 2.6mm 0 1.2mm 0; padding-bottom: 0.7mm; border-bottom: 0.6pt solid #999; }
+     margin: 2.2mm 0 1.0mm 0; padding-bottom: 0.6mm; border-bottom: 0.6pt solid #999; }
 p { margin: 0 0 1.3mm 0; }
 .lead { font-size: 9.6pt; }
 b, strong { font-weight: 700; }
 
 table.chips { width: 100%; border-collapse: collapse; margin-top: 1mm;
               font-family: "DejaVu Sans Mono", monospace; }
-table.chips th, table.chips td { border: 0.6pt solid #666; padding: 1.2mm 0.6mm;
+table.chips th, table.chips td { border: 0.6pt solid #666; padding: 1.0mm 0.6mm;
                                  text-align: center; font-size: 9.6pt; }
 table.chips thead th { background: #000; color: #fff; font-size: 8.4pt;
                        letter-spacing: 0.4pt; padding: 1.7mm 0.6mm; }
@@ -59,10 +59,12 @@ table.chips td.assy { font-weight: 700; font-size: 10.4pt; letter-spacing: 0.3pt
 table.chips td.meta { font-size: 8.2pt; color: #333; }
 table.chips td.chip { font-weight: 700; }
 table.chips td.span { font-weight: 700; background: #e8e8e8; }
+.dag { font-weight: 700; vertical-align: 0.9mm; font-size: 8pt; }
+.srcnote { font-size: 7.8pt; margin: 1.1mm 0 0 0; }
 table.chips tbody tr:nth-child(4) td { border-top: 1.6pt solid #000; }
 .divider td { padding: 0 !important; border: 0 !important; height: 0; }
 
-.box { border: 1.1pt solid #000; padding: 2.0mm 2.6mm; margin: 2.0mm 0; }
+.box { border: 1.1pt solid #000; padding: 1.8mm 2.4mm; margin: 1.7mm 0; }
 .box.warn { border-left: 3.4pt solid #000; background: #f2f2f2; }
 .box h3 { margin: 0 0 1.2mm 0; font-size: 9pt; text-transform: uppercase;
           letter-spacing: 0.5pt; }
@@ -93,10 +95,18 @@ table.parts td.pn { font-family: "DejaVu Sans Mono", monospace; font-weight: 700
 """
 
 
+# ⚠ Rows whose bit mapping rests on a SINGLE source. Printed with a mark, so a
+# reader deciding whether to desolder can see which rows are corroborated and
+# which are not. 250466's obvious second source is demonstrably wrong -- it
+# assigns one data bit to a four-bit part -- so it cannot corroborate anything.
+SINGLE_SOURCE = {"250466"}
+
+
 def row(assy: str) -> str:
     board, ram = BOARDS[assy]
     cells = CHART[assy]
-    head = (f'<td class="assy">{assy}</td>'
+    mark = ' <span class="dag">*</span>' if assy in SINGLE_SOURCE else ""
+    head = (f'<td class="assy">{assy}{mark}</td>'
             f'<td class="meta">{board}</td><td class="meta">{ram}</td>')
     if len(set(cells)) == 2:            # a 4-bit part: one chip spans a nibble
         lo, hi = cells[0], cells[4]
@@ -145,6 +155,9 @@ boards.</p>
 {rows}
   </tbody>
 </table>
+<p class="srcnote"><b>*</b> &#9888; <b>250466: one source, not corroborated</b> &mdash; every
+other row is confirmed by two that agree on all eight bits. <b>Check it against your own board
+before you desolder.</b></p>
 
 <div class="cols">
   <div class="box warn">
@@ -188,9 +201,8 @@ boards.</p>
     <li><b>Only then swap it</b>, keeping the old chip until the repair is confirmed.</li>
    </ol>
    <p style="margin-top:1.3mm">If the same bit still fails with a new chip, the fault may be
-   elsewhere on that line &mdash; <b>or the replacement is bad too.</b> Spare 4164s are scarce
-   and much of what is sold is pulls of unknown provenance, so try a second from another source
-   before ruling the RAM out.</p>
+   elsewhere on that line &mdash; <b>or the replacement is bad too.</b> These parts are long out
+   of production, so try a second from another source before ruling the RAM out.</p>
   </div>
  </div>
 </div>
