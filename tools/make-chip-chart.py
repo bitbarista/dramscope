@@ -172,8 +172,10 @@ the badge: the same case was used for several boards.</p>
     <li><b>Check continuity</b>, RAM pin to CPU pin.</li>
     <li><b>Only then swap it</b>, keeping the old chip until the repair is confirmed.</li>
    </ol>
-   <p style="margin-top:1.3mm">If the same bit still fails with a new chip, the chip was never
-   the fault &mdash; that is information, not a wasted part.</p>
+   <p style="margin-top:1.3mm">If the same bit still fails with a new chip, the fault may be
+   elsewhere on that line &mdash; <b>or the replacement is bad too.</b> Spare 4164s are scarce
+   and much of what is sold is pulls of unknown provenance, so try a second from another source
+   before ruling the RAM out.</p>
   </div>
  </div>
 </div>

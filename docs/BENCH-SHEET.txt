@@ -279,8 +279,16 @@ Work in this order, cheapest and most reversible first:
   4. Only then swap the chip -- and keep the old one until the repair is
      confirmed, because it may well be good.
 
-If you replace a chip and the same bit still fails, the chip was not the
-fault. That is information, not a wasted part: it points at the line.
+If you replace a chip and the same bit still fails, DO NOT CONCLUDE THE RAM
+WAS INNOCENT. Either the fault is elsewhere on that line, or THE REPLACEMENT
+IS FAULTY TOO. Spare 4164s and 41464s are getting scarce and much of what is
+sold is pulls or new-old-stock of unknown provenance, so a dud replacement is
+a real possibility rather than a remote one. Try a second chip from a
+different source before ruling the RAM out.
+
+⚠ This is the other reason to KEEP THE CHIP YOU REMOVED. If you can test it in
+a machine that is known good, you find out which of the two was bad -- and
+that is the difference between knowing and guessing.
 
 ⚠ DRAMscope is offered with no warranty of any kind (see LICENSE). It tells
 you what it measured. Deciding what to replace is yours.
