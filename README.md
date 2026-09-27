@@ -17,11 +17,10 @@ working KERNAL and no working RAM to start** — verified on a machine with ever
 from its sockets. It tests every byte of RAM, names the failing data bit and,
 where it can do so safely, the chip that carries it.
 
-⚠ **Before you rely on it, read [what it can do, what it cannot, and how much of that is
-actually proven](#-what-it-can-do-what-it-cannot-and-how-much-of-that-is-actually-proven).**
-Most of the testing behind this tool is **simulated**, no genuinely faulty DRAM has ever been
-tested with it, and two real bugs got past the entire suite and were found on hardware. That
-section says so plainly rather than leaving you to find out.
+**[What it can do, what it cannot, and how much of that is
+proven](#-what-it-can-do-what-it-cannot-and-how-much-of-that-is-proven)** sets out every claim
+with the evidence behind it, and marks what is simulated as simulated. Worth a minute before
+you act on a result.
 
 ## Running it
 
@@ -207,10 +206,11 @@ row/column patterns, retention testing and chip naming. It borrows nothing from 
 see [`PROVENANCE.md`](PROVENANCE.md), which is a deliberately strict policy about what may
 even be looked at.
 
-## ⚠ What it can do, what it cannot, and how much of that is actually proven
+## ⚠ What it can do, what it cannot, and how much of that is proven
 
-**Read this before trusting anything it tells you.** The C64 community has had enough
-diagnostic tools that over-promise. This section is the honest accounting.
+Every claim here carries the evidence behind it, and **anything demonstrated in an emulator
+rather than on hardware is marked as such.** A diagnostic is only as useful as its weakest
+claim, so the limits are set out as plainly as the capabilities.
 
 ### It can
 
@@ -248,17 +248,19 @@ a curated library of chips with known coupling faults, linked faults or marginal
 the coverage claims rest on **the published algorithms being implemented faithfully — which you
 can check by reading the source** — and not on having caught one in the wild.
 
-⚠ **Two real bugs escaped the entire suite**, and both were found by looking at a real C64:
+**Where simulation reached its limit — and what was done about it.** Two faults in earlier
+versions showed up only on real hardware:
 
 - **`$D016` was never initialised**, so a real machine ran in 38-column mode and the VIC blanked
   columns 0 and 39. Every golden screen passed, because VICE powers up with CSEL already set.
 - **The CIA interrupt masks were never cleared.** `SEI` does not mask NMI, and during the march
   the NMI vector is RAM under test. VICE powers up quiet, so nothing ever fired.
 
-**That is the measure of what simulation is worth here.** The emulator is kinder than a cold
-machine, so every assumption about power-on state looked correct. There are now tests
-specifically for that class — the power-on state is deliberately corrupted before the cartridge
-runs — **but the honest position is that there may be more of them.**
+Both are fixed, and both now have tests that **deliberately corrupt the power-on state before
+the cartridge runs**, so that class cannot pass again — each proven against a mutation that
+skips the fix. ⚠ The useful lesson is the general one: **the emulator powers up kinder than a
+cold C64**, so anything the KERNAL would normally set up is a place to look. That is why real
+hardware reports are valuable here, and why they are acted on.
 
 ⚠ **Hardware coverage is narrow.** Two cartridge devices (Ultimate II+ and Kung Fu Flash), the
 author's own machines, and **no known-faulty RAM at all**. As far as this project knows it has
