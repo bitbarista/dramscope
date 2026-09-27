@@ -299,8 +299,8 @@ RAM out.  [S9]
 a machine that is known good, you find out which of the two was bad -- and
 that is the difference between knowing and guessing.
 
-⚠ DRAMscope is offered with no warranty of any kind (see LICENSE). It tells
-you what it measured. Deciding what to replace is yours.
+⚠ DRAMscope tells you what it measured. Deciding what to replace is yours --
+see the DISCLAIMER at the end of this sheet.
 
 
 If your board has only TWO RAM chips they are 41464s, each FOUR BITS WIDE, so
@@ -416,3 +416,41 @@ Every factual claim in this sheet is traceable. The keys used above:
 
 Full claim-by-claim detail, including what is NOT held and where earlier
 versions of this sheet were wrong, is in PROVENANCE.md in the repository.
+
+
+===========================================================================
+DISCLAIMER
+===========================================================================
+
+This project is provided "AS IS" without warranty of any kind. The author
+makes no representations about suitability, reliability, availability or
+accuracy for any purpose. Your use is entirely at your own risk. The author
+shall not be liable for any damages arising from use, including but not
+limited to direct, indirect, incidental or consequential damages.
+
+⚠ DRAMSCOPE NAMES A CHIP TO REPLACE, AND THAT IS A CLAIM ABOUT YOUR HARDWARE,
+NOT ABOUT ITSELF.
+
+The failing data BIT is measured, and is true on every C64. The CHIP is a
+lookup that assumes which board you have -- and the tool cannot see which
+board it is plugged into, which is why the screen says LIKELY and prints the
+assumption beneath it.
+
+A failing bit also only means the fault is somewhere on that DATA LINE. The
+RAM is the likeliest part on it, but a dry joint, a corroded socket contact, a
+broken track, the PLA or the CPU end of the same line are indistinguishable to
+any software test.
+
+⚠ DESOLDERING A FORTY-YEAR-OLD BOARD IS IRREVERSIBLE AND LIFTS PADS. Reseat
+the chip, reflow its joints and check continuity along the line before
+replacing anything, and keep the old chip until the repair is confirmed -- a
+replacement of unknown provenance can itself be faulty. Nothing in this sheet
+is a substitute for your own judgement at the bench.
+
+Most of the fault-detection testing behind this tool runs in an EMULATOR, and
+no genuinely faulty DRAM has ever been tested with it. The README sets out
+what is proven, what is simulated, and what is neither.
+
+Not affiliated with, or endorsed by, any holder of the Commodore trademarks,
+or by the makers of any cartridge, flash device or memory product named here.
+All trademarks belong to their respective owners.
