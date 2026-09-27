@@ -95,11 +95,10 @@ table.parts td.pn { font-family: "DejaVu Sans Mono", monospace; font-weight: 700
 """
 
 
-# ⚠ Rows whose bit mapping rests on a SINGLE source. Printed with a mark, so a
-# reader deciding whether to desolder can see which rows are corroborated and
-# which are not. 250466's obvious second source is demonstrably wrong -- it
-# assigns one data bit to a four-bit part -- so it cannot corroborate anything.
-SINGLE_SOURCE = {"250466"}
+# Rows whose bit mapping rests on a SINGLE source get a mark on the printed
+# chart. ⚠ Empty as of 2026-09-27: 250466 was the last one, and Commodore
+# schematic 252278 settled it. Kept because the next assembly added may need it.
+SINGLE_SOURCE = set()
 
 
 def row(assy: str) -> str:
@@ -155,9 +154,6 @@ boards.</p>
 {rows}
   </tbody>
 </table>
-<p class="srcnote"><b>*</b> &#9888; <b>250466: one source, not corroborated</b> &mdash; every
-other row is confirmed by two that agree on all eight bits. <b>Check it against your own board
-before you desolder.</b></p>
 
 <div class="cols">
   <div class="box warn">
@@ -214,8 +210,10 @@ it against the DRAMs</b>. And when <b>every</b> bit fails it names no chip at al
 <span class="mono">SEE PLA</span> &mdash; eight dead RAMs is not the likely reading.</p>
 
 <div class="foot">
-  <div><b>Sources:</b> schematic 251138, cross-checked against the opencbm Hardware Reference
-  and Repair Guide; the 250466 row from myoldcomputer.nl. Full evidence in PROVENANCE.md.</div>
+  <div><b>Sources:</b> Commodore schematics <b>251138</b> (250407) and <b>252278</b> (250466),
+  cross-checked against the opencbm Hardware Reference and Repair Guide, myoldcomputer.nl and
+  open KiCad board replicas. <b>Every row is confirmed by two independent sources that agree on
+  all eight bits.</b> Full evidence in PROVENANCE.md.</div>
   <div style="text-align:right; white-space:nowrap">MIT licensed &middot; <b>no warranty</b><br>
   ko-fi.com/bitbarista</div>
 </div>

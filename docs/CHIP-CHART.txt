@@ -25,14 +25,8 @@ STEP 2 -- READ ACROSS
   326298   long    8 x 4164     U21   U9    U22   U10   U23   U11   U24   U12
   250407   long    8 x 4164     U21   U9    U22   U10   U23   U11   U24   U12
   250425   long    8 x 4164     U21   U9    U22   U10   U23   U11   U24   U12
-  250466 * long    2 x 41464    <------ U10 ------>    <------ U9 ------->
+  250466   long    2 x 41464    <------ U10 ------>    <------ U9 ------->
   250469   short   2 x 41464    <------ U10 ------>    <------ U11 ------>
-
-  * ⚠ 250466: ONE SOURCE, NOT CORROBORATED. Every other row is confirmed by
-    two independent sources agreeing on all eight bits. The obvious second
-    source for this one assigns a single data bit to a four-bit part --
-    impossible, so it cannot confirm anything. Check it against your own
-    board before you desolder.
 
   Example: DRAMscope says D5 on a 250425  ->  replace U11.
            DRAMscope says D5 on a 250469  ->  replace U11 (it carries D4-D7).
@@ -131,11 +125,16 @@ why it gets blamed on the VIC. It is never counted against the DRAMs.
 
 
 ---------------------------------------------------------------------------
-Sources: schematic 251138 for 250407, cross-checked against the opencbm
-Hardware Reference and Repair Guide, which reproduces it on all eight bits and
-supplies 326298, 250425 and 250469. The 250466 row comes from myoldcomputer.nl
--- the opencbm page for that board lists a single data bit for a four-bit-wide
-part and is wrong. Full evidence in PROVENANCE.md.
+Sources: Commodore schematics 251138 (Assy 250407) and 252278 (Assy 250466),
+cross-checked against the opencbm Hardware Reference and Repair Guide,
+myoldcomputer.nl and open KiCad board replicas.
+
+EVERY ROW IS CONFIRMED BY TWO INDEPENDENT SOURCES THAT AGREE ON ALL EIGHT BITS.
+
+⚠ One caution for anyone checking this themselves: the opencbm page for the
+250466 lists a SINGLE data bit for a FOUR-BIT part and is wrong. It is correct
+for the other four assemblies. A source reliable elsewhere is not thereby
+reliable everywhere. Full evidence in PROVENANCE.md.
 
 
 ===========================================================================

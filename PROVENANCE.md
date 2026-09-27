@@ -55,7 +55,7 @@ none had a source.
 
 | Key | Source |
 |---|---|
-| **[S1]** | Commodore schematic **251138** (Assy 250407), via `c64-ice40-ram` README §2.2–§2.4 |
+| **[S1]** | **Commodore schematics** — **251138** (Assy 250407), via `c64-ice40-ram` README §2.2–§2.4; **252278** (Assy 250466), sheets 1–2, supplied by Carl 2026-09-27 |
 | **[S2]** | Bauer, *The MOS 6567/6569 video controller (VIC-II) and its application in the Commodore 64* |
 | **[S3]** | van de Goor, *Testing Semiconductor Memories: Theory and Practice*, and the March LR literature |
 | **[S4]** | opencbm *Hardware Reference and Repair Guide*, per-PCB component tables |
@@ -171,7 +171,7 @@ schematic 251138, which this project already used. No RAM-test source or binary 
 | **326298** | long, 5-pin video | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 | **[C][C]** |
 | **250407** | long, 8-pin video | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 | **[D][C]** |
 | **250425** | long | 8 × 4164 | U21 | U9 | U22 | U10 | U23 | U11 | U24 | U12 | **[C][C]** |
-| ⚠ **250466** | long | 2 × 41464 | U10 | U10 | U10 | U10 | U9 | U9 | U9 | U9 | **[C] ONE SOURCE** |
+| **250466** | long | 2 × 41464 | U10 | U10 | U10 | U10 | U9 | U9 | U9 | U9 | **[D][C]** |
 | **250469** | **short** | 2 × 41464 | U10 | U10 | U10 | U10 | U11 | U11 | U11 | U11 | **[C][C]** |
 
 ### Corroboration status, row by row
@@ -182,7 +182,7 @@ schematic 251138, which this project already used. No RAM-test source or binary 
 | 250407 | schematic 251138 [S1]; opencbm [S4]; **KiCad replica [S12]** | ✅ **three sources, agree on all eight bits** |
 | 250425 | opencbm [S4]; myoldcomputer [S6] | ✅ **agree on all eight bits** |
 | 250469 | opencbm [S4]; myoldcomputer [S6]; **KiCad replica [S12]** | ✅ **three sources, agree** — U10 = D0–D3, U11 = D4–D7 |
-| ⚠ **250466** | myoldcomputer [S6] **only** | ❌ **NOT CORROBORATED — see below** |
+| **250466** | **Commodore schematic 252278 [S1]**; myoldcomputer [S6] | ✅ **agree** — U9 = D4–D7, U10 = D0–D3 |
 
 ### How the replicas were read, and why the method is trusted
 
@@ -201,29 +201,36 @@ same code on the 250469 replica returns `U10 = D0–D3`, `U11 = D4–D7`, matchi
 The chip ordering across the board, left to right — U12, U24, U11, U23, U10, U22, U9, U21 —
 also reproduces the bus order this project already quoted from 251138.
 
-### ⚠ 250466 is the one row that rests on a single source
+### ✅ 250466 — RESOLVED from the primary source, and opencbm is confirmed wrong
 
-Three things are true of it at once, and all three are why it carries a warning wherever it is
-printed:
+This was the one uncorroborated row. **Carl supplied Commodore schematic #252278, sheets 1–2,
+for the 250466**, which settles it from the strongest source available.
 
-1. **The bit mapping has one source.** myoldcomputer [S6] gives `U9 = D4..D7`, `U10 = D0..D3`.
-2. ⚠ **The obvious second source is demonstrably wrong.** The opencbm guide [S4] lists
-   `U9 … DRAM 64K x 4 … D1` and `U10 … D3` — a **single-bit** assignment for a **four-bit**
-   part, impossible on its face, and identical to the D1/D3 entries on the eight-chip boards.
-   It has plainly inherited the bit column from the 4164 layout. **It cannot be used to
-   corroborate, and it is not neutral evidence either.**
-3. ⚠ **No reproduction exists for it.** The open replica projects [S12] that settled 250407 and
-   250469 cover those two boards only; a search for a 250466 recreation found none. The one
-   route that corroborated the others is not available here.
-4. ⚠ **A fourth source disagrees about the designators themselves.** A repair write-up
-   (retrorepairsandrefurbs, 250466) was read as placing the two 41464s at **U10 and U11**, not
-   U9 and U10. Three sources [S4][S6][S7] say U9/U10, and the fourth may simply have been
-   confused with the 250469 — but **it is recorded rather than dismissed**, because dismissing
-   the inconvenient source is how the wrong answer survives.
+Sheet 1 shows two **`50464-150`** parts — 64K × 4 — with their data pins labelled directly:
 
-**Consequence:** the chart prints the 250466 row with an explicit *single source, not
-corroborated* mark. It is still the best information held; it is not held to the same standard
-as the other four, and a reader deciding whether to desolder deserves to know which.
+| Chip | Pins 17, 15, 3, 2 |
+|---|---|
+| **U9** | `D7` `D6` `D5` `D4` |
+| **U10** | `D3` `D2` `D1` `D0` |
+
+**So `U9 = D4–D7` and `U10 = D0–D3`**, exactly as myoldcomputer [S6] had it. The row is now
+`[D][C]` — primary schematic plus an independent secondary — and its warning mark has been
+removed from the printed chart.
+
+⚠ **Two earlier doubts are closed by this, and both are worth keeping on the record:**
+
+1. **The opencbm guide [S4] is confirmed WRONG for this board.** It lists `U9 … DRAM 64K x 4 …
+   D1` and `U10 … D3` — a single-bit assignment for a four-bit part, and identical to the D1/D3
+   entries on the eight-chip boards, so it inherited the column from the 4164 layout. It was
+   correct for the other four assemblies and wrong for this one, which is the whole argument
+   for corroboration: **a source that is reliable elsewhere is not thereby reliable here.**
+2. **The designators are U9 and U10**, not U10/U11. A repair write-up had been read as saying
+   U10/U11; the schematic shows U9/U10 and the discrepancy is resolved against it.
+
+⚠ **And the scan had to be magnified to be read.** At the resolution supplied, the pin labels
+were not legible and a confident guess would have been available. Cropping and upscaling the
+RAM block made them unambiguous. **Reading a schematic means reading it, not inferring it from
+the parts that happen to be legible.**
 
 ✅ **THE THREE 8 × 4164 BOARDS ARE IDENTICAL.** The table this project already held for
 250407 — from schematic 251138 via `c64-ice40-ram` §2.2 — is reproduced **exactly** by the

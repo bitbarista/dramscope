@@ -372,7 +372,8 @@ SOURCES
 
 Every factual claim in this sheet is traceable. The keys used above:
 
-  [S1]  Commodore schematic 251138 (Assy 250407)
+  [S1]  Commodore schematics -- 251138 (Assy 250407) and 252278 (Assy
+        250466), the latter read directly from the scan
   [S2]  Bauer, "The MOS 6567/6569 video controller (VIC-II) and its
         application in the Commodore 64"
   [S3]  van de Goor, "Testing Semiconductor Memories: Theory and Practice",
