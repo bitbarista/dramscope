@@ -557,10 +557,23 @@ RAM may not work at all. A speculative write to an unknown register could unmap 
 mid-instruction and hang with nothing on screen. One measured register beats several guessed
 ones.
 
-**The path, and it is the one this project already used to close G1:** extend `g1probe` to
-sweep `$DFFF` and the `$DE00`–`$DE01` range as well as `$DE02`, run it on a Final Cartridge III
-and a Retro Replay, and implement **what is measured**. ⚠ Until then, no claim is made for
-those cartridges beyond "the hardware can do it".
+**⚠ THIS GATE CANNOT BE CLOSED HERE, AND IS NOT A PLANNED TASK.** The author owns a Kung Fu
+Flash and an Ultimate II+ and nothing else, so there is no Final Cartridge III or Retro Replay
+to measure on. Recording it as a to-do would be recording a job nobody can do.
+
+**It is also low value, which is the more honest reason to leave it.** EasyFlash is *the*
+homebrew cartridge standard: anyone wanting a dedicated DRAMscope cartridge buys an EF1 or EF3
+for the price of a takeaway rather than reflashing a freezer cartridge they use for something
+else. The two devices already measured cover the great majority of users.
+
+**If someone with the hardware wants it**, the path is the one that closed G1: extend `g1probe`
+to sweep `$DFFF` and `$DE00`–`$DE01` as well as `$DE02`, run it on the cartridge, and implement
+**what is measured**. ⚠ A lead for whoever picks it up: VICE emulates these cartridge types, and
+`cartconv -t fc3` can build the probe *as* an FC3 image, so the register semantics can be
+exercised in emulation without owning one — though emulation agreeing is not the same as
+hardware agreeing, which is the whole lesson of G1.
+
+⚠ **Until someone does, no claim is made for those cartridges beyond "the hardware can do it".**
 
 ⚠ **Not to be resolved by reasoning.** Whether a write to `$DFFF` is harmless on an EasyFlash,
 or `$DE02` harmless on an FC3, depends on each cartridge's address decoding. That is measurable

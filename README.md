@@ -83,9 +83,16 @@ work at all — that is the entire point of it. A speculative write to an unknow
 unmap `ROML` mid-instruction and hang with no way to report anything. **So it uses one
 register, measured on real hardware, rather than guessing at several.**
 
-Widening that is a hardware question, not a software one, and the project's own method applies:
-extend `g1probe` to sweep the other known registers, run it on a Final Cartridge III and a
-Retro Replay, and implement what is *measured*. Gate **G7** in [`SPEC.md`](SPEC.md).
+⚠ **Widening it is a hardware question and is not planned.** The author owns a Kung Fu Flash
+and an Ultimate II+ and nothing else, so there is nothing here to measure on — and EasyFlash is
+the homebrew standard anyway, so a dedicated cartridge means an EF1 or EF3 rather than
+reflashing a freezer cartridge.
+
+**If you have a Final Cartridge III, Retro Replay or similar and want DRAMscope on it**, that is
+a welcome contribution: extend `g1probe` to sweep `$DFFF` and `$DE00`–`$DE01` as well as
+`$DE02`, run it, and open an issue with what it reports. Gate **G7** in
+[`SPEC.md`](SPEC.md) has the detail. No claim is made for those cartridges until someone
+measures one.
 
 ### ⚠ Why a plain EPROM cartridge is still not enough
 
