@@ -628,3 +628,38 @@ The `*` regions get a shorter march because the test is standing on them: the en
 is marched by a module copied to `$3000`, which then re-copies the engine from cartridge ROM
 and jumps back; the screen matrix is stashed, marched, and put back with the display
 blanked.
+
+---
+
+## ⚖️ Disclaimer
+
+This project is provided "AS IS" without warranty of any kind. The author makes no
+representations about suitability, reliability, availability, or accuracy for any purpose.
+Your use is entirely at your own risk. The author shall not be liable for any damages arising
+from use, including but not limited to direct, indirect, incidental, or consequential damages.
+
+⚠ **DRAMscope names a chip to replace, and that is a claim about your hardware, not about
+itself.** The failing data **bit** is measured and is true on every C64. The **chip** is a
+lookup that assumes which board you have — and the tool cannot see which board it is plugged
+into, which is why the screen says `LIKELY` and prints the assumption beneath it. A failing bit
+also only means the fault is somewhere on that **data line**: the RAM is the likeliest part on
+it, but a dry joint, a corroded socket contact, a broken track, the PLA or the CPU end of the
+same line are indistinguishable to any software test.
+
+⚠ **Desoldering a forty-year-old board is irreversible and lifts pads.** Reseat the chip,
+reflow its joints and check continuity along the line before replacing anything, and keep the
+old chip until the repair is confirmed — a replacement of unknown provenance can itself be
+faulty. Nothing in this repository is a substitute for your own judgement at the bench.
+
+Most of the fault-detection testing behind this tool runs in an **emulator**, and no genuinely
+faulty DRAM has ever been tested with it — see
+[what it can do, what it cannot, and how much of that is
+proven](#-what-it-can-do-what-it-cannot-and-how-much-of-that-is-proven).
+
+<div align="center">
+
+*Not affiliated with, or endorsed by, any holder of the Commodore trademarks, or by the makers
+of any cartridge, flash device or memory product named here. All trademarks belong to their
+respective owners.*
+
+</div>
