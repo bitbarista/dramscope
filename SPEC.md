@@ -255,15 +255,26 @@ empty sockets.** It took the bench.
 **1. The launcher is part of the dependency chain.** "Needs no working RAM" is a property of
 the cartridge, not of the device holding it, and the two are not the same promise:
 
-- **Kung Fu Flash remembers the last cartridge loaded and boots straight into it**, with no
-  menu. That is what makes the no-RAM case reachable, and it is why the red screen was seen.
-- **The Ultimate II+ menu is a C64 program** — it runs on the 6510, holds its state in C64 RAM
-  and draws to the screen matrix in C64 RAM. With no DRAM fitted it cannot run, so as
-  configured on the bench there was no way to reach the point of mounting the `.crt`.
+- **Kung Fu Flash** boots the last cartridge you selected. That is why the red screen was seen.
+- **Ultimate II+** does the same through **Copy to Flash** — the `.crt` is copied into the
+  device's own flash and loads on restart. ⚠ **Carl, 2026-09-27 [M]. An earlier revision of
+  this section said the U2+ simply could not do it, which was wrong** — it was inferred from
+  one bench session in which the menu had been used, and never checked against the device's
+  actual feature set.
+- ⚠ **But on both devices the menu is a C64 program** — it runs on the 6510, holds its state in
+  C64 RAM and draws to the screen matrix in C64 RAM. **On a machine with no working RAM you
+  cannot reach it**, so neither device can be armed after the fault appears.
 
-⚠ **So the instruction that matters is about the device, not the test: the cartridge must be
-mapped without a menu.** On KFF that is automatic. A real Dead Test cartridge gets it from
-being mapped by a cold reset.
+⚠ **So the instruction that matters is about TIMING, not about which device: arm it while the
+machine still works.** Copy DRAMscope to flash, or select it once, on a healthy C64 — that is
+what makes it available later, when the machine is not healthy. A real Dead Test cartridge
+needs none of this because a cold reset maps it.
+
+⚠ **This corrects a real error, not a nuance.** The earlier text presented Kung Fu Flash as the
+device that makes the no-RAM case reachable and the Ultimate II+ as one that cannot. **Both can**,
+and both share the same prerequisite. The mistake came from generalising a single bench session
+— the U2+ had been driven through its menu that day — into a property of the hardware, without
+checking what the device can actually do.
 
 **2. It cannot TEST memory that is not there — and with no RAM there is no screen.** The screen
 matrix is DRAM, so on a machine with nothing fitted the only available output is the border,
@@ -841,7 +852,7 @@ synthetic failure set that triggers it and a neighbouring set that does not.
 | ~~**G2**~~ | ✅ **ANSWERED: row = A0–A7, column = A8–A15** (Bauer §3.13). | — | [C] |
 | ~~**G3**~~ | ⚠ **ANSWERED: no, not provably.** March LR therefore uses fixed patterns. See `PROVENANCE.md`. | — | [M] |
 | **G4** | In Ultimax, do VIC fetches in `$3000–$3FFF` come from cartridge ROMH? | Screen home selection | [A] |
-| ~~**G6**~~ | ✅ **ANSWERED on hardware, 2026-09-27: it starts and reports with every DRAM removed** — solid red from `p0a_dead` on Kung Fu Flash, which boots the remembered cartridge with no menu. The Ultimate II+ needs its menu, and that menu needs RAM. | — | [M] |
+| ~~**G6**~~ | ✅ **ANSWERED on hardware, 2026-09-27: it starts and reports with every DRAM removed** — solid red from `p0a_dead` on Kung Fu Flash, which boots the remembered cartridge with no menu. ⚠ The Ultimate II+ can do the same via **Copy to Flash**; on the day, its menu had been used. **Both devices must be armed beforehand, from a working machine.** | — | [M] |
 | ~~**G6a**~~ | ✅ **BUILT 2026-09-27** — red now distinguishes "scratch bad, RAM fitted" (steady) from "nothing responds anywhere, no RAM fitted" (slow flash). Both directions tested, flash rate measured at 0.55–0.58 Hz. | — | [M] |
 | ~~**G5b**~~ | ✅ **CLOSED 2026-09-27 — all five assemblies held and corroborated.** 326298, 250407, 250425, 250466, 250469, each confirmed by **two independent sources agreeing on all eight bits**; the 250466 from Commodore schematic **252278** after its opencbm entry proved wrong. Table and corroboration status in `PROVENANCE.md`, checked against the cartridge by `test/chart.py`. ⚠ Renamed from a second **G5**, which duplicated the closed gate above it. | — | **[D][C]** |
 

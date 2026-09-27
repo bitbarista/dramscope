@@ -71,12 +71,15 @@ for a faulty chip on a machine that had none in it.
 
 ⚠ BUT THE CARTRIDGE HAS TO BE MAPPED WITHOUT A MENU.
 
-  Kung Fu Flash   remembers the last cartridge and boots straight into it,
-                  so the no-RAM case works.
-  Ultimate II+    its menu is itself a C64 program -- it runs on the 6510 and
-                  draws using C64 RAM. With no DRAM fitted the menu cannot
-                  run, so you never get as far as choosing the file. Start it
-                  once with RAM in place, or use a KFF for that job.
+  Kung Fu Flash   boots the last cartridge you selected.
+  Ultimate II+    use COPY TO FLASH -- the .crt is copied into the device's
+                  own flash and loads on restart.
+
+  ⚠ BOTH HAVE TO BE ARMED FROM THE MENU FIRST, AND THE MENU IS A C64 PROGRAM:
+  it runs on the 6510, keeps its state in C64 RAM and draws using C64 RAM. On a
+  machine with no working RAM you cannot reach it. SO SET THE DEVICE UP WHILE
+  THE MACHINE IS STILL HEALTHY -- that is what makes DRAMscope available later,
+  when it is not.
 
 ⚠ AND IT CANNOT TEST MEMORY THAT IS NOT THERE. The screen itself lives in
 DRAM, so on a machine with nothing fitted the border is the only output there

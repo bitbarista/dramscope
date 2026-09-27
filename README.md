@@ -27,9 +27,19 @@ where it can do so safely, the chip that carries it.
    and **[the printable chip chart (PDF)](https://github.com/bitbarista/dramscope/releases/latest/download/CHIP-CHART.pdf)** —
    every colour, every mark on the map, and the bit→chip table for all five board assemblies.
 
-⚠ **The cartridge must be mapped without a menu if the RAM is missing.** A Kung Fu Flash
-boots the last cartridge straight away, which is why the no-RAM case works there. The
-Ultimate II+ menu is itself a C64 program and needs working RAM to run.
+> ### ⚠ Set it up **before** you need it
+>
+> Both devices can boot straight into the cartridge with no menu — **and both have to be told
+> to, on a machine that still works.**
+>
+> - **Ultimate II+** — use **Copy to Flash**. The `.crt` is copied into the device's own flash
+>   and loads on restart.
+> - **Kung Fu Flash** — it boots the last cartridge you selected.
+>
+> ⚠ **Either way the menu is a C64 program**: it runs on the 6510, holds its state in C64 RAM
+> and draws to the screen matrix in C64 RAM. On a machine with no working RAM you cannot reach
+> it. **So arm the device while the machine is healthy** — that is what makes DRAMscope
+> available later, when it is not.
 
 ## What it runs on
 
@@ -277,11 +287,11 @@ which is the machine most in need of it.
 > empty sockets, so this could only ever have been shown on the bench.**
 >
 > ⚠ **The launcher is part of the dependency chain, and that is the one real caveat.** KFF
-> remembers the last cartridge loaded and boots straight into it, with no menu — which is what
-> makes the no-RAM case reachable at all. The **Ultimate II+ menu is itself a C64 program**,
-> running on the 6510 out of C64 RAM and drawing to the screen matrix in C64 RAM, so with no
-> DRAM fitted it cannot run and the `.crt` cannot be reached. **The cartridge must be mapped
-> without a menu.**
+> boots the last cartridge you selected, and an **Ultimate II+ does it through *Copy to
+> Flash*** — the `.crt` is copied into the device's own flash and loads on restart. ⚠ **Both
+> have to be armed from the menu first, and the menu is a C64 program** running on the 6510 out
+> of C64 RAM. So the constraint is not *which device*, it is *when*: **set it up while the
+> machine still works.**
 >
 > ⚠ **And it cannot *test* memory that is not there.** The screen matrix is DRAM too, so on a
 > machine with nothing fitted the only possible output is the border — the whole display in one
