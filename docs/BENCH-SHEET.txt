@@ -296,8 +296,9 @@ THE CHART -- WHICH CHIP CARRIES WHICH BIT
 ⚠ THIS TABLE IS ALSO A SEPARATE ONE-PAGE FILE, CHIP-CHART.TXT, MEANT TO BE
 PRINTED AND KEPT BY THE BENCH. It carries the same table plus worked examples.
 
-Find your assembly number: it is printed on the board itself, usually near
-the front edge, as "ASSY 250469" or similar.
+Find your assembly number: look for "ASSY" and six digits silkscreened on the
+board itself, as "ASSY 250469" or similar. The position varies between
+revisions, so scan the whole board.
 
   ASSY      RAM         D0    D1    D2    D3    D4    D5    D6    D7
   ------------------------------------------------------------------

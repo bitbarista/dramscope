@@ -10,9 +10,10 @@ board you have, and translating one into the other is what this chart is for.
 STEP 1 -- FIND YOUR ASSEMBLY NUMBER
 -----------------------------------
 
-It is printed on the board itself, usually along the front edge near the
-keyboard connector, as "ASSY 250469" or similar. Do not guess from the case
-or the badge: the same case was used for several boards.
+Look for "ASSY" followed by six digits silkscreened on the board itself --
+"ASSY 250469" or similar. THE POSITION VARIES BETWEEN REVISIONS, so scan the
+whole board rather than one corner. Do not guess from the case or the badge:
+the same case was used for several boards.
 
 
 STEP 2 -- READ ACROSS

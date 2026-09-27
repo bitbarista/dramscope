@@ -118,9 +118,10 @@ holds on every C64 ever made. <b>Which chip carries it does not</b> &mdash; that
 which board you have, and translating one into the other is what this chart is for.</p>
 
 <h2>1 &nbsp; Find your assembly number</h2>
-<p>It is printed on the board itself, usually along the front edge near the keyboard
-connector, as <span class="mono">ASSY 250469</span> or similar. Do not guess from the case or
-the badge &mdash; the same case was used for several boards.</p>
+<p>Look for <span class="mono">ASSY</span> followed by six digits, silkscreened on the board
+itself &mdash; <span class="mono">ASSY 250469</span> or similar. <b>The position varies between
+revisions</b>, so scan the whole board rather than one corner. Do not guess from the case or
+the badge: the same case was used for several boards.</p>
 
 <h2>2 &nbsp; Read across</h2>
 <table class="chips">
