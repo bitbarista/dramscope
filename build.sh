@@ -57,6 +57,11 @@ mk '-DINJECT_ONCE=1 -DINJ_PG=$40 -DINJ_OFF=$37 -DINJ_MASK=$01 -DINJ_FIRSTPASS=1'
 # the sweep must find RAM and report a STEADY red. Adding INJECT_NORAM also
 # breaks the sweep, so nothing responds anywhere and it must report a FLASHING
 # red. One flag apart, and they must not give the same answer.
+# ⚠ A whole page wrong on every bit -- 256 bad bytes, mask $FF. This is the
+# only build that reaches the "NOT ONE CHIP. SEE PLA" verdict, which a single
+# bad byte must NOT reach.
+mk '-DINJECT_MEM=1  -DINJ_PG=$62 -DINJ_OFF=$00 -DINJ_MASK=$ff -DINJ_ALLOFF=1' dramscope_fpla "DS FAULT PLA"
+
 # ⚠ Clean on run 1, faulty from run 2 -- the verdict changes from "ALL TESTS
 # PASSED" to a memory fault, so row 22 goes from the coverage line to the bit
 # lanes. That transition is what used to leave a tail behind.

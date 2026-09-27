@@ -149,6 +149,8 @@ sptr     = $fb
 cptr     = $fd
 SEED     = $5a
 RASTER   = $d012
+CIA1_ICR = $dc0d                ; ⚠ interrupt control -- see the mask at entry
+CIA2_ICR = $dd0d                ; ⚠ CIA2 drives /NMI, which SEI does NOT mask
 CIA2_TAL = $dd04                ; ⚠ the flash-rate time base -- see tick
 CIA2_TBL = $dd06
 CIA2_CRA = $dd0e
@@ -253,6 +255,23 @@ entry:
         lda #C_BLACK
         sta BGCOL
         sei
+        ; ⚠⚠ SEI DOES NOT MASK NMI, AND CIA2 IS WIRED TO /NMI.
+        ; The engine starts CIA2's timers free-running for the flash rate, and
+        ; the source comment there claimed "no interrupt is enabled for them"
+        ; -- an ASSUMPTION ABOUT POWER-ON STATE, never established by the code.
+        ; Nothing in this program had ever written $DD0D.
+        ; ⚠ WHY IT MATTERS SO MUCH HERE: the march runs with $01 = $30, all RAM
+        ; and no ROM, so the NMI vector at $FFFA-$FFFB IS RAM UNDER TEST. An
+        ; NMI at that moment vectors through a march pattern into garbage and
+        ; executes it. A single byte left corrupted somewhere is exactly the
+        ; damage that survives.
+        ; ⚠ Same class of bug as the uninitialised $D016, and hidden the same
+        ; way: VICE powers up benign, so no amount of emulator testing finds it.
+        lda #$7f
+        sta CIA1_ICR                    ; clear every IRQ source
+        sta CIA2_ICR                    ; and every NMI source
+        lda CIA1_ICR                    ; reading clears what is already latched
+        lda CIA2_ICR
         cld
         ldx #$ff
         txs                             ; ⚠ no JSR until RAM is proven
@@ -1615,8 +1634,14 @@ phv_el: txa
 ; in. A macro keeps it one piece of source while letting it exist in both
 ; places, which is the whole point -- one thing to get right, not two.
 !macro INJHOOK {
+; ⚠ INJ_ALLOFF corrupts EVERY offset in the page, not one. It exists so the
+; "all 8 bits across many bytes" verdict -- the one that points at the PLA --
+; has a test at all. Without it that path had no coverage the moment the
+; single-byte case stopped taking it.
+!ifndef INJ_ALLOFF {
         cpy #INJ_OFF
         bne .keep
+}
         ; ⚠⚠ THE STACK, NOT A WORKSPACE BYTE. The first version kept its
         ; scratch at $032D -- inside the page the handover marches -- so the
         ; hook corrupted the memory under test and produced a second, entirely
@@ -1996,6 +2021,26 @@ dg_allbits:
         ; what the reader needs. Only the designators are withheld.
         lda #0
         sta w_chipok
+        ; ⚠⚠ ALL EIGHT BITS SET IS NOT THE SAME CLAIM AS "EVERY BIT FAILS
+        ; EVERYWHERE". w_bitmask is the OR of (expected EOR got) over every
+        ; failure, so ONE byte that came back completely wrong sets it to $FF
+        ; -- and the old code then printed "NOT ONE CHIP. SEE PLA", a systemic
+        ; diagnosis, with BAD BYTES 1 on the line above it. Carl hit exactly
+        ; that on a DRAMa Free 64: one byte, all eight bits, and a verdict
+        ; pointing at the PLA.
+        ; ⚠ One byte is a GLITCH, not a chip and not the PLA. The honest thing
+        ; is to say so and let the burn-in decide: a fault that never comes
+        ; back was a one-off, one that returns to the same address is real.
+        lda w_errhi
+        bne dg_ab_many
+        lda w_errlo
+        cmp #1
+        bne dg_ab_many
+        lda #<s_allbits1
+        ldy #>s_allbits1
+        jsr prstr
+        jmp dg_slots
+dg_ab_many:
         lda #<s_allbits
         ldy #>s_allbits
         jsr prstr
@@ -3191,6 +3236,9 @@ s_addrbad:  !scr "address line fault.", 0
 s_addrbad2: !scr "two of a pair? suspect u13/u25/rp1/rp2", 0
 s_membad:   !scr "memory fault, first bad byte at $", 0
 s_allbits:  !scr "all 8 bits bad - not one chip. see pla", 0
+; ⚠ ONE byte with all eight bits wrong. Not a chip, not the PLA -- those fail
+; across the array, not at a single address. 36 chars, fits col 1-36.
+s_allbits1: !scr "1 byte, all 8 bits - not a chip.", 0
 
 ; ⚠ These carry the BOARD ASSUMPTION that used to be the row label above, so
 ; nothing was lost by changing it to "likely". Max 37 chars: cleared to col 38.

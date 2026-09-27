@@ -346,9 +346,24 @@ are wrong there and the tool names no chip at all. ⚠ Two chips does NOT mean a
 short board: the 250466 is a LONG board with two.  [S4][S6]  The tool cannot
 tell which board it is in, which is why the row says LIKELY.
 
-If EVERY bit fails it names no chip at all and points at the PLA instead.
-Eight dead DRAMs is not the likely reading, and sending you to desolder
-eight chips would be worse than sending you nowhere.
+If ALL EIGHT BITS fail ACROSS MANY BYTES it names no chip and points at the
+PLA instead. Eight dead DRAMs is not the likely reading, and sending you to
+desolder eight chips would be worse than sending you nowhere.
+
+⚠ ALL EIGHT BITS AT A SINGLE BYTE IS A DIFFERENT THING, and it says so:
+
+  1 BYTE, ALL 8 BITS - NOT A CHIP.
+
+One byte coming back completely wrong is not a chip and not the PLA -- those
+fail across the array, not at one address. It is a GLITCH, and the burn-in is
+what decides: LET IT KEEP RUNNING. A fault that never returns was a one-off.
+One that comes back to THE SAME ADDRESS is real.
+
+⚠ DO NOT PRESS RESTORE WHILE IT IS RUNNING. RESTORE is wired straight to the
+CPU's NMI line, and during the march the machine is in all-RAM mode -- so the
+NMI vector itself is memory under test. An NMI there jumps into whatever
+pattern is at $FFFA and executes it, which can corrupt a byte and show up as
+exactly the fault above.
 
 
 WHAT IT CANNOT DO

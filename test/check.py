@@ -335,8 +335,15 @@ CASES = [
       "errcount": 1,
       "checklist": cl(2),
       "bits":  " BITS   D7  D6  D5  D4  D3  D2  D1  D0",
-      "chips": " ALL 8 BITS BAD - NOT ONE CHIP. SEE PLA",
+      "chips": " 1 BYTE, ALL 8 BITS - NOT A CHIP.",
       "caveat": " RUNS UNTIL YOU RESET."}),
+    # ⚠ A WHOLE PAGE WRONG ON EVERY BIT -- the only case that reaches the PLA
+    # verdict. A single bad byte must NOT reach it, which is the case above.
+    ("256 bad bytes, all 8 bits -- the systemic verdict, SEE PLA",
+     "dramscope_fpla.crt", "pass_obs", "LTRED", "########", "########", "########",
+     {"redpages": 1, "errcount": 256, "checklist": cl(2), "errors": "256",
+      "bits":  " BITS   D7  D6  D5  D4  D3  D2  D1  D0",
+      "chips": " ALL 8 BITS BAD - NOT ONE CHIP. SEE PLA"}),
     ("device ignores $DE02 -- must report ORANGE, not hang",
      "dramscope_fef.crt",  "rom_halt", "ORANGE", None, None, None, None),
     # ⚠ The scratch bytes are bad but memory IS fitted, so the sweep of
