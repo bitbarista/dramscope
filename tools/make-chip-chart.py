@@ -26,6 +26,7 @@ from chart import CHART, BOARDS          # noqa: E402  -- the single source
 OUT_HTML = ROOT / "build" / "chip-chart.html"
 OUT_PDF = ROOT / "build" / "CHIP-CHART.pdf"
 VERSION = "1.4"
+PAGES = 2          # ⚠ 1 = the chart, 2 = the advisory. Overflow must fail, not slide.
 
 CSS = """
 @page { size: A4 portrait; margin: 10mm 14mm 8mm 14mm; }
@@ -73,6 +74,15 @@ code, .mono { font-family: "DejaVu Sans Mono", monospace; }
 pre.screen { font-family: "DejaVu Sans Mono", monospace; font-size: 8.4pt;
              background: #000; color: #fff; padding: 2.2mm 2.6mm; margin: 1.4mm 0 0 0;
              line-height: 1.3; white-space: pre; }
+.page2 { page-break-before: always; }
+.advisory { border: 1.6pt solid #000; padding: 2.4mm 3mm; margin: 0 0 3mm 0; background: #ececec; }
+.advisory h2 { margin: 0 0 1.2mm 0; border: 0; padding: 0; font-size: 10pt; }
+table.parts { width: 100%; border-collapse: collapse; margin: 1mm 0 2mm 0; }
+table.parts th, table.parts td { border: 0.6pt solid #666; padding: 1.3mm 1.8mm;
+                                 text-align: left; vertical-align: top; font-size: 8.8pt; }
+table.parts thead th { background: #000; color: #fff; font-size: 8pt; letter-spacing: 0.4pt; }
+table.parts td.pn { font-family: "DejaVu Sans Mono", monospace; font-weight: 700;
+                    white-space: nowrap; }
 .foot { margin-top: 2.6mm; padding-top: 1.4mm; border-top: 0.6pt solid #999;
         font-size: 7.6pt; color: #444; display: flex; justify-content: space-between;
         gap: 4mm; }
@@ -193,6 +203,86 @@ it against the DRAMs</b>. And when <b>every</b> bit fails it names no chip at al
   ko-fi.com/bitbarista</div>
 </div>
 
+<div class="page2">
+
+<div class="head">
+  <div>
+    <h1>If you have to replace one</h1>
+    <p class="sub">Buying, substituting and proving a repair</p>
+  </div>
+  <div class="ver">DRAMscope {VERSION} &middot; page 2<br>github.com/bitbarista/dramscope</div>
+</div>
+
+<div class="advisory">
+  <h2>&#9888; This page is advice, not measurement</h2>
+  <p style="margin:0">Page 1 is derived from schematics and checked against the program that
+  prints it. <b>This page is not.</b> It is collected practice &mdash; from datasheets, the
+  C64 community and published repair notes &mdash; and <b>none of it is tested by DRAMscope
+  or verified by this project on hardware.</b> Sources are named so you can judge each
+  claim yourself. Treat it as a starting point and a set of things to check, not as
+  instructions to follow blindly.</p>
+</div>
+
+<h2>What to buy</h2>
+<table class="parts">
+  <thead><tr><th style="width:21%">Board</th><th style="width:25%">Part</th><th>What to look for</th></tr></thead>
+  <tbody>
+    <tr><td>Eight RAM chips</td><td class="pn">4164</td>
+        <td>64K &times; 1 DRAM. Many makers, many prefixes &mdash;
+        <span class="mono">MB8264</span>, <span class="mono">TMS4164</span>,
+        <span class="mono">HM4864</span>, <span class="mono">&micro;PD4164</span> and others are
+        the same part.</td></tr>
+    <tr><td>Two RAM chips</td><td class="pn">41464<br>also sold as 4464</td>
+        <td>64K &times; 4 DRAM. The two names are the same organisation; prefixes vary by
+        maker in the same way.</td></tr>
+  </tbody>
+</table>
+<p><b>Speed.</b> C64s shipped with parts marked <b>150&nbsp;ns</b> and <b>200&nbsp;ns</b>
+(C64-Wiki). A <i>lower</i> number is faster and is safe to fit; a slower part than the board
+was designed for is not.</p>
+<p>&#9888; <b>Provenance is the real problem, not price.</b> These are forty-year-old parts and
+much of what is sold is pulls, or relabelled, or simply dead. <b>Buy more than you need</b>,
+and treat every one as unproven until it has run &mdash; which is what DRAMscope is for.</p>
+
+<h2>If you cannot find a 4164 &mdash; the 41256 substitution</h2>
+<p>A <span class="mono">41256</span> is 256K&nbsp;&times;&nbsp;1, four times the size. <b>The
+only pinout difference from a 4164 is pin&nbsp;1</b>: not connected on the 4164, the ninth
+address line <span class="mono">A8</span> on the 41256.</p>
+<p><b>The reported method is to tie pin&nbsp;1 to pin&nbsp;16 (ground)</b> with a short wire,
+so <span class="mono">A8</span> cannot float. The chip then addresses only its lower 64K and,
+in C64-Wiki's words, &ldquo;look[s] just like a &rsquo;64 chip to the system&rdquo;.</p>
+<p>&#9888; <b>Reported practice, not tested here.</b> C64-Wiki documents it and it is widely
+reported on the forums, but this project has not tried it and makes no promise about current
+draw, timing margin, or how a given board behaves. If you do it, DRAMscope will tell you
+whether the result actually works.</p>
+
+<h2>While the chip is out</h2>
+<p><b>Fit a socket.</b> If the RAM was soldered directly, a turned-pin socket makes the next
+fault a two-minute job instead of a desoldering job &mdash; and this is the second time you
+will be glad of it, because a replacement of unknown provenance may itself need swapping.
+&#9888; The risk is in the removal: forty-year-old through-plated holes lift pads easily, so
+take the time rather than the heat.</p>
+
+<h2>Proving the repair</h2>
+<p><b>Run DRAMscope again and let it keep running.</b> A single clean pass says the fault is
+not immediately present; it does not say the machine is well. The run counter exists precisely
+so a fault that appears once an hour is still on screen when you come back.</p>
+<p><b>Then run it warm.</b> Marginal cells pass every fast test on a cold machine and drop bits
+once it has been on for an hour &mdash; which is the fault people chase for weeks. Leave the
+lid on, leave it running, and come back to it.</p>
+
+<div class="foot">
+  <div><b>Sources for this page:</b> C64-Wiki (<i>RAM</i>) for the 41256 method and the
+  150/200&nbsp;ns markings; C64-Wiki and 6502.org / Lemon64 forum reports for the pin&nbsp;1
+  handling; DRAM datasheets for the organisations. <b>Nothing here is tested by this
+  project.</b></div>
+  <div style="text-align:right; white-space:nowrap">MIT licensed &middot; <b>no warranty</b><br>
+  ko-fi.com/bitbarista</div>
+</div>
+
+</div>
+
+
 </body></html>"""
 
 
@@ -216,9 +306,10 @@ def main() -> int:
     # on the first render. Content grows, so this has to be checked, not hoped.
     import re
     pages = len(re.findall(rb"/Type\s*/Page[^s]", OUT_PDF.read_bytes()))
-    if pages != 1:
-        sys.exit(f"CHIP-CHART.pdf is {pages} pages -- it must be exactly 1. "
-                 f"Tighten the CSS or cut copy.")
+    if pages != PAGES:
+        sys.exit(f"CHIP-CHART.pdf is {pages} pages -- it must be exactly {PAGES}. "
+                 f"Page 1 is the chart and page 2 the advisory; anything else means "
+                 f"one of them has overflowed. Tighten the CSS or cut copy.")
     print(f"  {OUT_PDF.relative_to(ROOT)}  {OUT_PDF.stat().st_size:,} bytes")
     print(f"  {len(CHART)} assemblies, taken from test/chart.py")
     return 0

@@ -149,6 +149,26 @@ enough to print as a confident chip name without saying which board it assumes.
 
 ---
 
+## ⚠ Page 2 of the chip chart is ADVISORY and is fenced off deliberately
+
+`CHIP-CHART` page 1 is derived from schematics and checked by `test/chart.py` against the
+cartridge. **Page 2 is not, and says so on itself.** It is collected practice about buying and
+substituting DRAM, and it exists because Carl asked for further advice *"made clear that it's
+only advice and not fact"*. Its claims, and where they come from:
+
+| Claim | Source | Tag |
+|---|---|---|
+| C64s shipped with DRAM marked **150 ns** and **200 ns** | C64-Wiki, *RAM* | [C] |
+| `4164` is 64K × 1; `41464` (also sold as `4464`) is 64K × 4 | DRAM datasheets; C64-Wiki calls the two-chip part 4464 | [C] |
+| A **41256** can stand in for a 4164 by tying **pin 1 to pin 16**, because pin 1 is `NC` on the 4164 and `A8` on the 41256 — grounding it stops `A8` floating and confines the chip to its lower 64K | C64-Wiki, *RAM*: *"solder a short piece of wire between pins 1 and 16 … make the chip look just like a '64 chip to the system"*; corroborated by 6502.org and Lemon64 forum reports | [C] |
+| Fitting a socket; running warm to find marginal cells | Ordinary repair practice, not a sourced claim | [A] |
+
+⚠ **NONE OF PAGE 2 HAS BEEN TESTED BY THIS PROJECT.** No 41256 substitution has been built or
+run here. The page states that about itself in a box at the top, because advice that looks like
+the measured half of the same document would borrow credibility it has not earned.
+
+---
+
 ## Fabrication of facts is the failure mode this file exists to prevent
 
 A test tool's whole value is that its output can be believed. A verdict of *"replace the chip
