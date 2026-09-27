@@ -15,6 +15,7 @@ Usage:  python3 tools/make-chip-chart.py  ->  build/CHIP-CHART.pdf
 """
 import html
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -340,10 +341,23 @@ def main() -> int:
     if not OUT_PDF.exists():
         sys.exit("chrome ran but produced no PDF")
 
+    # ⚠ MAKE IT BYTE-REPRODUCIBLE. Chrome stamps /CreationDate and /ModDate
+    # with the wall clock, so two builds of identical content differ -- which
+    # means a checksum cannot distinguish "stale copy on the USB stick" from
+    # "built three seconds later". That distinction has already mattered twice
+    # for the .crt, and the PDF was giving a false DIFFERS every single time.
+    # ⚠ The replacement MUST be the same length: PDF xref offsets are absolute
+    # byte positions and a shorter date would corrupt every one after it.
+    FIXED = b"D:20000101000000+00'00'"
+    raw = OUT_PDF.read_bytes()
+    out = re.sub(rb"D:\d{14}\+00'00'", FIXED, raw)
+    if len(out) != len(raw):
+        sys.exit("date normalisation changed the file length -- xref would break")
+    OUT_PDF.write_bytes(out)
+
     # ⚠ ONE PAGE, ASSERTED. The whole point is a single sheet that gets pinned to
     # a wall; spilling a footer onto page 2 is the failure mode, and it happened
     # on the first render. Content grows, so this has to be checked, not hoped.
-    import re
     pages = len(re.findall(rb"/Type\s*/Page[^s]", OUT_PDF.read_bytes()))
     if pages != PAGES:
         sys.exit(f"CHIP-CHART.pdf is {pages} pages -- it must be exactly {PAGES}. "
