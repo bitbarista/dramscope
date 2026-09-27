@@ -258,11 +258,20 @@ draw, timing margin, or how a given board behaves. If you do it, DRAMscope will 
 whether the result actually works.</p>
 
 <h2>While the chip is out</h2>
-<p><b>Fit a socket.</b> If the RAM was soldered directly, a turned-pin socket makes the next
-fault a two-minute job instead of a desoldering job &mdash; and this is the second time you
-will be glad of it, because a replacement of unknown provenance may itself need swapping.
-&#9888; The risk is in the removal: forty-year-old through-plated holes lift pads easily, so
-take the time rather than the heat.</p>
+<p><b>Fit a socket</b> if the RAM was soldered directly. The next fault becomes a two-minute
+job instead of a desoldering job &mdash; and you may well need it twice, because a replacement
+of unknown provenance can itself turn out bad. &#9888; The risk is all in the removal:
+forty-year-old through-plated holes lift pads easily, so take the time rather than the heat.</p>
+<p>&#9888; <b>Which type of socket is a real argument and this page will not settle it.</b>
+Machined (&ldquo;turned-pin&rdquo;) sockets grip with a multi-finger collet and are intended for
+<b>round</b> pins; dual-wipe sockets bear on the two broad faces of a flat DIP lead. Opinion
+among repairers is genuinely split, and both fail in their own way &mdash; cheap dual-wipe
+contacts deform, machined collets damage more easily.</p>
+<p><b>What is worth knowing before you choose:</b> RAM <i>replacement boards</i> &mdash; SRAM
+and FPGA types &mdash; commonly present <b>square header pins</b>, which is what dual-wipe
+contacts are suited to and what machined collets are not made for. <b>If one of those might go
+into that socket later, decide with it in mind</b>, because the socket is the part you will
+not want to change again.</p>
 
 <h2>Proving the repair</h2>
 <p><b>Run DRAMscope again and let it keep running.</b> A single clean pass says the fault is
@@ -275,7 +284,8 @@ lid on, leave it running, and come back to it.</p>
 <div class="foot">
   <div><b>Sources for this page:</b> C64-Wiki (<i>RAM</i>) for the 41256 method and the
   150/200&nbsp;ns markings; C64-Wiki and 6502.org / Lemon64 forum reports for the pin&nbsp;1
-  handling; DRAM datasheets for the organisations. <b>Nothing here is tested by this
+  handling; arcade-museum, Parallax and modwiggler forum discussions for the socket contact
+  types; DRAM datasheets for the organisations. <b>Nothing here is tested by this
   project.</b></div>
   <div style="text-align:right; white-space:nowrap">MIT licensed &middot; <b>no warranty</b><br>
   ko-fi.com/bitbarista</div>

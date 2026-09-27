@@ -186,12 +186,24 @@ DRAMscope will tell you whether the result actually works.
 WHILE THE CHIP IS OUT
 ---------------------
 
-FIT A SOCKET. If the RAM was soldered directly, a turned-pin socket makes the
-next fault a two-minute job instead of a desoldering job -- and this is the
-second time you will be glad of it, because a replacement of unknown
-provenance may itself need swapping. ⚠ The risk is in the removal:
-forty-year-old through-plated holes lift pads easily, so take the time rather
-than the heat.
+FIT A SOCKET if the RAM was soldered directly. The next fault becomes a
+two-minute job instead of a desoldering job -- and you may well need it twice,
+because a replacement of unknown provenance can itself turn out bad. ⚠ The
+risk is all in the removal: forty-year-old through-plated holes lift pads
+easily, so take the time rather than the heat.
+
+⚠ WHICH TYPE OF SOCKET IS A REAL ARGUMENT AND THIS PAGE WILL NOT SETTLE IT.
+Machined ("turned-pin") sockets grip with a multi-finger collet and are
+intended for ROUND pins; dual-wipe sockets bear on the two broad faces of a
+flat DIP lead. Opinion among repairers is genuinely split, and both fail in
+their own way -- cheap dual-wipe contacts deform, machined collets damage more
+easily.
+
+WHAT IS WORTH KNOWING BEFORE YOU CHOOSE: RAM REPLACEMENT BOARDS -- SRAM and
+FPGA types -- commonly present SQUARE HEADER PINS, which is what dual-wipe
+contacts are suited to and what machined collets are not made for. If one of
+those might go into that socket later, decide with it in mind, because the
+socket is the part you will not want to change again.
 
 
 PROVING THE REPAIR
