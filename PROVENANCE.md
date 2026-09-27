@@ -66,6 +66,7 @@ none had a source.
 | **[S9]** | DRAM cross-reference lists — minuszerodegrees.net, pcbjunkie.net, amiga-stuff.com |
 | **[S10]** | WCAG 2.3.1, three-flashes-per-second threshold |
 | **[S11]** | Community discussion — 6502.org, Lemon64, arcade-museum, Parallax, modwiggler. ⚠ Corroboration, never a sole source for anything actionable |
+| **[S12]** | **Open reproduction projects** — [`bwack/C64-250407-Replica-KiCad`](https://github.com/bwack/C64-250407-Replica-KiCad) and [`bwack/C64C-250469-KiCAD-Replica`](https://github.com/bwack/C64C-250469-KiCAD-Replica), reverse-engineered from real boards and verified with working prototypes. ⚠ **Derived works, not Commodore documents** — but independent of [S4] and [S6], and machine-readable |
 | **[M]** | Measured by this project — the VICE harness, or on Carl's hardware. The measuring artefact is named with the claim |
 
 ⚠ **`[S11]` is deliberately weakest.** Forum consensus is worth having and is not evidence on
@@ -178,10 +179,27 @@ schematic 251138, which this project already used. No RAM-test source or binary 
 | Row | Sources checked | Status |
 |---|---|---|
 | 326298 | opencbm [S4]; myoldcomputer [S6] | ✅ **agree on all eight bits** |
-| 250407 | schematic 251138 [S1]; opencbm [S4] | ✅ **agree on all eight bits** |
+| 250407 | schematic 251138 [S1]; opencbm [S4]; **KiCad replica [S12]** | ✅ **three sources, agree on all eight bits** |
 | 250425 | opencbm [S4]; myoldcomputer [S6] | ✅ **agree on all eight bits** |
-| 250469 | opencbm [S4]; myoldcomputer [S6] | ✅ **agree** — U10 = D0–D3, U11 = D4–D7 |
+| 250469 | opencbm [S4]; myoldcomputer [S6]; **KiCad replica [S12]** | ✅ **three sources, agree** — U10 = D0–D3, U11 = D4–D7 |
 | ⚠ **250466** | myoldcomputer [S6] **only** | ❌ **NOT CORROBORATED — see below** |
+
+### How the replicas were read, and why the method is trusted
+
+Carl pointed out that reproduction boards and schematics exist and could be referenced. They
+can, and the KiCad files are **text**, so the nets can be read rather than described.
+
+The data pins are found geometrically: for each RAM reference, the `(label "Dn")` entries lying
+on the **pin-stub row** — one per chip, same `y`, same offset from the symbol origin — are the
+chip's data connections. ⚠ Other rows of `D0…D7` labels in the same file are **bus legends**
+and must be discarded; taking them gave contradictory answers at first.
+
+⚠ **The method was validated against an answer already held before it was trusted for a new
+one.** Run against the 250407 replica it returns `U21=D0, U9=D1, U22=D2, U10=D3, U23=D4,
+U11=D5, U24=D6, U12=D7` — **all eight matching schematic 251138 [S1] and opencbm [S4]**. The
+same code on the 250469 replica returns `U10 = D0–D3`, `U11 = D4–D7`, matching [S4] and [S6].
+The chip ordering across the board, left to right — U12, U24, U11, U23, U10, U22, U9, U21 —
+also reproduces the bus order this project already quoted from 251138.
 
 ### ⚠ 250466 is the one row that rests on a single source
 
@@ -194,7 +212,10 @@ printed:
    part, impossible on its face, and identical to the D1/D3 entries on the eight-chip boards.
    It has plainly inherited the bit column from the 4164 layout. **It cannot be used to
    corroborate, and it is not neutral evidence either.**
-3. ⚠ **A fourth source disagrees about the designators themselves.** A repair write-up
+3. ⚠ **No reproduction exists for it.** The open replica projects [S12] that settled 250407 and
+   250469 cover those two boards only; a search for a 250466 recreation found none. The one
+   route that corroborated the others is not available here.
+4. ⚠ **A fourth source disagrees about the designators themselves.** A repair write-up
    (retrorepairsandrefurbs, 250466) was read as placing the two 41464s at **U10 and U11**, not
    U9 and U10. Three sources [S4][S6][S7] say U9/U10, and the fourth may simply have been
    confused with the 250469 — but **it is recorded rather than dismissed**, because dismissing

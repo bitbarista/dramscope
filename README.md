@@ -484,6 +484,7 @@ things got in.
 | **[S9]** | DRAM cross-references — [minuszerodegrees](https://minuszerodegrees.net/memory/4164.htm), [pcbjunkie](https://pcbjunkie.net/index.php/resources/ram-info-and-cross-reference-page/), [amiga-stuff](https://www.amiga-stuff.com/hardware/64kx1-dram.html) |
 | **[S10]** | WCAG 2.3.1, three flashes per second |
 | **[S11]** | Community discussion — 6502.org, Lemon64, arcade-museum, Parallax, modwiggler. ⚠ Corroboration, never a sole source for anything actionable |
+| **[S12]** | Open reproduction projects — [bwack 250407](https://github.com/bwack/C64-250407-Replica-KiCad) and [bwack 250469](https://github.com/bwack/C64C-250469-KiCAD-Replica) KiCad replicas, reverse-engineered from real boards and prototype-verified |
 | **[M]** | Measured by this project — the VICE harness, or Carl's hardware. The measuring artefact is named with the claim |
 
 ## Credits

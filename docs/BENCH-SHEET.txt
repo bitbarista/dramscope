@@ -383,6 +383,10 @@ Every factual claim in this sheet is traceable. The keys used above:
   [S9]  DRAM cross-reference lists -- minuszerodegrees.net, pcbjunkie.net,
         amiga-stuff.com
   [S10] WCAG 2.3.1, three flashes per second
+  [S12] Open reproduction projects -- bwack's KiCad replicas of the 250407
+        and 250469, reverse-engineered from real boards and prototype-
+        verified. Read at pin level, and the method was validated against
+        the 250407 answer already held before being trusted for the 250469
   [M]   Measured by this project, in the VICE harness or on real hardware
 
 Full claim-by-claim detail, including what is NOT held and where earlier
