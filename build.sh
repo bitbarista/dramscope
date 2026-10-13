@@ -91,6 +91,9 @@ mk '-DINJECT_MEM=1  -DINJ_PG=$52 -DINJ_OFF=$19 -DINJ_MASK=$01 -DINJ_LATERPASS=1'
 mk '-DINJECT_NOD016=1' dramscope_fd016 "DS NO D016"
 mk '-DINJECT_NONMI=1'  dramscope_fnmi  "DS NO NMI MASK"
 mk '-DINJECT_NOD015=1' dramscope_fd015 "DS NO D015"
+# ⚠ And the character set: the title is "DRAMscope" only in the lower/upper
+# case set, and the goldens read screen codes, so they cannot see the set.
+mk '-DINJECT_UCSET=1'  dramscope_fucs  "DS UPPER SET"
 
 # ⚠ The three nibble paths, because on a 41464 board four bits are ONE chip.
 # fmem ($01) is already low-nibble-only. These are the other two.

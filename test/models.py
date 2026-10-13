@@ -64,7 +64,7 @@ PHROW = (3, 6, 11, 12, 13, 14, 15, 17, 16)
 # "#" as well, so a legend printing $23 and a map printing $A0 compared equal
 # in every golden while looking completely different on screen. Unmapped codes
 # render as "?", so if a literal '#' is ever reintroduced the goldens fail.
-GLYPH = {0x20: " ", 0x2E: ".", 0x2A: "*", 0xA0: "#", 0x18: "X", 0x2B: "+", 0x24: "$", 0x3A: ":"}
+GLYPH = {0x20: " ", 0x2E: ".", 0x2A: "*", 0xA0: "#", 0x58: "X", 0x2B: "+", 0x24: "$", 0x3A: ":"}
 
 
 def sym(stem: str, name: str) -> str:
@@ -112,8 +112,10 @@ def run(stem, extra_args, breakpoint_sym="pass_obs", timeout=180):
 def text(scr, row, c0, c1):
     out = []
     for b in scr[row * 40 + c0: row * 40 + c1]:
-        if 1 <= b <= 26:
-            out.append(chr(64 + b))
+        if 1 <= b <= 26:                    # ⚠ lower case: $D018 = $16
+            out.append(chr(96 + b))
+        elif 0x41 <= b <= 0x5A:
+            out.append(chr(b))
         elif 0x30 <= b <= 0x39:
             out.append(chr(b))
         else:

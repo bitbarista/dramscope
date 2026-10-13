@@ -73,7 +73,9 @@ def render(dump, path: pathlib.Path, scale: int = 3) -> None:
     from PIL import Image
     scr, col, vic = dump
     border, bg = vic[0x20 - 0x11] & 15, vic[0x21 - 0x11] & 15
-    rom = CHARROM.read_bytes()
+    # ⚠ the character set is the one $D018 selects (bit 1: the lower/upper
+    # case half), not always the first -- the title is mixed case
+    rom = CHARROM.read_bytes()[0x800 if vic[0x18 - 0x11] & 0x02 else 0:]
     BW, BH = 32, 35
     W, H = 320 + 2 * BW, 200 + 2 * BH
     img = Image.new("RGB", (W, H), PAL[border])

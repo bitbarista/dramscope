@@ -139,7 +139,7 @@ any, leaves Ultimax with the cartridge still mapped. Green means DRAMscope will 
 A healthy machine finishes a run in about 80 seconds and looks like this:
 
 ```
- DRAMSCOPE  RUNS     1  BAD BYTES     0
+ DRAMscope  RUNS     1  BAD BYTES     0
  ----------------------------------------
    0123456789ABCDEF TESTS AND RESULTS
  0 **#*****######## DATA LINES   OK
@@ -385,7 +385,7 @@ so the screen answers "what has been done to this machine, and did it pass" with
 reading a manual:
 
 ```
- DRAMSCOPE  RUNS     1  BAD BYTES     0
+ DRAMscope  RUNS     1  BAD BYTES     0
  ----------------------------------------
    0123456789ABCDEF TESTS AND RESULTS
  0 **#*****######## DATA LINES   OK

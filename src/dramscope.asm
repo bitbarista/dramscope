@@ -75,7 +75,8 @@
         !ifndef INJECT_COL { !ifndef INJECT_ONCE {
         !ifndef INJECT_P0A { !ifndef INJECT_NORAM {
         !ifndef INJECT_NOD016 { !ifndef INJECT_NONMI { !ifndef INJECT_NOD015 {
-        !to "build/dramscope_roml.bin", plain } } } } } } } } } } } } } } } } }
+        !ifndef INJECT_UCSET {
+        !to "build/dramscope_roml.bin", plain } } } } } } } } } } } } } } } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -116,7 +117,7 @@ C_LTGREY = 15
 CH_DOT   = $2e                  ; .  untested
 CH_DASH  = $2d                  ; -  separator
 CH_FULL  = $a0                  ;    pass -- inverse space, a solid cell
-CH_X     = $18                  ; X  fail
+CH_X     = $58                  ; X  fail -- upper case in the $D018=$16 set
 CH_PLUS  = $2b                  ; +  probed, but NOT marched
 CH_STAR  = $2a                  ; *  marched, but at 9n not 31n + topo
 CH_SPACE = $20
@@ -659,7 +660,17 @@ eng_start:
         lda CIA2PRA
         ora #$03                        ; VIC bank 0
         sta CIA2PRA
-        lda #$14                        ; matrix $0400, char ROM $1000
+        ; ⚠ $16, THE LOWER/UPPER CASE SET, so the title can read "DRAMscope"
+        ; (Carl, 2026-10-13). In this set $01-$1A are LOWER case and $41-$5A
+        ; UPPER case, so every other string is written in capitals in the
+        ; source; and $4D/$4E, the diagonals the spinner used, are letters here.
+        ; ⚠ INJECT_UCSET writes the old $14, so the hostile-start test is
+        ; proven to catch a screen that has gone back to the upper case set.
+!ifdef INJECT_UCSET {
+        lda #$14
+} else {
+        lda #$16                        ; matrix $0400, char ROM $1800
+}
         sta VICMEM
         ; ⚠⚠ $D016 MUST BE SET, AND IT WAS NOT. Carl saw the version number in
         ; the bottom-right corner cut off mid-character -- "1." with the last
@@ -2096,7 +2107,7 @@ dg_slot:
         ldx w_col
         jsr setpos
         ldy #0
-        lda #$04                        ; screen code for 'd'
+        lda #$44                        ; 'D' (upper case in the $D018=$16 set)
         sta (sptr),y
         lda #C_LTRED
         sta (cptr),y
@@ -2250,12 +2261,12 @@ ph_end:
         bne ph_showbad
         jsr ph_cell
         ldy #0
-        lda #$0f                        ; 'O'
+        lda #$4f                        ; 'O' (upper case: $D018=$16)
         sta (sptr),y
         lda #C_GREEN
         sta (cptr),y
         iny
-        lda #$0b                        ; 'K'
+        lda #$4b                        ; 'K'
         sta (sptr),y
         lda #C_GREEN
         sta (cptr),y
@@ -2825,7 +2836,10 @@ cs_l:   lda #CH_SPACE
 draw_chrome:
         lda #0                          ; the row label is one RAM byte plus
         sta w_labelz                    ; a terminator
-        lda #C_LTGREY
+        ; ⚠ Two-tone title (Carl, 2026-10-13): "DRAM" white, "scope" cyan.
+        ; Printed white, then the five "scope" cells recoloured: ten bytes,
+        ; where a second string and a second prstr call would cost more.
+        lda #C_WHITE
         sta w_col2
         lda #0
         sta w_row
@@ -2834,6 +2848,12 @@ draw_chrome:
         lda #<s_title
         ldy #>s_title
         jsr prstr
+        ldx #4
+        lda #C_CYAN
+dc_scope:
+        sta COLRAM+5,x                  ; row 0, columns 5-9: "scope"
+        dex
+        bpl dc_scope
 
         lda #1                          ; ⚠ drawn, not stored: the engine is
         jsr draw_rule                   ; hard-capped at 4 KB because $D000 is
@@ -3055,9 +3075,11 @@ st_char: !byte CH_DOT,    CH_DASH,  CH_FULL, CH_X,    CH_STAR, CH_STAR
 st_col:  !byte C_DKGREY,  C_YELLOW, C_GREEN, C_LTRED, C_CYAN,  C_GREEN
 bittab:  !byte 1,2,4,8,16,32,64,128
 
-; ⚠ Raw screen codes, not !scr: these are the C64's own line graphics, and the
-; rotation only reads as rotation with these four in this order.
-spinchr: !byte $40, $4e, $5d, $4d
+; ⚠ Raw screen codes, not !scr: four quarter blocks, top-left, top-right,
+; bottom-right, bottom-left, so the rotation only reads as rotation in this
+; order. ⚠ Not the old - / | \ line spinner: its diagonals ($4D/$4E) are the
+; letters M and N in the lower/upper case set, which has no diagonal lines.
+spinchr: !byte $7e, $7c, $6c, $7b
 
 ; ⚠ The checklist. One row per phase, in the order they run, so the screen
 ; answers "what has been done to this machine" without anyone reading a manual.
@@ -3135,9 +3157,11 @@ rowhi:   !for i, 0, 24 { !byte >(SCREEN + i*40) }
 ; it only needs phase/mark_page/draw_errors from the engine, all of which are
 ; intact at the point it runs. Do not shave strings a third time.
 ;
-; ⚠ acme's !scr maps LOWERCASE source to uppercase screen codes, so every
-; string here is written lower case on purpose.
-s_title:    !scr "dramscope", 0
+; ⚠ The screen uses the LOWER/UPPER CASE character set ($D018 = $16). acme's
+; !scr maps lower-case source to $01-$1A, which that set draws as LOWER case,
+; and capitals to $41-$5A, its upper case -- so strings are written as they
+; are to appear: capitals, except the "scope" of the title.
+s_title:    !scr "DRAMscope", 0
 ; ⚠ TWO LABELS, ONE STRING, AND THAT IS DELIBERATE.
 ; The panel had no heading: a reader had to work out for themselves that the
 ; right-hand column was a list of tests and their outcomes, which was the
@@ -3147,21 +3171,21 @@ s_title:    !scr "dramscope", 0
 ; ⚠ s_hex must stay the first 16 bytes: dc_rows indexes it for the map's row
 ; labels. Do not insert anything between the label and the digits.
 s_toprow:
-s_hex:      !scr "0123456789abcdef tests and results", 0
+s_hex:      !scr "0123456789ABCDEF TESTS AND RESULTS", 0
 s_bitno:    !scr "76543210", 0
-s_ahno:     !scr "fedcba98", 0
+s_ahno:     !scr "FEDCBA98", 0
 s_alno:     !scr "76543210", 0
-s_p1:       !scr "data lines", 0
-s_p2:       !scr "addr lines", 0
-s_p3:       !scr "march b", 0
-s_p4:       !scr "march lr", 0
-s_p5:       !scr "row/column", 0
-s_p6:       !scr "low memory", 0
-s_phv:      !scr "own memory", 0
-s_p7:       !scr "retention", 0
-s_errors:   !scr "bad bytes", 0
-s_passes:   !scr "runs", 0
-s_p9:       !scr "colour ram", 0
+s_p1:       !scr "DATA LINES", 0
+s_p2:       !scr "ADDR LINES", 0
+s_p3:       !scr "MARCH B", 0
+s_p4:       !scr "MARCH LR", 0
+s_p5:       !scr "ROW/COLUMN", 0
+s_p6:       !scr "LOW MEMORY", 0
+s_phv:      !scr "OWN MEMORY", 0
+s_p7:       !scr "RETENTION", 0
+s_errors:   !scr "BAD BYTES", 0
+s_passes:   !scr "RUNS", 0
+s_p9:       !scr "COLOUR RAM", 0
 ; ⚠ THE OLD LEGEND SAID ".=NOT RAM" AND THAT WAS SIMPLY FALSE. Every one of
 ; the 256 pages is RAM and every one gets tested -- even $D000-$DFFF, which is
 ; marched with I/O banked out. '.' is state 0, "not reached yet", and it is
@@ -3182,16 +3206,16 @@ s_p9:       !scr "colour ram", 0
 ; mapped BOTH $A0 and $23 to the Python character "#", so the golden screens
 ; rendered the two identically and compared equal. It was found by rendering
 ; the screen through the real character ROM and looking at it.
-s_legend:   !scr "64k map: "
+s_legend:   !scr "64K MAP: "
             !byte CH_FULL
-            !scr "=full *=lighter x=bad", 0
+            !scr "=FULL *=LIGHTER X=BAD", 0
 s_ver:      !scr "1.6", 0   ; ⚠ 3 chars at col 35-37: the legend must end by 33
 ; ⚠ Nothing told the user it never stops, or how to end it.
 
 ; ⚠ Four bytes per entry, space padded, indexed by bit*4. The designators are
 ; Assy 250407 ONLY -- schematic 251138, via c64-ice40-ram README §2.2.
 ; The matching bit labels are generated in draw_diag, not stored.
-chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
+chips407:   !scr "U21 U9  U22 U10 U23 U11 U24 U12 ", 0
 ; ⚠ Headlines are short because the DETAIL is on the next two rows and the
 ; lanes are on screen already. "see data lines" told a reader to look at
 ; something they were already looking at.
@@ -3199,7 +3223,7 @@ chips407:   !scr "u21 u9  u22 u10 u23 u11 u24 u12 ", 0
 ; 22 and 23 and says more than a sentence would. The strings that used to
 ; live there were dead for several commits, still costing 63 bytes of an
 ; engine capped at 4 KB.
-s_bits:     !scr "bits", 0
+s_bits:     !scr "BITS", 0
 ; ⚠⚠ THE LABEL SAYS "LIKELY" BECAUSE THE CHIP NAME IS AN INFERENCE AND THE BIT
 ; NUMBER IS A MEASUREMENT. "4164  U21" reads as an instruction to desolder U21;
 ; "LIKELY  U21" reads as what it actually is. Carl: a user who changes the
@@ -3212,7 +3236,7 @@ s_bits:     !scr "bits", 0
 ; ⚠ The designators are identical on 326298, 250407 and 250425 -- schematic
 ; 251138 plus the opencbm reference, which reproduces all eight. The board
 ; assumption moved to the line below, which had room for it.
-s_assy:     !scr "likely", 0
+s_assy:     !scr "LIKELY", 0
 
 eng_end:
 }
@@ -3250,25 +3274,25 @@ eng_end:
 ; ⚠ The handover module at $3000 must not reference these either -- it runs
 ; with the engine marched away and does its own banking.
 ; ---------------------------------------------------------------------------
-s_colbad:   !scr "colour ram bad - a separate chip.", 0
-s_colbad2:  !scr "not a dram. causes wrong colours.", 0
-s_running:  !scr "runs until you reset.", 0
-s_ok:       !scr "all tests passed.", 0
-s_ok2:      !scr "59,648 full + 5,886 lighter = 65,534", 0
-s_databad:  !scr "data line fault.", 0
-s_addrbad:  !scr "address line fault.", 0
-s_addrbad2: !scr "two of a pair? suspect u13/u25/rp1/rp2", 0
-s_membad:   !scr "memory fault, first bad byte at $", 0
-s_allbits:  !scr "all 8 bits bad - not one chip. see pla", 0
+s_colbad:   !scr "COLOUR RAM BAD - A SEPARATE CHIP.", 0
+s_colbad2:  !scr "NOT A DRAM. CAUSES WRONG COLOURS.", 0
+s_running:  !scr "RUNS UNTIL YOU RESET.", 0
+s_ok:       !scr "ALL TESTS PASSED.", 0
+s_ok2:      !scr "59,648 FULL + 5,886 LIGHTER = 65,534", 0
+s_databad:  !scr "DATA LINE FAULT.", 0
+s_addrbad:  !scr "ADDRESS LINE FAULT.", 0
+s_addrbad2: !scr "TWO OF A PAIR? SUSPECT U13/U25/RP1/RP2", 0
+s_membad:   !scr "MEMORY FAULT, FIRST BAD BYTE AT $", 0
+s_allbits:  !scr "ALL 8 BITS BAD - NOT ONE CHIP. SEE PLA", 0
 ; ⚠ ONE byte with all eight bits wrong. Not a chip, not the PLA -- those fail
 ; across the array, not at a single address. 36 chars, fits col 1-36.
-s_allbits1: !scr "1 byte, all 8 bits - not a chip.", 0
+s_allbits1: !scr "1 BYTE, ALL 8 BITS - NOT A CHIP.", 0
 
 ; ⚠ These carry the BOARD ASSUMPTION that used to be the row label above, so
 ; nothing was lost by changing it to "likely". Max 37 chars: cleared to col 38.
-s_niblo:    !scr "8x4164 assumed. 41464? d0-d3=1 chip.", 0
-s_nibhi:    !scr "8x4164 assumed. 41464? d4-d7=1 chip.", 0
-s_nibboth:  !scr "8x4164 assumed. 41464? 2 chips.", 0
+s_niblo:    !scr "8X4164 ASSUMED. 41464? D0-D3=1 CHIP.", 0
+s_nibhi:    !scr "8X4164 ASSUMED. 41464? D4-D7=1 CHIP.", 0
+s_nibboth:  !scr "8X4164 ASSUMED. 41464? 2 CHIPS.", 0
 
 
 ; ===========================================================================

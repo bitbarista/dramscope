@@ -24,7 +24,7 @@ BUILD = ROOT / "build"
 # in every golden while looking completely different on screen. Unmapped codes
 # render as "?", so if a literal '#' is ever reintroduced the goldens fail.
 GLYPH = {0x20: " ", 0x2E: ".", 0x2D: "-", 0x2F: "/", 0x2C: ",", 0x3D: "=",
-         0x18: "X", 0xA0: "#", 0x2B: "+", 0x2A: "*", 0x24: "$", 0x3A: ":"}
+         0x58: "X", 0xA0: "#", 0x2B: "+", 0x2A: "*", 0x24: "$", 0x3A: ":"}
 
 
 def halt_address(stem: str, sym: str = "pass_obs") -> str:
@@ -145,8 +145,10 @@ def red_pages(scr) -> int:
 def text(scr: bytes, row: int, c0: int = 0, c1: int = 40) -> str:
     out = []
     for b in scr[row * 40 + c0: row * 40 + c1]:
-        if 1 <= b <= 26:
-            out.append(chr(64 + b))
+        if 1 <= b <= 26:                    # ⚠ lower case: $D018 = $16
+            out.append(chr(96 + b))
+        elif 0x41 <= b <= 0x5A:
+            out.append(chr(b))
         elif 0x30 <= b <= 0x39:
             out.append(chr(b))
         else:
@@ -393,6 +395,10 @@ def main() -> int:
         if vic is not None and sym == "pass_obs":
             got["D016"] = f"${vic[0x16 - 0x11]:02X}"
             want["D016"] = "$C8"
+            # ⚠ The title is two-tone: "DRAM" white, "scope" cyan. No golden
+            # sees colour, so it is asserted here.
+            got["title"] = "".join(f"{col[c] & 15:X}" for c in range(1, 10))
+            want["title"] = "111133333"
         # ⚠ BURN-IN GUARD. pass_end fires after exactly one complete pass, so
         # the counter must read 0001 there. A zero means the loop never
         # completed; anything higher means the breakpoint is in the wrong place
@@ -488,14 +494,15 @@ def main() -> int:
     # recorded about its own stub KERNAL, and was not applied here.
     # So: break at entry, POKE THE REGISTERS WRONG, and require the run to come
     # out clean anyway. The program must establish its own state.
-    print("  hostile power-on -- $D016 cleared, all sprites on, both CIA masks armed at entry")
+    print("  hostile power-on -- $D016 cleared, all sprites on, upper case set, both CIA masks armed at entry")
     for stem, want_ok, why in (
             ("dramscope",       True,  "must establish its own state"),
             ("dramscope_fd016", False, "skips $D016 -- must be caught"),
             ("dramscope_fnmi",  False, "skips the NMI mask -- must be caught"),
-            ("dramscope_fd015", False, "skips $D015 -- must be caught")):
+            ("dramscope_fd015", False, "skips $D015 -- must be caught"),
+            ("dramscope_fucs",  False, "upper case set -- must be caught")):
         (BUILD / "mon.txt").write_text(
-            "bank io\n> d016 00\n> d015 ff\n> dc0d 81\n> dd0d 81\n"
+            "bank io\n> d016 00\n> d015 ff\n> d018 14\n> dc0d 81\n> dd0d 81\n"
             # ⚠ BARE HEX. "break 0xc0fb" sets NO breakpoint and fails silently;
             # the first version of this test ran forever and looked like a
             # finding. The instrument was broken, not the program.
@@ -521,9 +528,14 @@ def main() -> int:
             w = (BUILD / "work.bin").read_bytes()[2:]
             d016, border = v[0x16 - 0x11], v[0x20 - 0x11] & 0x0F
             d015 = v[0x15 - 0x11]
+            # ⚠ $D018 = $16, the lower/upper case set: the title reads
+            # "DRAMscope" only in that set, and text() reads screen codes, so
+            # no golden can tell the sets apart. Bit 0 is unused and floats.
+            d018 = v[0x18 - 0x11] & 0xFE
             errs = w[14] + 256 * w[15]
-            got_ok = (d016 == 0xC8 and d015 == 0 and border == 5 and errs == 0)
-            detail = (f"$D016=${d016:02X} CSEL={(d016 >> 3) & 1} $D015=${d015:02X} "
+            got_ok = (d016 == 0xC8 and d015 == 0 and d018 == 0x16 and border == 5
+                      and errs == 0)
+            detail = (f"$D016=${d016:02X} CSEL={(d016 >> 3) & 1} $D015=${d015:02X} $D018=${d018:02X} "
                       f"border={BORDER.get(border, border)} bad={errs}")
         mark = "" if got_ok == want_ok else "   <-- ***"
         verdict = "survives" if got_ok else "FAILS"

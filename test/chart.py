@@ -41,7 +41,8 @@ BOARDS = {
 }
 
 # The on-screen table, which only ever names the 8 x 4164 boards.
-ON_SCREEN = "u21 u9  u22 u10 u23 u11 u24 u12 "
+# (Capitals in the source: the screen uses the lower/upper case set, $D018 = $16.)
+ON_SCREEN = "U21 U9  U22 U10 U23 U11 U24 U12 "
 
 
 def designators(line: str) -> list:
