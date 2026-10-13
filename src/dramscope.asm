@@ -74,13 +74,14 @@
         !ifndef INJECT_ZP { !ifndef INJECT_HV { !ifndef INJECT_RET {
         !ifndef INJECT_COL { !ifndef INJECT_ONCE {
         !ifndef INJECT_P0A { !ifndef INJECT_NORAM {
-        !ifndef INJECT_NOD016 { !ifndef INJECT_NONMI {
-        !to "build/dramscope_roml.bin", plain } } } } } } } } } } } } } } } }
+        !ifndef INJECT_NOD016 { !ifndef INJECT_NONMI { !ifndef INJECT_NOD015 {
+        !to "build/dramscope_roml.bin", plain } } } } } } } } } } } } } } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
 BGCOL    = $d021
 VICCTL1  = $d011
+SPRENA   = $d015                ; ⚠ cleared in the init -- see there
 VICCTL2  = $d016                ; ⚠ CSEL lives here -- see the init
 VICMEM   = $d018
 CIA2PRA  = $dd00
@@ -676,6 +677,20 @@ eng_start:
 !ifndef INJECT_NOD016 {
         lda #$c8                        ; CSEL=1: 40 columns. XSCROLL=0.
         sta VICCTL2
+}
+        ; ⚠⚠ $D015 MUST BE CLEARED TOO -- the same "the KERNAL does this for us"
+        ; class. The VIC-II has no reset input [S1][S2], so a reset does not
+        ; touch its registers, and with no KERNAL nothing switches the sprites
+        ; off. A sprite left on by the previous program keeps being drawn,
+        ; from whatever RAM its pointer at $07F8-$07FF now holds -- which is
+        ; memory under test, so it shows as stray dots that look like a fault.
+        ; [M] Carl saw a dotted column at the left edge of rows 22-24 when
+        ; DRAMscope was started straight after a demo (2026-10-13); after a
+        ; KERNAL reset first, on the same machine, it was gone.
+; ⚠ INJECT_NOD015 skips this, so the hostile-start test is proven to catch it.
+!ifndef INJECT_NOD015 {
+        lda #$00                        ; every sprite off
+        sta SPRENA
 }
         lda #$1b                        ; DEN=1 -- display on
         sta VICCTL1

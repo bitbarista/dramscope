@@ -488,13 +488,14 @@ def main() -> int:
     # recorded about its own stub KERNAL, and was not applied here.
     # So: break at entry, POKE THE REGISTERS WRONG, and require the run to come
     # out clean anyway. The program must establish its own state.
-    print("  hostile power-on -- $D016 cleared, both CIA masks armed at entry")
+    print("  hostile power-on -- $D016 cleared, all sprites on, both CIA masks armed at entry")
     for stem, want_ok, why in (
             ("dramscope",       True,  "must establish its own state"),
             ("dramscope_fd016", False, "skips $D016 -- must be caught"),
-            ("dramscope_fnmi",  False, "skips the NMI mask -- must be caught")):
+            ("dramscope_fnmi",  False, "skips the NMI mask -- must be caught"),
+            ("dramscope_fd015", False, "skips $D015 -- must be caught")):
         (BUILD / "mon.txt").write_text(
-            "bank io\n> d016 00\n> dc0d 81\n> dd0d 81\n"
+            "bank io\n> d016 00\n> d015 ff\n> dc0d 81\n> dd0d 81\n"
             # ⚠ BARE HEX. "break 0xc0fb" sets NO breakpoint and fails silently;
             # the first version of this test ran forever and looked like a
             # finding. The instrument was broken, not the program.
@@ -519,9 +520,10 @@ def main() -> int:
             v = (BUILD / "vic.bin").read_bytes()[2:]
             w = (BUILD / "work.bin").read_bytes()[2:]
             d016, border = v[0x16 - 0x11], v[0x20 - 0x11] & 0x0F
+            d015 = v[0x15 - 0x11]
             errs = w[14] + 256 * w[15]
-            got_ok = (d016 == 0xC8 and border == 5 and errs == 0)
-            detail = (f"$D016=${d016:02X} CSEL={(d016 >> 3) & 1} "
+            got_ok = (d016 == 0xC8 and d015 == 0 and border == 5 and errs == 0)
+            detail = (f"$D016=${d016:02X} CSEL={(d016 >> 3) & 1} $D015=${d015:02X} "
                       f"border={BORDER.get(border, border)} bad={errs}")
         mark = "" if got_ok == want_ok else "   <-- ***"
         verdict = "survives" if got_ok else "FAILS"
