@@ -23,6 +23,17 @@ python3 tools/check-screenshots.py
 echo
 echo "  rebuilding first (a stale binary would give a false PASS)"
 bash build.sh >/dev/null
+# ⚠ THE .crt FILES MUST LEAVE THE RUN AS THEY ENTERED IT. VICE writes an
+# EasyFlash image back on exit and drops its name -- the cause of the release
+# assets that carried "EasyFlash" (build.sh). Every x64sc call passes
+# +easyflashcrtwrite; this catches a call that does not.
+crt_before=$(md5sum build/*.crt)
 # ⚠ "$@" so `bash test/run.sh --bless` reaches the checker. Without it the
 # flag was silently dropped and the goldens never regenerated.
-exec python3 test/check.py "$@"
+rc=0
+python3 test/check.py "$@" || rc=$?
+if [ "$(md5sum build/*.crt)" != "$crt_before" ]; then
+  echo "  *** a .crt in build/ changed during the run -- an x64sc call is writing it back"
+  exit 1
+fi
+exit $rc

@@ -56,7 +56,7 @@ def grab(stem: str):
         'bank io\nsave "build/s_col.bin" 0 d800 dbff\n'
         'save "build/s_vic.bin" 0 d011 d02f\nquit\n')
     subprocess.run(
-        ["x64sc", "-console", "-warp", "-kernal", str(KERNAL),
+        ["x64sc", "+easyflashcrtwrite", "-console", "-warp", "-kernal", str(KERNAL),
          "-initbreak", sym(stem, "pass_obs"), "-moncommands", "build/s_mon.txt",
          "-cartcrt", str(BUILD / f"{stem}.crt")],
         cwd=ROOT, timeout=400, check=False,

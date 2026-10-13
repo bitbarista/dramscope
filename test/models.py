@@ -79,7 +79,7 @@ def vice_starts(extra_args) -> bool:
     """⚠ A machine VICE cannot initialise is a MISSING ROM, not a defect in
     the cartridge, and reporting it as a failure would be a lie."""
     r = subprocess.run(
-        ["x64sc", "-console", "-warp", "-limitcycles", "100000"] + extra_args,
+        ["x64sc", "+easyflashcrtwrite", "-console", "-warp", "-limitcycles", "100000"] + extra_args,
         cwd=ROOT, capture_output=True, text=True, timeout=90)
     return "Machine initialization failed" not in (r.stdout + r.stderr)
 
@@ -94,7 +94,7 @@ def run(stem, extra_args, breakpoint_sym="pass_obs", timeout=180):
         'bank io\nsave "build/m_vic.bin" 0 d020 d02f\nquit\n')
     try:
         subprocess.run(
-            ["x64sc", "-console", "-warp", "-initbreak", sym(stem, breakpoint_sym),
+            ["x64sc", "+easyflashcrtwrite", "-console", "-warp", "-initbreak", sym(stem, breakpoint_sym),
              "-moncommands", "build/m_mon.txt",
              "-cartcrt", str(BUILD / f"{stem}.crt")] + extra_args,
             cwd=ROOT, timeout=timeout,

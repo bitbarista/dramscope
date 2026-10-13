@@ -40,8 +40,12 @@ mk() {   # $1 = -D flags or empty, $2 = output stem, $3 = cart name
   # name field, and cartconv writes "EasyFlash" there when -n is not applied.
   # Twice now a release asset has carried "EasyFlash" instead of "DRAMSCOPE"
   # while the 6502 code was byte-identical -- found only by checksumming the
-  # published file against a fresh build. The cause was never established, so
-  # this checks the RESULT rather than trusting the command.
+  # published file against a fresh build. ⚠ CAUSE FOUND 2026-10-13: VICE
+  # WRITES AN EASYFLASH .crt BACK ON EXIT and does not keep the name field, so
+  # any test or screenshot run renamed build/dramscope.crt to "EasyFlash" with
+  # the ROM data unchanged. Every x64sc call now passes +easyflashcrtwrite and
+  # test/run.sh fails if a .crt changes during the run. This check stays: it
+  # checks the RESULT rather than trusting the command.
   python3 -c "
 import sys
 name = open(sys.argv[1],'rb').read()[32:64].rstrip(b'\0').decode('ascii','replace')

@@ -61,7 +61,7 @@ def run(crt: pathlib.Path, halt: str) -> tuple:
         "quit\n"
     )
     subprocess.run(
-        ["x64sc", "-console", "-warp", "-initbreak", halt,
+        ["x64sc", "+easyflashcrtwrite", "-console", "-warp", "-initbreak", halt,
          "-moncommands", "build/mon.txt", "-cartcrt", str(crt)],
         cwd=ROOT, timeout=180,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
@@ -194,7 +194,7 @@ def vice_border(stem: str, sym: str, resumes: int = 0, limit: int | None = None)
         "x\n" * resumes +
         'bank io\nsave "build/vic.bin" 0 d020 d02f\nquit\n')
     (BUILD / "vic.bin").unlink(missing_ok=True)
-    cmd = ["x64sc", "-console", "-warp"]
+    cmd = ["x64sc", "+easyflashcrtwrite", "-console", "-warp"]
     if limit is not None:
         cmd += ["-limitcycles", str(limit)]
     cmd += ["-initbreak", halt_address(stem, sym),
@@ -505,7 +505,7 @@ def main() -> int:
             (BUILD / f).unlink(missing_ok=True)
         try:
             subprocess.run(
-                ["x64sc", "-console", "-warp",
+                ["x64sc", "+easyflashcrtwrite", "-console", "-warp",
                  "-initbreak", halt_address(stem, "entry"),
                  "-moncommands", "build/mon.txt",
                  "-cartcrt", str(BUILD / f"{stem}.crt")],
@@ -534,7 +534,7 @@ def main() -> int:
     (BUILD / "mon.txt").write_text(
         'x\nbank ram\nsave "build/screen.bin" 0 0400 07ff\nquit\n')
     subprocess.run(
-        ["x64sc", "-console", "-warp", "-initbreak", halt_address("dramscope", "p4"),
+        ["x64sc", "+easyflashcrtwrite", "-console", "-warp", "-initbreak", halt_address("dramscope", "p4"),
          "-moncommands", "build/mon.txt",
          "-cartcrt", str(BUILD / "dramscope.crt")],
         cwd=ROOT, timeout=400,
@@ -606,7 +606,7 @@ def main() -> int:
         (BUILD / "screen.bin").unlink(missing_ok=True)
         try:
             subprocess.run(
-                ["x64sc", "-console", "-warp",
+                ["x64sc", "+easyflashcrtwrite", "-console", "-warp",
                  "-initbreak", halt_address(stem, "pass_obs"),
                  "-moncommands", "build/mon.txt",
                  "-cartcrt", str(BUILD / f"{stem}.crt")],
@@ -645,7 +645,7 @@ def main() -> int:
             'bank io\nsave "build/colour.bin" 0 d800 dbff\n'
             'save "build/vic.bin" 0 d020 d02f\nquit\n')
         subprocess.run(
-            ["x64sc", "-console", "-warp", "-initbreak", halt_address(stem, "pass_obs"),
+            ["x64sc", "+easyflashcrtwrite", "-console", "-warp", "-initbreak", halt_address(stem, "pass_obs"),
              "-moncommands", "build/mon.txt",
              "-cartcrt", str(BUILD / f"{stem}.crt")],
             cwd=ROOT, timeout=400,
