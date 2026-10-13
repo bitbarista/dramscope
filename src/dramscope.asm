@@ -3209,7 +3209,7 @@ s_p9:       !scr "COLOUR RAM", 0
 s_legend:   !scr "64K MAP: "
             !byte CH_FULL
             !scr "=FULL *=LIGHTER X=BAD", 0
-s_ver:      !scr "1.6", 0   ; ⚠ 3 chars at col 35-37: the legend must end by 33
+s_ver:      !scr "1.7", 0   ; ⚠ 3 chars at col 35-37: the legend must end by 33
 ; ⚠ Nothing told the user it never stops, or how to end it.
 
 ; ⚠ Four bytes per entry, space padded, indexed by bit*4. The designators are
