@@ -1,4 +1,4 @@
-DRAMscope 1.7  --  C64 memory diagnostic          updated 2026-10-13
+DRAMscope 1.8  --  C64 memory diagnostic          updated 2026-10-14
 ====================================================================
 
 Free and open source (MIT). If it finds a fault for you, or saves you from

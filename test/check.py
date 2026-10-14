@@ -10,7 +10,9 @@ final border write. The register is the fact; the pixel is a rendering of it.
 ⚠ USES THE REAL COMMODORE ROMS from VICE's own data directory. They are not
 vendored here and must not be. See test/run.sh.
 """
+import itertools
 import re
+import shutil
 import subprocess
 import sys
 import pathlib
@@ -140,6 +142,51 @@ def red_pages(scr) -> int:
     for because it cannot localise within them. Guessing a rule here would
     just be another assertion that agrees with whatever the code does."""
     return sum(1 for p in range(256) if cell(scr, p) == "X")
+
+
+# The spinner turns round the middle of the two status cells: the left cell's
+# right half and the right cell's left half. (code, which cell) -> quadrant.
+SPIN = {(0x7C, 0): "TL", (0x7E, 1): "TR", (0x7B, 1): "BR", (0x6C, 0): "BL"}
+CW = {"TL": "TR", "TR": "BR", "BR": "BL", "BL": "TL"}
+SPIN_EVERY, SPIN_SAMPLES = 10, 150
+
+
+def spin_samples(stem: str) -> list:
+    """The spinner, read back just after tick stores both cells, every
+    SPIN_EVERY ticks. A quadrant per sample, or '?' unless the pair is
+    exactly one quarter block and one space in the status columns."""
+    out = BUILD / "spin"
+    shutil.rmtree(out, ignore_errors=True)
+    out.mkdir()
+    mon = [f"break {halt_address(stem, 'tick_spd')[2:]}"]
+    for i in range(SPIN_SAMPLES):
+        mon += [f"ignore 1 {SPIN_EVERY}", "x", "bank ram",
+                f'save "build/spin/{i:03d}.bin" 0 0400 07ff']
+    (BUILD / "mon.txt").write_text("\n".join(mon + ["quit"]) + "\n")
+    try:
+        subprocess.run(
+            ["x64sc", "+easyflashcrtwrite", "-console", "-warp",
+             "-initbreak", halt_address(stem, "entry"),
+             "-moncommands", "build/mon.txt",
+             "-cartcrt", str(BUILD / f"{stem}.crt")],
+            cwd=ROOT, timeout=400, check=False,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        pass
+    seq = []
+    blocks = {c for c, _ in SPIN}
+    for f in sorted(out.glob("*.bin")):
+        scr = f.read_bytes()[2:]
+        at = [i for i, c in enumerate(scr) if c in blocks]
+        q = "?"
+        if len(at) == 1:
+            i = at[0]
+            side = i % 40 - STAT
+            other = scr[i + 1] if side == 0 else scr[i - 1]
+            if side in (0, 1) and other == 0x20:
+                q = SPIN.get((scr[i], side), "?")
+        seq.append(q)
+    return seq
 
 
 def text(scr: bytes, row: int, c0: int = 0, c1: int = 40) -> str:
@@ -672,6 +719,29 @@ def main() -> int:
         print(f"     {label:14s} pass={got_p} checklist={got_c}"
               f"{'' if ok else f'   <-- *** wanted {want_pass} / {want_cl}'}")
         if not ok:
+            failures += 1
+
+    # ⚠ THE SPINNER'S DIRECTION. 1.7 shipped turning ANTICLOCKWISE while its
+    # comment and release notes said clockwise: the table is indexed by CIA2
+    # timer B, which counts DOWN, and nobody had watched it turn -- Carl did,
+    # in VICE. So watch it: stop just after tick stores the spinner, every
+    # SPIN_EVERY ticks, and read the cell back. ⚠ Each state must last several
+    # samples, or sampling too sparsely could alias a turn into its reverse.
+    print("  spinner -- must turn clockwise, centred on the two status cells")
+    for stem, want_ok, why in (
+            ("dramscope",         True,  "TL TR BR BL"),
+            ("dramscope_fspin",   False, "table in timer order -- must be caught")):
+        seq = spin_samples(stem)
+        runs = [(k, len(list(g))) for k, g in itertools.groupby(seq)]
+        steps = [(a[0], b[0]) for a, b in zip(runs, runs[1:])]
+        got_ok = (len(steps) >= 4 and "?" not in seq
+                  and all(CW[a] == b for a, b in steps)
+                  and min(n for _, n in runs[1:-1]) >= 3)
+        detail = " ".join(f"{k}x{n}" for k, n in runs) or "no samples"
+        mark = "" if got_ok == want_ok else "   <-- ***"
+        print(f"     {stem:18s} {'clockwise' if got_ok else 'NOT CW':9s} {detail}{mark}")
+        print(f"        ({why})")
+        if got_ok != want_ok:
             failures += 1
 
     print()

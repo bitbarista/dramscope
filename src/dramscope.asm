@@ -75,8 +75,8 @@
         !ifndef INJECT_COL { !ifndef INJECT_ONCE {
         !ifndef INJECT_P0A { !ifndef INJECT_NORAM {
         !ifndef INJECT_NOD016 { !ifndef INJECT_NONMI { !ifndef INJECT_NOD015 {
-        !ifndef INJECT_UCSET {
-        !to "build/dramscope_roml.bin", plain } } } } } } } } } } } } } } } } } }
+        !ifndef INJECT_UCSET { !ifndef INJECT_SPINCCW {
+        !to "build/dramscope_roml.bin", plain } } } } } } } } } } } } } } } } } } }
 
 ; ---------------------------------------------------------------- hardware
 BORDER   = $d020
@@ -1323,15 +1323,26 @@ tick:
         ; from crossing it. CIA2 timer B now decrements every ~66 ms
         ; regardless, so bit 3 gives a fixed ~1 Hz pulse and bits 2-1 a ~2 Hz
         ; spinner, whatever the phase is doing.
+        ; ⚠ TWO CELLS, NOT ONE (Carl, 2026-10-14): one quarter block in the
+        ; left cell sat off-centre over the two-cell ".." / "OK" status, so
+        ; the block turns round the MIDDLE of the pair -- the left cell's right
+        ; half and the right cell's left half make one 8x8 square.
+        ; and #$06 is bits 2-1 already doubled: one pair of bytes per state.
         lda CIA2_TBL
-        lsr
-        and #$03
+        and #$06
         tax
+        ldy #0
+tick_sl:
         lda spinchr,x
 tick_sp:
-        sta SCREEN                      ; ⚠ operand patched by ph_begin, so the
+        sta SCREEN,y                    ; ⚠ operand patched by ph_begin, so the
                                         ; spinner turns in the running phase's
-                                        ; own status cell
+                                        ; own status cells
+        inx
+        iny
+        cpy #2
+        bne tick_sl
+tick_spd:                               ; the harness reads the spinner here
         lda CIA2_TBL
         and #$08
         beq tick_on
@@ -3075,11 +3086,24 @@ st_char: !byte CH_DOT,    CH_DASH,  CH_FULL, CH_X,    CH_STAR, CH_STAR
 st_col:  !byte C_DKGREY,  C_YELLOW, C_GREEN, C_LTRED, C_CYAN,  C_GREEN
 bittab:  !byte 1,2,4,8,16,32,64,128
 
-; ⚠ Raw screen codes, not !scr: four quarter blocks, top-left, top-right,
-; bottom-right, bottom-left, so the rotation only reads as rotation in this
-; order. ⚠ Not the old - / | \ line spinner: its diagonals ($4D/$4E) are the
+; ⚠ Raw screen codes, not !scr: quarter blocks, as (left cell, right cell)
+; pairs. The square they turn in is the left cell's right half plus the right
+; cell's left half, so its quadrants are: top-left = left cell $7C, top-right
+; = right cell $7E, bottom-right = right cell $7B, bottom-left = left cell $6C.
+; ⚠ STORED BACKWARDS ON PURPOSE: tick indexes this with CIA2 timer B, which
+; COUNTS DOWN, so the pairs are read 3, 2, 1, 0 -- top-left, top-right,
+; bottom-right, bottom-left, which is CLOCKWISE. 1.7 stored its table forwards
+; and turned anticlockwise (Carl saw it in VICE); 1.6's line spinner turned
+; clockwise (measured, 2026-10-14).
+; ⚠ Not the old - / | \ line spinner: its diagonals ($4D/$4E) are the
 ; letters M and N in the lower/upper case set, which has no diagonal lines.
-spinchr: !byte $7e, $7c, $6c, $7b
+; ⚠ INJECT_SPINCCW stores the pairs in timer order, as 1.7 did, so the spinner
+; check in test/check.py is proven to catch an anticlockwise turn.
+!ifdef INJECT_SPINCCW {
+spinchr: !byte $7c,$20, $20,$7e, $20,$7b, $6c,$20
+} else {
+spinchr: !byte $6c,$20, $20,$7b, $20,$7e, $7c,$20  ; BL BR TR TL, read backwards
+}
 
 ; ⚠ The checklist. One row per phase, in the order they run, so the screen
 ; answers "what has been done to this machine" without anyone reading a manual.
@@ -3209,7 +3233,7 @@ s_p9:       !scr "COLOUR RAM", 0
 s_legend:   !scr "64K MAP: "
             !byte CH_FULL
             !scr "=FULL *=LIGHTER X=BAD", 0
-s_ver:      !scr "1.7", 0   ; ⚠ 3 chars at col 35-37: the legend must end by 33
+s_ver:      !scr "1.8", 0   ; ⚠ 3 chars at col 35-37: the legend must end by 33
 ; ⚠ Nothing told the user it never stops, or how to end it.
 
 ; ⚠ Four bytes per entry, space padded, indexed by bit*4. The designators are

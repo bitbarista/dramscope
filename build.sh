@@ -94,6 +94,8 @@ mk '-DINJECT_NOD015=1' dramscope_fd015 "DS NO D015"
 # ⚠ And the character set: the title is "DRAMscope" only in the lower/upper
 # case set, and the goldens read screen codes, so they cannot see the set.
 mk '-DINJECT_UCSET=1'  dramscope_fucs  "DS UPPER SET"
+# ⚠ And the spinner's direction: 1.7 turned anticlockwise and nothing noticed.
+mk '-DINJECT_SPINCCW=1' dramscope_fspin "DS SPIN CCW"
 
 # ⚠ The three nibble paths, because on a 41464 board four bits are ONE chip.
 # fmem ($01) is already low-nibble-only. These are the other two.
